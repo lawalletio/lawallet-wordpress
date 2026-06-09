@@ -6,7 +6,7 @@ WordPress plugin that routes LNURL and NIP-05 `/.well-known/*` discovery from a 
 
 - Adds a WordPress admin setup page under `Settings -> LaWallet Discovery`.
 - Asks for the LaWallet API gateway endpoint, for example `https://lawallet.example.com`.
-- Verifies the endpoint by checking `/.well-known/nostr.json?name=_`.
+- Verifies the endpoint by checking `/.well-known/lawallet.json?probe=<unique-id>`.
 - Generates a WordPress rewrite rule for `/.well-known/*`.
 - Redirects discovery requests to the configured LaWallet gateway with HTTP `307`.
 
@@ -39,4 +39,3 @@ https://lawallet.example.com/.well-known/nostr.json?name=alice
 ## Development
 
 The plugin is intentionally dependency-free and uses WordPress core APIs only.
-

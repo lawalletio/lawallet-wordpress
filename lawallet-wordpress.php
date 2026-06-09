@@ -283,7 +283,8 @@ final class LaWallet_Discovery_Plugin
             ];
         }
 
-        $url = $endpoint . '/.well-known/nostr.json?name=_';
+        $probe = wp_generate_uuid4();
+        $url = add_query_arg('probe', rawurlencode($probe), $endpoint . '/.well-known/lawallet.json');
         $response = wp_remote_get($url, [
             'timeout' => 8,
             'redirection' => 3,
@@ -302,9 +303,11 @@ final class LaWallet_Discovery_Plugin
 
         $status = (int) wp_remote_retrieve_response_code($response);
         $body = json_decode((string) wp_remote_retrieve_body($response), true);
-        $hasNames = is_array($body) && isset($body['names']) && is_array($body['names']);
+        $isLawallet = is_array($body)
+            && ($body['service'] ?? '') === 'lawallet'
+            && ($body['probe'] ?? '') === $probe;
 
-        if ($status >= 200 && $status < 300 && $hasNames) {
+        if ($status >= 200 && $status < 300 && $isLawallet) {
             return [
                 'ok' => true,
                 'message' => __('LaWallet gateway verified.', 'lawallet-wordpress'),
@@ -315,7 +318,7 @@ final class LaWallet_Discovery_Plugin
             'ok' => false,
             'message' => sprintf(
                 /* translators: %d is the HTTP status code. */
-                __('Endpoint did not look like a LaWallet gateway. NIP-05 check returned HTTP %d.', 'lawallet-wordpress'),
+                __('Endpoint did not return a valid LaWallet probe. Check returned HTTP %d.', 'lawallet-wordpress'),
                 $status
             ),
         ];
