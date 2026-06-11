@@ -1,0 +1,35 @@
+<?php
+/**
+ * Plugin Name: LaWallet - Wordpress
+ * Plugin URI: https://github.com/lawalletio/lawallet-wordpress
+ * Description: Accept Bitcoin Lightning payments in WooCommerce and route Lightning Address/NIP-05 discovery through LaWallet.
+ * Version: 0.1.0
+ * Author: LaWallet
+ * Author URI: https://lawallet.io
+ * License: GPL-3.0-or-later
+ * License URI: https://www.gnu.org/licenses/gpl-3.0.html
+ * Text Domain: lawallet-wordpress
+ * WC requires at least: 8.0
+ * WC tested up to: 10.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'WCLL_VERSION', '0.1.0' );
+define( 'WCLL_PLUGIN_FILE', __FILE__ );
+define( 'WCLL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'WCLL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-nostr.php';
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-lnurl-client.php';
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-rates.php';
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-discovery.php';
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-plugin.php';
+
+register_activation_hook( __FILE__, array( 'WCLL_Plugin', 'activate' ) );
+register_deactivation_hook( __FILE__, array( 'WCLL_Plugin', 'deactivate' ) );
+
+add_action( 'before_woocommerce_init', array( 'WCLL_Plugin', 'declare_woocommerce_features' ) );
+add_action( 'plugins_loaded', array( 'WCLL_Plugin', 'init' ), 11 );
