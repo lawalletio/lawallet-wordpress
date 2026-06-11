@@ -486,10 +486,12 @@ class WCLL_Discovery {
 
 			<div class="lawallet-card">
 				<h2><?php echo esc_html__( 'Lightning Address for your users', 'lawallet-wordpress' ); ?></h2>
-				<p class="lawallet-option-copy">
-					<?php echo esc_html__( 'You should have a LaWallet instance running. This integration redirects LNURL and NIP-05 discovery from this WordPress domain to your LaWallet API gateway.', 'lawallet-wordpress' ); ?>
-					<a href="https://lawallet.io" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Learn more at lawallet.io', 'lawallet-wordpress' ); ?></a>
-				</p>
+				<?php if ( ! $is_connected ) : ?>
+					<p class="lawallet-option-copy">
+						<?php echo esc_html__( 'You should have a LaWallet instance running. This integration redirects LNURL and NIP-05 discovery from this WordPress domain to your LaWallet API gateway.', 'lawallet-wordpress' ); ?>
+						<a href="https://lawallet.io" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Learn more at lawallet.io', 'lawallet-wordpress' ); ?></a>
+					</p>
+				<?php endif; ?>
 
 				<span class="lawallet-status <?php echo esc_attr( $discovery_status ); ?>">
 					<?php
