@@ -16,12 +16,12 @@ class WCLL_Nostr {
 
 	public static function create_zap_request( $recipient_pubkey, $amount_msat, $lnurl, array $relays, $content = '' ) {
 		if ( ! self::can_sign() ) {
-			return new WP_Error( 'wcll_gmp_missing', __( 'PHP GMP extension is required to sign NIP-57 zap requests.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_gmp_missing', __( 'PHP GMP extension is required to sign NIP-57 zap requests.', 'lawallet-lightning-address' ) );
 		}
 
 		$recipient_pubkey = strtolower( trim( $recipient_pubkey ) );
 		if ( ! preg_match( '/^[0-9a-f]{64}$/', $recipient_pubkey ) ) {
-			return new WP_Error( 'wcll_bad_nostr_pubkey', __( 'Lightning Address returned an invalid Nostr public key.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_bad_nostr_pubkey', __( 'Lightning Address returned an invalid Nostr public key.', 'lawallet-lightning-address' ) );
 		}
 
 		$private_key = self::random_private_key();
@@ -63,7 +63,7 @@ class WCLL_Nostr {
 	private static function sign_event( array $event, $private_key_hex ) {
 		$serialized = self::event_serialization( $event );
 		if ( false === $serialized ) {
-			return new WP_Error( 'wcll_event_json_error', __( 'Could not serialize Nostr zap request.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_event_json_error', __( 'Could not serialize Nostr zap request.', 'lawallet-lightning-address' ) );
 		}
 
 		$id  = hash( 'sha256', $serialized );
@@ -107,12 +107,12 @@ class WCLL_Nostr {
 
 		$d = gmp_init( $private_key_hex, 16 );
 		if ( gmp_cmp( $d, 0 ) <= 0 || gmp_cmp( $d, self::$n ) >= 0 ) {
-			return new WP_Error( 'wcll_bad_private_key', __( 'Generated an invalid Nostr private key.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_bad_private_key', __( 'Generated an invalid Nostr private key.', 'lawallet-lightning-address' ) );
 		}
 
 		$point = self::point_mul( $d, array( self::$gx, self::$gy ) );
 		if ( null === $point ) {
-			return new WP_Error( 'wcll_pubkey_failed', __( 'Could not derive Nostr public key.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_pubkey_failed', __( 'Could not derive Nostr public key.', 'lawallet-lightning-address' ) );
 		}
 
 		return self::int_to_hex( $point[0] );
@@ -122,17 +122,17 @@ class WCLL_Nostr {
 		self::init_curve();
 
 		if ( 32 !== strlen( $message ) ) {
-			return new WP_Error( 'wcll_bad_schnorr_message', __( 'Nostr event hash must be 32 bytes.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_bad_schnorr_message', __( 'Nostr event hash must be 32 bytes.', 'lawallet-lightning-address' ) );
 		}
 
 		$d0 = gmp_init( $private_key_hex, 16 );
 		if ( gmp_cmp( $d0, 0 ) <= 0 || gmp_cmp( $d0, self::$n ) >= 0 ) {
-			return new WP_Error( 'wcll_bad_private_key', __( 'Invalid private key for Nostr signing.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_bad_private_key', __( 'Invalid private key for Nostr signing.', 'lawallet-lightning-address' ) );
 		}
 
 		$p = self::point_mul( $d0, array( self::$gx, self::$gy ) );
 		if ( null === $p ) {
-			return new WP_Error( 'wcll_pubkey_failed', __( 'Could not derive public key for Nostr signing.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_pubkey_failed', __( 'Could not derive public key for Nostr signing.', 'lawallet-lightning-address' ) );
 		}
 
 		$d = self::has_even_y( $p ) ? $d0 : gmp_sub( self::$n, $d0 );
@@ -142,12 +142,12 @@ class WCLL_Nostr {
 		$k0  = self::mod( gmp_init( bin2hex( self::tagged_hash( 'BIP0340/nonce', $t . $px . $message ) ), 16 ), self::$n );
 
 		if ( gmp_cmp( $k0, 0 ) === 0 ) {
-			return new WP_Error( 'wcll_nonce_failed', __( 'Generated an invalid nonce for Nostr signing.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_nonce_failed', __( 'Generated an invalid nonce for Nostr signing.', 'lawallet-lightning-address' ) );
 		}
 
 		$r = self::point_mul( $k0, array( self::$gx, self::$gy ) );
 		if ( null === $r ) {
-			return new WP_Error( 'wcll_nonce_point_failed', __( 'Could not derive nonce point for Nostr signing.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_nonce_point_failed', __( 'Could not derive nonce point for Nostr signing.', 'lawallet-lightning-address' ) );
 		}
 
 		$k = self::has_even_y( $r ) ? $k0 : gmp_sub( self::$n, $k0 );

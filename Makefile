@@ -19,4 +19,4 @@ logs:
 	docker compose logs -f wordpress mock-lnurl
 
 php-lint:
-	find woocommerce-lightning-lud21 -name '*.php' -print0 | xargs -0 -n1 php -l
+	find lawallet-lightning-address -name '*.php' -print0 | xargs -0 -n1 php -l

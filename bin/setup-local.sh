@@ -45,7 +45,7 @@ fi
 
 docker compose run --rm wpcli wp core update
 docker compose run --rm wpcli wp plugin install woocommerce --activate --force
-docker compose run --rm wpcli wp plugin activate woocommerce-lightning-lud21
+docker compose run --rm wpcli wp plugin activate lawallet-lightning-address
 
 docker compose run --rm wpcli wp option update blogdescription "LaWallet - Wordpress test store"
 docker compose run --rm wpcli wp option update permalink_structure "/%postname%/"
