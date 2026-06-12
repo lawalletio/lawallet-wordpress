@@ -37,7 +37,7 @@ services:
       - "8080:80"
     volumes:
       - wordpress_data:/var/www/html
-      - ./woocommerce-lightning-lud21:/var/www/html/wp-content/plugins/woocommerce-lightning-lud21
+      - ./lawallet-lightning-address:/var/www/html/wp-content/plugins/lawallet-lightning-address
 
   wpcli:
     image: wordpress:cli-php8.3
@@ -54,7 +54,7 @@ services:
       WORDPRESS_DB_PASSWORD: wordpress
     volumes:
       - wordpress_data:/var/www/html
-      - ./woocommerce-lightning-lud21:/var/www/html/wp-content/plugins/woocommerce-lightning-lud21
+      - ./lawallet-lightning-address:/var/www/html/wp-content/plugins/lawallet-lightning-address
     working_dir: /var/www/html
 
   mock-lnurl:

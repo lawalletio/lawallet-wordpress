@@ -7,8 +7,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCLL_Gateway extends WC_Payment_Gateway {
 	public function __construct() {
 		$this->id                 = 'wcll_gateway';
-		$this->method_title       = __( 'LaWallet - Wordpress', 'lawallet-wordpress' );
-		$this->method_description = __( 'Accept Bitcoin Lightning payments through a Lightning Address with LUD-21 settlement verification, and configure LaWallet discovery from the main settings page.', 'lawallet-wordpress' );
+		$this->method_title       = __( 'LaWallet - Lightning Address', 'lawallet-lightning-address' );
+		$this->method_description = __( 'Accept Bitcoin Lightning payments through a Lightning Address with LUD-21 settlement verification, and configure LaWallet discovery from the main settings page.', 'lawallet-lightning-address' );
 		$this->has_fields         = false;
 		$this->supports           = array( 'products' );
 
@@ -16,8 +16,8 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$this->init_settings();
 
 		$this->enabled     = $this->get_option( 'enabled', 'yes' );
-		$this->title       = $this->get_option( 'title', __( 'LaWallet Lightning', 'lawallet-wordpress' ) );
-		$this->description = $this->get_option( 'description', __( 'Pay instantly with a Bitcoin Lightning wallet.', 'lawallet-wordpress' ) );
+		$this->title       = $this->get_option( 'title', __( 'LaWallet Lightning', 'lawallet-lightning-address' ) );
+		$this->description = $this->get_option( 'description', __( 'Pay instantly with a Bitcoin Lightning wallet.', 'lawallet-lightning-address' ) );
 
 		add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 	}
@@ -25,33 +25,33 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	public function init_form_fields() {
 		$this->form_fields = array(
 			'enabled'               => array(
-				'title'   => __( 'Enable/Disable', 'lawallet-wordpress' ),
+				'title'   => __( 'Enable/Disable', 'lawallet-lightning-address' ),
 				'type'    => 'checkbox',
-				'label'   => __( 'Enable Bitcoin Lightning payments', 'lawallet-wordpress' ),
+				'label'   => __( 'Enable Bitcoin Lightning payments', 'lawallet-lightning-address' ),
 				'default' => 'yes',
 			),
 			'lightning_address'     => array(
-				'title'       => __( 'Lightning Address', 'lawallet-wordpress' ),
+				'title'       => __( 'Lightning Address', 'lawallet-lightning-address' ),
 				'type'        => 'text',
-				'description' => __( 'Merchant Lightning Address. It must support LNURL-pay and LUD-21 verify.', 'lawallet-wordpress' ),
+				'description' => __( 'Merchant Lightning Address. It must support LNURL-pay and LUD-21 verify.', 'lawallet-lightning-address' ),
 				'placeholder' => 'merchant@example.com',
 				'default'     => '',
 				'desc_tip'    => true,
 			),
 			'title'                 => array(
-				'title'       => __( 'Checkout title', 'lawallet-wordpress' ),
+				'title'       => __( 'Checkout title', 'lawallet-lightning-address' ),
 				'type'        => 'text',
-				'description' => __( 'Payment method name shown to customers.', 'lawallet-wordpress' ),
-				'default'     => __( 'LaWallet Lightning', 'lawallet-wordpress' ),
+				'description' => __( 'Payment method name shown to customers.', 'lawallet-lightning-address' ),
+				'default'     => __( 'LaWallet Lightning', 'lawallet-lightning-address' ),
 				'desc_tip'    => true,
 			),
 			'description'           => array(
-				'title'   => __( 'Checkout description', 'lawallet-wordpress' ),
+				'title'   => __( 'Checkout description', 'lawallet-lightning-address' ),
 				'type'    => 'textarea',
-				'default' => __( 'Scan a Lightning invoice QR code or open it in your Lightning wallet.', 'lawallet-wordpress' ),
+				'default' => __( 'Scan a Lightning invoice QR code or open it in your Lightning wallet.', 'lawallet-lightning-address' ),
 			),
 			'invoice_expiry_minutes' => array(
-				'title'             => __( 'Invoice expiry minutes', 'lawallet-wordpress' ),
+				'title'             => __( 'Invoice expiry minutes', 'lawallet-lightning-address' ),
 				'type'              => 'number',
 				'default'           => 30,
 				'custom_attributes' => array(
@@ -60,21 +60,21 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				),
 			),
 			'nostr_relays'          => array(
-				'title'       => __( 'NIP-57 relay URLs', 'lawallet-wordpress' ),
+				'title'       => __( 'NIP-57 relay URLs', 'lawallet-lightning-address' ),
 				'type'        => 'textarea',
-				'description' => __( 'Optional relay URLs used to listen for zap receipts. One URL per line.', 'lawallet-wordpress' ),
+				'description' => __( 'Optional relay URLs used to listen for zap receipts. One URL per line.', 'lawallet-lightning-address' ),
 				'default'     => "wss://relay.damus.io\nwss://relay.primal.net",
 				'desc_tip'    => true,
 			),
 			'manual_sats_per_unit'  => array(
-				'title'       => __( 'Manual sats per currency unit', 'lawallet-wordpress' ),
+				'title'       => __( 'Manual sats per currency unit', 'lawallet-lightning-address' ),
 				'type'        => 'text',
-				'description' => __( 'Optional. Leave blank to use Yadio BTC exchange rates for fiat currencies.', 'lawallet-wordpress' ),
+				'description' => __( 'Optional. Leave blank to use Yadio BTC exchange rates for fiat currencies.', 'lawallet-lightning-address' ),
 				'default'     => '',
 				'desc_tip'    => true,
 			),
 			'price_buffer_percent'  => array(
-				'title'             => __( 'Price buffer percent', 'lawallet-wordpress' ),
+				'title'             => __( 'Price buffer percent', 'lawallet-lightning-address' ),
 				'type'              => 'number',
 				'default'           => 0,
 				'custom_attributes' => array(
@@ -83,19 +83,20 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				),
 			),
 			'allow_insecure_http'   => array(
-				'title'       => __( 'Local development HTTP', 'lawallet-wordpress' ),
+				'title'       => __( 'Local development HTTP', 'lawallet-lightning-address' ),
 				'type'        => 'checkbox',
-				'label'       => __( 'Allow HTTP Lightning Address endpoints for local development', 'lawallet-wordpress' ),
-				'description' => __( 'Keep this disabled in production.', 'lawallet-wordpress' ),
+				'label'       => __( 'Allow HTTP Lightning Address endpoints for local development', 'lawallet-lightning-address' ),
+				'description' => __( 'Keep this disabled in production.', 'lawallet-lightning-address' ),
 				'default'     => 'no',
 			),
 		);
 	}
 
 	public function admin_options() {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flag that only toggles an onboarding notice for admins.
 		if ( isset( $_GET['wcll_setup'] ) ) {
-			echo '<div class="notice notice-info inline"><p><strong>' . esc_html__( 'Set your Lightning Address to start accepting Lightning payments.', 'lawallet-wordpress' ) . '</strong> ';
-			echo esc_html__( 'Saving this page will create a test invoice and require a LUD-21 verify URL.', 'lawallet-wordpress' ) . '</p></div>';
+			echo '<div class="notice notice-info inline"><p><strong>' . esc_html__( 'Set your Lightning Address to start accepting Lightning payments.', 'lawallet-lightning-address' ) . '</strong> ';
+			echo esc_html__( 'Saving this page will create a test invoice and require a LUD-21 verify URL.', 'lawallet-lightning-address' ) . '</p></div>';
 		}
 
 		parent::admin_options();
@@ -114,7 +115,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$value = trim( strtolower( sanitize_text_field( $value ) ) );
 
 		if ( '' !== $value && ! preg_match( '/^[^@\s]+@[^@\s]+$/', $value ) ) {
-			WC_Admin_Settings::add_error( __( 'Lightning Address must look like name@example.com.', 'lawallet-wordpress' ) );
+			WC_Admin_Settings::add_error( __( 'Lightning Address must look like name@example.com.', 'lawallet-lightning-address' ) );
 			return '';
 		}
 
@@ -130,7 +131,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 
 		$number = (float) $value;
 		if ( $number <= 0 ) {
-			WC_Admin_Settings::add_error( __( 'Manual sats per currency unit must be greater than zero.', 'lawallet-wordpress' ) );
+			WC_Admin_Settings::add_error( __( 'Manual sats per currency unit must be greater than zero.', 'lawallet-lightning-address' ) );
 			return '';
 		}
 
@@ -159,27 +160,27 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	public function process_payment( $order_id ) {
 		$order = wc_get_order( $order_id );
 		if ( ! $order ) {
-			wc_add_notice( __( 'Payment error: order could not be loaded.', 'lawallet-wordpress' ), 'error' );
+			wc_add_notice( __( 'Payment error: order could not be loaded.', 'lawallet-lightning-address' ), 'error' );
 			return array( 'result' => 'failure' );
 		}
 
 		$settings = self::get_gateway_settings();
 		$address  = isset( $settings['lightning_address'] ) ? $settings['lightning_address'] : '';
 		if ( empty( $address ) ) {
-			wc_add_notice( __( 'Payment error: merchant Lightning Address is not configured.', 'lawallet-wordpress' ), 'error' );
+			wc_add_notice( __( 'Payment error: merchant Lightning Address is not configured.', 'lawallet-lightning-address' ), 'error' );
 			return array( 'result' => 'failure' );
 		}
 
 		$amount_msat = WCLL_Rates::order_amount_to_msat( $order, $settings );
 		if ( is_wp_error( $amount_msat ) ) {
-			wc_add_notice( __( 'Payment error:', 'lawallet-wordpress' ) . ' ' . $amount_msat->get_error_message(), 'error' );
+			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $amount_msat->get_error_message(), 'error' );
 			return array( 'result' => 'failure' );
 		}
 
 		$client      = new WCLL_LNURL_Client( $settings );
 		$pay_request = $client->resolve_lightning_address( $address );
 		if ( is_wp_error( $pay_request ) ) {
-			wc_add_notice( __( 'Payment error:', 'lawallet-wordpress' ) . ' ' . $pay_request->get_error_message(), 'error' );
+			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $pay_request->get_error_message(), 'error' );
 			return array( 'result' => 'failure' );
 		}
 
@@ -193,7 +194,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		);
 
 		if ( is_wp_error( $invoice ) ) {
-			wc_add_notice( __( 'Payment error:', 'lawallet-wordpress' ) . ' ' . $invoice->get_error_message(), 'error' );
+			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $invoice->get_error_message(), 'error' );
 			return array( 'result' => 'failure' );
 		}
 
@@ -216,7 +217,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		}
 
 		$order->save();
-		$order->update_status( 'pending', __( 'Awaiting Bitcoin Lightning payment.', 'lawallet-wordpress' ) );
+		$order->update_status( 'pending', __( 'Awaiting Bitcoin Lightning payment.', 'lawallet-lightning-address' ) );
 
 		if ( WC()->cart ) {
 			WC()->cart->empty_cart();
@@ -241,7 +242,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			$this->save_connection_status(
 				array(
 					'lud21_verified' => 'no',
-					'status_message' => __( 'Lightning Address is required.', 'lawallet-wordpress' ),
+					'status_message' => __( 'Lightning Address is required.', 'lawallet-lightning-address' ),
 				)
 			);
 			return;
@@ -268,11 +269,11 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'verified_at'    => gmdate( 'c' ),
 				'allows_nostr'   => ! empty( $pay_request['allowsNostr'] ) ? 'yes' : 'no',
 				'nostr_pubkey'   => ! empty( $pay_request['nostrPubkey'] ) ? sanitize_text_field( $pay_request['nostrPubkey'] ) : '',
-				'status_message' => __( 'Lightning Address supports LUD-21 verification.', 'lawallet-wordpress' ),
+				'status_message' => __( 'Lightning Address supports LUD-21 verification.', 'lawallet-lightning-address' ),
 			)
 		);
 
-		WC_Admin_Settings::add_message( __( 'Lightning Address verified with LUD-21.', 'lawallet-wordpress' ) );
+		WC_Admin_Settings::add_message( __( 'Lightning Address verified with LUD-21.', 'lawallet-lightning-address' ) );
 	}
 
 	private function save_connection_status( array $values ) {
@@ -286,18 +287,20 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	private function render_connection_status() {
 		$settings = self::get_gateway_settings();
 		$verified = isset( $settings['lud21_verified'] ) && 'yes' === $settings['lud21_verified'];
-		$message  = ! empty( $settings['status_message'] ) ? $settings['status_message'] : __( 'No Lightning Address has been checked yet.', 'lawallet-wordpress' );
+		$message  = ! empty( $settings['status_message'] ) ? $settings['status_message'] : __( 'No Lightning Address has been checked yet.', 'lawallet-lightning-address' );
 
-		echo '<h2>' . esc_html__( 'Connection status', 'lawallet-wordpress' ) . '</h2>';
+		echo '<h2>' . esc_html__( 'Connection status', 'lawallet-lightning-address' ) . '</h2>';
 		echo '<table class="form-table" role="presentation"><tbody>';
-		echo '<tr><th scope="row">' . esc_html__( 'LUD-21 verify', 'lawallet-wordpress' ) . '</th><td>';
-		echo $verified ? '<mark class="yes">' . esc_html__( 'Verified', 'lawallet-wordpress' ) . '</mark>' : '<mark class="error">' . esc_html__( 'Not verified', 'lawallet-wordpress' ) . '</mark>';
+		echo '<tr><th scope="row">' . esc_html__( 'LUD-21 verify', 'lawallet-lightning-address' ) . '</th><td>';
+		echo $verified ? '<mark class="yes">' . esc_html__( 'Verified', 'lawallet-lightning-address' ) . '</mark>' : '<mark class="error">' . esc_html__( 'Not verified', 'lawallet-lightning-address' ) . '</mark>';
 		echo '<p class="description">' . esc_html( $message ) . '</p>';
 		if ( ! empty( $settings['verified_at'] ) ) {
-			echo '<p class="description">' . esc_html( sprintf( __( 'Last checked: %s', 'lawallet-wordpress' ), $settings['verified_at'] ) ) . '</p>';
+			/* translators: %s: date and time of the last Lightning Address verification. */
+			$last_checked = sprintf( __( 'Last checked: %s', 'lawallet-lightning-address' ), $settings['verified_at'] );
+			echo '<p class="description">' . esc_html( $last_checked ) . '</p>';
 		}
 		if ( ! empty( $settings['allows_nostr'] ) && 'yes' === $settings['allows_nostr'] ) {
-			echo '<p class="description">' . esc_html__( 'NIP-57 receipts are available for fast checkout detection.', 'lawallet-wordpress' ) . '</p>';
+			echo '<p class="description">' . esc_html__( 'NIP-57 receipts are available for fast checkout detection.', 'lawallet-lightning-address' ) . '</p>';
 		}
 		echo '</td></tr></tbody></table>';
 	}

@@ -14,7 +14,7 @@ class WCLL_LNURL_Client {
 	public function resolve_lightning_address( $address ) {
 		$address = trim( strtolower( (string) $address ) );
 		if ( ! preg_match( '/^([^@\s]+)@([^@\s]+)$/', $address, $matches ) ) {
-			return new WP_Error( 'wcll_invalid_lightning_address', __( 'Enter a Lightning Address like name@example.com.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_invalid_lightning_address', __( 'Enter a Lightning Address like name@example.com.', 'lawallet-lightning-address' ) );
 		}
 
 		$name   = rawurlencode( $matches[1] );
@@ -47,7 +47,7 @@ class WCLL_LNURL_Client {
 
 		$amount_msat = max( 1000, (int) $pay_request['minSendable'] );
 		if ( $amount_msat > (int) $pay_request['maxSendable'] ) {
-			return new WP_Error( 'wcll_amount_out_of_range', __( 'The Lightning Address minimum amount is higher than its maximum amount.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_amount_out_of_range', __( 'The Lightning Address minimum amount is higher than its maximum amount.', 'lawallet-lightning-address' ) );
 		}
 
 		$invoice = $this->request_invoice(
@@ -64,7 +64,7 @@ class WCLL_LNURL_Client {
 		}
 
 		if ( empty( $invoice['verify'] ) ) {
-			return new WP_Error( 'wcll_lud21_missing', __( 'This Lightning Address can create invoices, but the callback did not return a LUD-21 verify URL.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_lud21_missing', __( 'This Lightning Address can create invoices, but the callback did not return a LUD-21 verify URL.', 'lawallet-lightning-address' ) );
 		}
 
 		return array(
@@ -76,7 +76,7 @@ class WCLL_LNURL_Client {
 	public function request_invoice( array $pay_request, $amount_msat, array $context = array() ) {
 		$amount_msat = (int) $amount_msat;
 		if ( $amount_msat < (int) $pay_request['minSendable'] || $amount_msat > (int) $pay_request['maxSendable'] ) {
-			return new WP_Error( 'wcll_amount_out_of_range', __( 'Order amount is outside the Lightning Address sendable range.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_amount_out_of_range', __( 'Order amount is outside the Lightning Address sendable range.', 'lawallet-lightning-address' ) );
 		}
 
 		$params = array(
@@ -99,16 +99,16 @@ class WCLL_LNURL_Client {
 		}
 
 		if ( ! empty( $response['status'] ) && 'ERROR' === strtoupper( (string) $response['status'] ) ) {
-			$reason = ! empty( $response['reason'] ) ? $response['reason'] : __( 'LNURL callback returned an error.', 'lawallet-wordpress' );
+			$reason = ! empty( $response['reason'] ) ? $response['reason'] : __( 'LNURL callback returned an error.', 'lawallet-lightning-address' );
 			return new WP_Error( 'wcll_callback_error', sanitize_text_field( $reason ) );
 		}
 
 		if ( empty( $response['pr'] ) || ! is_string( $response['pr'] ) ) {
-			return new WP_Error( 'wcll_invoice_missing', __( 'LNURL callback did not return a Lightning invoice.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_invoice_missing', __( 'LNURL callback did not return a Lightning invoice.', 'lawallet-lightning-address' ) );
 		}
 
 		if ( empty( $response['verify'] ) || ! is_string( $response['verify'] ) ) {
-			return new WP_Error( 'wcll_verify_missing', __( 'LNURL callback did not return the required LUD-21 verify URL.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_verify_missing', __( 'LNURL callback did not return the required LUD-21 verify URL.', 'lawallet-lightning-address' ) );
 		}
 
 		$response['nostr'] = is_wp_error( $nostr ) ? array( 'error' => $nostr->get_error_message() ) : $nostr;
@@ -122,12 +122,12 @@ class WCLL_LNURL_Client {
 		}
 
 		if ( ! empty( $payload['status'] ) && 'ERROR' === strtoupper( (string) $payload['status'] ) ) {
-			$reason = ! empty( $payload['reason'] ) ? $payload['reason'] : __( 'LUD-21 verification failed.', 'lawallet-wordpress' );
+			$reason = ! empty( $payload['reason'] ) ? $payload['reason'] : __( 'LUD-21 verification failed.', 'lawallet-lightning-address' );
 			return new WP_Error( 'wcll_verify_error', sanitize_text_field( $reason ) );
 		}
 
 		if ( isset( $payload['pr'] ) && is_string( $payload['pr'] ) && ! hash_equals( $invoice, $payload['pr'] ) ) {
-			return new WP_Error( 'wcll_verify_invoice_mismatch', __( 'LUD-21 verification returned a different invoice.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_verify_invoice_mismatch', __( 'LUD-21 verification returned a different invoice.', 'lawallet-lightning-address' ) );
 		}
 
 		return array(
@@ -167,7 +167,7 @@ class WCLL_LNURL_Client {
 
 	private function validate_pay_request( array $payload ) {
 		if ( ! empty( $payload['status'] ) && 'ERROR' === strtoupper( (string) $payload['status'] ) ) {
-			$reason = ! empty( $payload['reason'] ) ? $payload['reason'] : __( 'Lightning Address returned an error.', 'lawallet-wordpress' );
+			$reason = ! empty( $payload['reason'] ) ? $payload['reason'] : __( 'Lightning Address returned an error.', 'lawallet-lightning-address' );
 			return new WP_Error( 'wcll_pay_request_error', sanitize_text_field( $reason ) );
 		}
 
@@ -178,15 +178,15 @@ class WCLL_LNURL_Client {
 		}
 
 		if ( 'payRequest' !== $payload['tag'] ) {
-			return new WP_Error( 'wcll_not_pay_request', __( 'Lightning Address did not return an LNURL-pay request.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_not_pay_request', __( 'Lightning Address did not return an LNURL-pay request.', 'lawallet-lightning-address' ) );
 		}
 
 		if ( (int) $payload['minSendable'] < 1 || (int) $payload['maxSendable'] < (int) $payload['minSendable'] ) {
-			return new WP_Error( 'wcll_range_invalid', __( 'Lightning Address returned an invalid sendable range.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_range_invalid', __( 'Lightning Address returned an invalid sendable range.', 'lawallet-lightning-address' ) );
 		}
 
 		if ( empty( $payload['callback'] ) || ! $this->is_valid_service_url( $payload['callback'] ) ) {
-			return new WP_Error( 'wcll_callback_invalid', __( 'Lightning Address returned an invalid callback URL.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_callback_invalid', __( 'Lightning Address returned an invalid callback URL.', 'lawallet-lightning-address' ) );
 		}
 
 		return true;
@@ -198,7 +198,7 @@ class WCLL_LNURL_Client {
 		}
 
 		if ( ! WCLL_Nostr::can_sign() ) {
-			return new WP_Error( 'wcll_nostr_unavailable', __( 'NIP-57 signing needs the PHP GMP extension.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_nostr_unavailable', __( 'NIP-57 signing needs the PHP GMP extension.', 'lawallet-lightning-address' ) );
 		}
 
 		$relays = self::parse_relays( isset( $this->settings['nostr_relays'] ) ? $this->settings['nostr_relays'] : '' );
@@ -241,7 +241,7 @@ class WCLL_LNURL_Client {
 		$body = wp_remote_retrieve_body( $response );
 		$data = json_decode( $body, true );
 		if ( ! is_array( $data ) ) {
-			return new WP_Error( 'wcll_bad_json', __( 'Lightning service returned invalid JSON.', 'lawallet-wordpress' ) );
+			return new WP_Error( 'wcll_bad_json', __( 'Lightning service returned invalid JSON.', 'lawallet-lightning-address' ) );
 		}
 
 		return $data;

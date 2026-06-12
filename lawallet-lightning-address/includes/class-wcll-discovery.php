@@ -37,10 +37,10 @@ class WCLL_Discovery {
 
 	public static function register_admin_page() {
 		add_options_page(
-			__( 'LaWallet - Wordpress', 'lawallet-wordpress' ),
-			__( 'LaWallet', 'lawallet-wordpress' ),
+			__( 'LaWallet - Lightning Address', 'lawallet-lightning-address' ),
+			__( 'LaWallet', 'lawallet-lightning-address' ),
 			'manage_options',
-			'lawallet-wordpress',
+			'lawallet-lightning-address',
 			array( __CLASS__, 'render_admin_page' )
 		);
 	}
@@ -64,8 +64,8 @@ class WCLL_Discovery {
 		if ( '' === $endpoint ) {
 			status_header( 503 );
 			wp_die(
-				esc_html__( 'LaWallet gateway endpoint is not configured.', 'lawallet-wordpress' ),
-				esc_html__( 'LaWallet - Wordpress', 'lawallet-wordpress' ),
+				esc_html__( 'LaWallet gateway endpoint is not configured.', 'lawallet-lightning-address' ),
+				esc_html__( 'LaWallet - Lightning Address', 'lawallet-lightning-address' ),
 				array( 'response' => 503 )
 			);
 		}
@@ -76,7 +76,18 @@ class WCLL_Discovery {
 			$target .= '?' . $query;
 		}
 
-		wp_redirect( esc_url_raw( $target ), 307 );
+		$redirect_host = wp_parse_url( $target, PHP_URL_HOST );
+		if ( $redirect_host ) {
+			add_filter(
+				'allowed_redirect_hosts',
+				static function ( $hosts ) use ( $redirect_host ) {
+					$hosts[] = $redirect_host;
+					return array_unique( $hosts );
+				}
+			);
+		}
+
+		wp_safe_redirect( esc_url_raw( $target ), 307 );
 		exit;
 	}
 
@@ -86,7 +97,7 @@ class WCLL_Discovery {
 		}
 
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You are not allowed to update LaWallet settings.', 'lawallet-wordpress' ) );
+			wp_die( esc_html__( 'You are not allowed to update LaWallet settings.', 'lawallet-lightning-address' ) );
 		}
 
 		check_admin_referer( self::NONCE_ACTION );
@@ -101,12 +112,12 @@ class WCLL_Discovery {
 			exit;
 		}
 
-		$endpoint = isset( $_POST['lawallet_gateway_endpoint'] ) ? self::normalize_endpoint( wp_unslash( $_POST['lawallet_gateway_endpoint'] ) ) : '';
+		$endpoint = isset( $_POST['lawallet_gateway_endpoint'] ) ? self::normalize_endpoint( sanitize_text_field( wp_unslash( $_POST['lawallet_gateway_endpoint'] ) ) ) : '';
 
 		update_option( self::OPTION_ENABLED, 'no' );
 
 		if ( '' === $endpoint ) {
-			update_option( self::OPTION_LAST_ERROR, __( 'Enter a valid http(s) LaWallet gateway endpoint before connecting.', 'lawallet-wordpress' ) );
+			update_option( self::OPTION_LAST_ERROR, __( 'Enter a valid http(s) LaWallet gateway endpoint before connecting.', 'lawallet-lightning-address' ) );
 			delete_option( self::OPTION_SETTINGS );
 			delete_option( self::OPTION_VERIFIED_AT );
 			wp_safe_redirect( self::admin_url() );
@@ -135,7 +146,7 @@ class WCLL_Discovery {
 
 	public static function handle_verify_request() {
 		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'You are not allowed to verify LaWallet settings.', 'lawallet-wordpress' ) );
+			wp_die( esc_html__( 'You are not allowed to verify LaWallet settings.', 'lawallet-lightning-address' ) );
 		}
 
 		check_admin_referer( self::VERIFY_ACTION );
@@ -160,20 +171,20 @@ class WCLL_Discovery {
 	public static function handle_ajax_check_endpoint() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error(
-				array( 'message' => __( 'You are not allowed to verify LaWallet settings.', 'lawallet-wordpress' ) ),
+				array( 'message' => __( 'You are not allowed to verify LaWallet settings.', 'lawallet-lightning-address' ) ),
 				403
 			);
 		}
 
 		check_ajax_referer( self::CHECK_ACTION, 'nonce' );
 
-		$endpoint = isset( $_POST['endpoint'] ) ? self::normalize_endpoint( wp_unslash( $_POST['endpoint'] ) ) : '';
+		$endpoint = isset( $_POST['endpoint'] ) ? self::normalize_endpoint( sanitize_text_field( wp_unslash( $_POST['endpoint'] ) ) ) : '';
 		if ( '' === $endpoint ) {
 			wp_send_json_success(
 				array(
 					'ok'       => false,
 					'endpoint' => '',
-					'message'  => __( 'Enter a valid http(s) LaWallet gateway endpoint.', 'lawallet-wordpress' ),
+					'message'  => __( 'Enter a valid http(s) LaWallet gateway endpoint.', 'lawallet-lightning-address' ),
 				)
 			);
 		}
@@ -183,7 +194,7 @@ class WCLL_Discovery {
 			array(
 				'ok'       => (bool) $result['ok'],
 				'endpoint' => $endpoint,
-				'message'  => $result['ok'] ? __( 'LaWallet instance found.', 'lawallet-wordpress' ) : $result['message'],
+				'message'  => $result['ok'] ? __( 'LaWallet instance found.', 'lawallet-lightning-address' ) : $result['message'],
 				'settings' => ! empty( $result['settings'] ) ? $result['settings'] : array(),
 				'instance' => ! empty( $result['settings'] ) ? self::normalize_server_settings( $result['settings'], $endpoint ) : array(),
 			)
@@ -213,7 +224,7 @@ class WCLL_Discovery {
 		$discovery_status      = $is_connected ? 'ready' : ( $last_error ? 'error' : 'pending' );
 		$check_state           = $is_connected ? 'ready' : ( $last_error ? 'error' : 'pending' );
 		$check_icon            = 'ready' === $check_state ? 'dashicons-yes-alt' : ( 'error' === $check_state ? 'dashicons-warning' : 'dashicons-minus' );
-		$check_label           = 'ready' === $check_state ? __( 'LaWallet instance connected', 'lawallet-wordpress' ) : ( 'error' === $check_state ? __( 'Verification failed', 'lawallet-wordpress' ) : __( 'Waiting for endpoint', 'lawallet-wordpress' ) );
+		$check_label           = 'ready' === $check_state ? __( 'LaWallet instance connected', 'lawallet-lightning-address' ) : ( 'error' === $check_state ? __( 'Verification failed', 'lawallet-lightning-address' ) : __( 'Waiting for endpoint', 'lawallet-lightning-address' ) );
 		$connect_disabled      = 'ready' !== $check_state;
 		$cover_styles          = array();
 		if ( ! empty( $instance['theme'] ) ) {
@@ -443,64 +454,64 @@ class WCLL_Discovery {
 				}
 			</style>
 
-			<h1><?php echo esc_html__( 'LaWallet - Wordpress', 'lawallet-wordpress' ); ?></h1>
+			<h1><?php echo esc_html__( 'LaWallet - Lightning Address', 'lawallet-lightning-address' ); ?></h1>
 
 			<div class="lawallet-card">
-				<h2><?php echo esc_html__( 'WooCommerce Lightning payments', 'lawallet-wordpress' ); ?></h2>
+				<h2><?php echo esc_html__( 'WooCommerce Lightning payments', 'lawallet-lightning-address' ); ?></h2>
 				<?php if ( $woocommerce_active ) : ?>
-					<p><?php echo esc_html__( 'Accept checkout payments with a merchant Lightning Address. Orders are completed only after the backend verifies LUD-21 settlement.', 'lawallet-wordpress' ); ?></p>
+					<p><?php echo esc_html__( 'Accept checkout payments with a merchant Lightning Address. Orders are completed only after the backend verifies LUD-21 settlement.', 'lawallet-lightning-address' ); ?></p>
 					<span class="lawallet-status <?php echo 'yes' === $payment_status ? 'ready' : 'pending'; ?>">
 						<?php
 						if ( $payment_address ) {
 							printf(
 								/* translators: %s is a Lightning Address. */
-								esc_html__( 'Payment Lightning Address: %s', 'lawallet-wordpress' ),
+								esc_html__( 'Payment Lightning Address: %s', 'lawallet-lightning-address' ),
 								esc_html( $payment_address )
 							);
 						} else {
-							echo esc_html__( 'Payment Lightning Address is not configured', 'lawallet-wordpress' );
+							echo esc_html__( 'Payment Lightning Address is not configured', 'lawallet-lightning-address' );
 						}
 						?>
 					</span>
 					<p>
 						<a class="button button-primary" href="<?php echo esc_url( $gateway_url ); ?>">
-							<?php echo esc_html__( 'Configure WooCommerce payments', 'lawallet-wordpress' ); ?>
+							<?php echo esc_html__( 'Configure WooCommerce payments', 'lawallet-lightning-address' ); ?>
 						</a>
 					</p>
 				<?php elseif ( $woocommerce_installed ) : ?>
-					<p><?php echo esc_html__( 'WooCommerce is installed but inactive. Activate WooCommerce to enable Lightning checkout payments.', 'lawallet-wordpress' ); ?></p>
+					<p><?php echo esc_html__( 'WooCommerce is installed but inactive. Activate WooCommerce to enable Lightning checkout payments.', 'lawallet-lightning-address' ); ?></p>
 					<p>
 						<a class="button button-primary" href="<?php echo esc_url( self::woocommerce_plugins_url() ); ?>">
-							<?php echo esc_html__( 'Open plugins', 'lawallet-wordpress' ); ?>
+							<?php echo esc_html__( 'Open plugins', 'lawallet-lightning-address' ); ?>
 						</a>
 					</p>
 				<?php else : ?>
-					<p><?php echo esc_html__( 'WooCommerce is required to accept checkout payments. Install WooCommerce from WordPress to enable this payment gateway.', 'lawallet-wordpress' ); ?></p>
+					<p><?php echo esc_html__( 'WooCommerce is required to accept checkout payments. Install WooCommerce from WordPress to enable this payment gateway.', 'lawallet-lightning-address' ); ?></p>
 					<p>
 						<a class="button button-primary" href="<?php echo esc_url( self::woocommerce_install_url() ); ?>">
-							<?php echo esc_html__( 'Install WooCommerce', 'lawallet-wordpress' ); ?>
+							<?php echo esc_html__( 'Install WooCommerce', 'lawallet-lightning-address' ); ?>
 						</a>
 					</p>
 				<?php endif; ?>
 			</div>
 
 			<div class="lawallet-card">
-				<h2><?php echo esc_html__( 'Lightning Address for your users', 'lawallet-wordpress' ); ?></h2>
+				<h2><?php echo esc_html__( 'Lightning Address for your users', 'lawallet-lightning-address' ); ?></h2>
 				<?php if ( ! $is_connected ) : ?>
 					<p class="lawallet-option-copy">
-						<?php echo esc_html__( 'You should have a LaWallet instance running. This integration redirects LNURL and NIP-05 discovery from this WordPress domain to your LaWallet API gateway.', 'lawallet-wordpress' ); ?>
-						<a href="https://lawallet.io" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Learn more at lawallet.io', 'lawallet-wordpress' ); ?></a>
+						<?php echo esc_html__( 'You should have a LaWallet instance running. This integration redirects LNURL and NIP-05 discovery from this WordPress domain to your LaWallet API gateway.', 'lawallet-lightning-address' ); ?>
+						<a href="https://lawallet.io" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Learn more at lawallet.io', 'lawallet-lightning-address' ); ?></a>
 					</p>
 				<?php endif; ?>
 
 				<span class="lawallet-status <?php echo esc_attr( $discovery_status ); ?>">
 					<?php
 					if ( $is_connected ) {
-						echo esc_html__( 'Connected', 'lawallet-wordpress' );
+						echo esc_html__( 'Connected', 'lawallet-lightning-address' );
 					} elseif ( $last_error ) {
-						echo esc_html__( 'Could not connect', 'lawallet-wordpress' );
+						echo esc_html__( 'Could not connect', 'lawallet-lightning-address' );
 					} else {
-						echo esc_html__( 'Not connected', 'lawallet-wordpress' );
+						echo esc_html__( 'Not connected', 'lawallet-lightning-address' );
 					}
 					?>
 				</span>
@@ -564,14 +575,14 @@ class WCLL_Discovery {
 								name="lawallet_disconnect_submit"
 								value="1"
 								class="button lawallet-submit-button"
-								data-lawallet-submitting-text="<?php echo esc_attr__( 'Disconnecting', 'lawallet-wordpress' ); ?>"
+								data-lawallet-submitting-text="<?php echo esc_attr__( 'Disconnecting', 'lawallet-lightning-address' ); ?>"
 							>
-								<?php echo esc_html__( 'Disconnect', 'lawallet-wordpress' ); ?>
+								<?php echo esc_html__( 'Disconnect', 'lawallet-lightning-address' ); ?>
 							</button>
 						</div>
 					</form>
 
-					<h3><?php echo esc_html__( 'Generated discovery redirect', 'lawallet-wordpress' ); ?></h3>
+					<h3><?php echo esc_html__( 'Generated discovery redirect', 'lawallet-lightning-address' ); ?></h3>
 					<code class="lawallet-code">
 						<?php echo esc_html( home_url( '/.well-known/*' ) . ' -> ' . $endpoint . '/.well-known/*' ); ?>
 					</code>
@@ -579,7 +590,7 @@ class WCLL_Discovery {
 					<form method="post" action="<?php echo esc_url( self::admin_url() ); ?>" class="lawallet-grid">
 						<?php wp_nonce_field( self::NONCE_ACTION ); ?>
 						<label for="lawallet_gateway_endpoint">
-							<strong><?php echo esc_html__( 'LaWallet API gateway endpoint', 'lawallet-wordpress' ); ?></strong>
+							<strong><?php echo esc_html__( 'LaWallet API gateway endpoint', 'lawallet-lightning-address' ); ?></strong>
 						</label>
 						<div class="lawallet-endpoint-field">
 							<input
@@ -601,7 +612,7 @@ class WCLL_Discovery {
 							</span>
 						</div>
 						<p class="description">
-							<?php echo esc_html__( 'Requests such as /.well-known/lnurlp/alice and /.well-known/nostr.json?name=alice will redirect to this gateway after connection.', 'lawallet-wordpress' ); ?>
+							<?php echo esc_html__( 'Requests such as /.well-known/lnurlp/alice and /.well-known/nostr.json?name=alice will redirect to this gateway after connection.', 'lawallet-lightning-address' ); ?>
 						</p>
 						<div class="lawallet-actions">
 							<button
@@ -609,11 +620,11 @@ class WCLL_Discovery {
 								name="lawallet_settings_submit"
 								value="1"
 								class="button button-primary lawallet-submit-button"
-								data-lawallet-submitting-text="<?php echo esc_attr__( 'Connecting', 'lawallet-wordpress' ); ?>"
+								data-lawallet-submitting-text="<?php echo esc_attr__( 'Connecting', 'lawallet-lightning-address' ); ?>"
 								data-lawallet-connect-button
 								<?php disabled( $connect_disabled ); ?>
 							>
-								<?php echo esc_html__( 'Connect', 'lawallet-wordpress' ); ?>
+								<?php echo esc_html__( 'Connect', 'lawallet-lightning-address' ); ?>
 							</button>
 						</div>
 					</form>
@@ -847,13 +858,13 @@ class WCLL_Discovery {
 						'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 						'nonce'   => wp_create_nonce( self::CHECK_ACTION ),
 						'i18n'    => array(
-							'pending'            => __( 'Waiting for endpoint', 'lawallet-wordpress' ),
-							'loading'            => __( 'Checking LaWallet gateway', 'lawallet-wordpress' ),
-							'ready'              => __( 'LaWallet instance found', 'lawallet-wordpress' ),
-							'error'              => __( 'Verification failed', 'lawallet-wordpress' ),
-							'instanceEmptyTitle' => __( 'Connect a LaWallet instance', 'lawallet-wordpress' ),
-							'instanceEmptyMeta'  => __( 'Server details, avatar, cover, theme and socials will appear here after connection.', 'lawallet-wordpress' ),
-							'instanceReadyTitle' => __( 'Connected LaWallet instance', 'lawallet-wordpress' ),
+							'pending'            => __( 'Waiting for endpoint', 'lawallet-lightning-address' ),
+							'loading'            => __( 'Checking LaWallet gateway', 'lawallet-lightning-address' ),
+							'ready'              => __( 'LaWallet instance found', 'lawallet-lightning-address' ),
+							'error'              => __( 'Verification failed', 'lawallet-lightning-address' ),
+							'instanceEmptyTitle' => __( 'Connect a LaWallet instance', 'lawallet-lightning-address' ),
+							'instanceEmptyMeta'  => __( 'Server details, avatar, cover, theme and socials will appear here after connection.', 'lawallet-lightning-address' ),
+							'instanceReadyTitle' => __( 'Connected LaWallet instance', 'lawallet-lightning-address' ),
 						),
 					)
 				); ?>);
@@ -866,7 +877,7 @@ class WCLL_Discovery {
 		if ( '' === $endpoint ) {
 			return array(
 				'ok'      => false,
-				'message' => __( 'Save a LaWallet API gateway endpoint first.', 'lawallet-wordpress' ),
+				'message' => __( 'Save a LaWallet API gateway endpoint first.', 'lawallet-lightning-address' ),
 			);
 		}
 
@@ -878,7 +889,7 @@ class WCLL_Discovery {
 				'redirection' => 3,
 				'headers'     => array(
 					'Accept'     => 'application/json',
-					'User-Agent' => 'LaWallet - Wordpress',
+					'User-Agent' => 'LaWallet - Lightning Address',
 				),
 			)
 		);
@@ -905,7 +916,7 @@ class WCLL_Discovery {
 		if ( $status >= 200 && $status < 300 && $has_signal && ( ! empty( $instance['name'] ) || ! empty( $instance['domain'] ) || ! empty( $instance['endpoint'] ) ) ) {
 			return array(
 				'ok'       => true,
-				'message'  => __( 'LaWallet instance connected.', 'lawallet-wordpress' ),
+				'message'  => __( 'LaWallet instance connected.', 'lawallet-lightning-address' ),
 				'settings' => $settings,
 			);
 		}
@@ -914,7 +925,7 @@ class WCLL_Discovery {
 			'ok'      => false,
 			'message' => sprintf(
 				/* translators: %d is the HTTP status code. */
-				__( 'Endpoint did not look like a LaWallet gateway. /api/settings returned HTTP %d.', 'lawallet-wordpress' ),
+				__( 'Endpoint did not look like a LaWallet gateway. /api/settings returned HTTP %d.', 'lawallet-lightning-address' ),
 				$status
 			),
 		);
@@ -983,32 +994,32 @@ class WCLL_Discovery {
 
 		if ( $endpoint ) {
 			$details[] = array(
-				'label' => __( 'Endpoint', 'lawallet-wordpress' ),
+				'label' => __( 'Endpoint', 'lawallet-lightning-address' ),
 				'value' => $endpoint,
 			);
 		}
 
 		if ( ! empty( $settings['subdomain'] ) && $settings['subdomain'] !== $endpoint ) {
 			$details[] = array(
-				'label' => __( 'Subdomain', 'lawallet-wordpress' ),
+				'label' => __( 'Subdomain', 'lawallet-lightning-address' ),
 				'value' => (string) $settings['subdomain'],
 			);
 		}
 
 		if ( isset( $settings['maintenance_enabled'] ) && '' !== $settings['maintenance_enabled'] ) {
 			$details[] = array(
-				'label' => __( 'Maintenance', 'lawallet-wordpress' ),
-				'value' => self::truthy_string( $settings['maintenance_enabled'] ) ? __( 'Enabled', 'lawallet-wordpress' ) : __( 'Off', 'lawallet-wordpress' ),
+				'label' => __( 'Maintenance', 'lawallet-lightning-address' ),
+				'value' => self::truthy_string( $settings['maintenance_enabled'] ) ? __( 'Enabled', 'lawallet-lightning-address' ) : __( 'Off', 'lawallet-lightning-address' ),
 			);
 		}
 
 		$socials = array_merge(
-			self::social_item( __( 'Website', 'lawallet-wordpress' ), self::first_setting( $settings, array( 'social_website', 'website' ) ), 'website' ),
-			self::social_item( __( 'X/Twitter', 'lawallet-wordpress' ), self::first_setting( $settings, array( 'social_twitter', 'twitter' ) ), 'twitter' ),
-			self::social_item( __( 'Telegram', 'lawallet-wordpress' ), self::first_setting( $settings, array( 'social_telegram', 'telegram' ) ), 'telegram' ),
-			self::social_item( __( 'Discord', 'lawallet-wordpress' ), self::first_setting( $settings, array( 'social_discord', 'discord' ) ), 'discord' ),
-			self::social_item( __( 'Nostr', 'lawallet-wordpress' ), self::first_setting( $settings, array( 'social_nostr', 'nostr' ) ), 'nostr' ),
-			self::social_item( __( 'Email', 'lawallet-wordpress' ), self::first_setting( $settings, array( 'social_email', 'email' ) ), 'email' )
+			self::social_item( __( 'Website', 'lawallet-lightning-address' ), self::first_setting( $settings, array( 'social_website', 'website' ) ), 'website' ),
+			self::social_item( __( 'X/Twitter', 'lawallet-lightning-address' ), self::first_setting( $settings, array( 'social_twitter', 'twitter' ) ), 'twitter' ),
+			self::social_item( __( 'Telegram', 'lawallet-lightning-address' ), self::first_setting( $settings, array( 'social_telegram', 'telegram' ) ), 'telegram' ),
+			self::social_item( __( 'Discord', 'lawallet-lightning-address' ), self::first_setting( $settings, array( 'social_discord', 'discord' ) ), 'discord' ),
+			self::social_item( __( 'Nostr', 'lawallet-lightning-address' ), self::first_setting( $settings, array( 'social_nostr', 'nostr' ) ), 'nostr' ),
+			self::social_item( __( 'Email', 'lawallet-lightning-address' ), self::first_setting( $settings, array( 'social_email', 'email' ) ), 'email' )
 		);
 
 		return array(
@@ -1091,7 +1102,7 @@ class WCLL_Discovery {
 			array(
 				'label' => sprintf(
 					/* translators: 1: social label, 2: social value. */
-					__( '%1$s: %2$s', 'lawallet-wordpress' ),
+					__( '%1$s: %2$s', 'lawallet-lightning-address' ),
 					$label,
 					$value
 				),
@@ -1106,8 +1117,8 @@ class WCLL_Discovery {
 			return ltrim( $query_path, '/' );
 		}
 
-		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? wp_unslash( $_SERVER['REQUEST_URI'] ) : '';
-		$path        = parse_url( (string) $request_uri, PHP_URL_PATH );
+		$request_uri = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
+		$path        = wp_parse_url( (string) $request_uri, PHP_URL_PATH );
 		if ( ! is_string( $path ) ) {
 			return '';
 		}
@@ -1154,7 +1165,7 @@ class WCLL_Discovery {
 	}
 
 	private static function admin_url() {
-		return admin_url( 'options-general.php?page=lawallet-wordpress' );
+		return admin_url( 'options-general.php?page=lawallet-lightning-address' );
 	}
 
 	private static function is_woocommerce_installed() {

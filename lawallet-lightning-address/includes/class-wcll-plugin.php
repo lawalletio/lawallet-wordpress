@@ -8,7 +8,8 @@ class WCLL_Plugin {
 	const CRON_HOOK = 'wcll_check_pending_payments';
 
 	public static function init() {
-		load_plugin_textdomain( 'lawallet-wordpress', false, dirname( plugin_basename( WCLL_PLUGIN_FILE ) ) . '/languages' );
+		// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads the es_* translations bundled in /languages until translate.wordpress.org provides them.
+		load_plugin_textdomain( 'lawallet-lightning-address', false, dirname( plugin_basename( WCLL_PLUGIN_FILE ) ) . '/languages' );
 		WCLL_Discovery::init();
 
 		if ( class_exists( 'WC_Payment_Gateway' ) ) {
@@ -55,6 +56,7 @@ class WCLL_Plugin {
 
 		delete_transient( 'wcll_activation_redirect' );
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only check to skip the redirect during bulk activation.
 		if ( wp_doing_ajax() || is_network_admin() || isset( $_GET['activate-multi'] ) ) {
 			return;
 		}
@@ -73,8 +75,8 @@ class WCLL_Plugin {
 	public static function plugin_action_links( $links ) {
 		$settings_link = sprintf(
 			'<a href="%s">%s</a>',
-			esc_url( admin_url( 'options-general.php?page=lawallet-wordpress' ) ),
-			esc_html__( 'Settings', 'lawallet-wordpress' )
+			esc_url( admin_url( 'options-general.php?page=lawallet-lightning-address' ) ),
+			esc_html__( 'Settings', 'lawallet-lightning-address' )
 		);
 
 		array_unshift( $links, $settings_link );
@@ -85,7 +87,7 @@ class WCLL_Plugin {
 		if ( ! isset( $schedules['wcll_every_minute'] ) ) {
 			$schedules['wcll_every_minute'] = array(
 				'interval' => MINUTE_IN_SECONDS,
-				'display'  => __( 'Every minute', 'lawallet-wordpress' ),
+				'display'  => __( 'Every minute', 'lawallet-lightning-address' ),
 			);
 		}
 
@@ -98,7 +100,7 @@ class WCLL_Plugin {
 		}
 
 		if ( ! class_exists( 'WooCommerce' ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'LaWallet - Wordpress needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet.', 'lawallet-wordpress' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'LaWallet - Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet.', 'lawallet-lightning-address' ) . '</p></div>';
 			return;
 		}
 
@@ -106,8 +108,8 @@ class WCLL_Plugin {
 		if ( empty( $settings['lightning_address'] ) ) {
 			$url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=wcll_gateway&wcll_setup=1' );
 			echo '<div class="notice notice-warning"><p>';
-			echo esc_html__( 'Lightning payments need a merchant Lightning Address before checkout can accept payments.', 'lawallet-wordpress' );
-			echo ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Set Lightning Address', 'lawallet-wordpress' ) . '</a>';
+			echo esc_html__( 'Lightning payments need a merchant Lightning Address before checkout can accept payments.', 'lawallet-lightning-address' );
+			echo ' <a href="' . esc_url( $url ) . '">' . esc_html__( 'Set Lightning Address', 'lawallet-lightning-address' ) . '</a>';
 			echo '</p></div>';
 		}
 	}
@@ -120,7 +122,7 @@ class WCLL_Plugin {
 
 		$invoice = $order->get_meta( '_wcll_invoice', true );
 		if ( empty( $invoice ) ) {
-			echo '<p>' . esc_html__( 'Lightning invoice is not available for this order.', 'lawallet-wordpress' ) . '</p>';
+			echo '<p>' . esc_html__( 'Lightning invoice is not available for this order.', 'lawallet-lightning-address' ) . '</p>';
 			return;
 		}
 
@@ -155,15 +157,15 @@ class WCLL_Plugin {
 				)
 			),
 			'i18n'          => array(
-				'waiting'  => __( 'Waiting for payment', 'lawallet-wordpress' ),
-				'checking' => __( 'Checking settlement', 'lawallet-wordpress' ),
-				'paid'     => __( 'Payment received', 'lawallet-wordpress' ),
-				'expired'  => __( 'Invoice expired', 'lawallet-wordpress' ),
-				'copy'     => __( 'Copy invoice', 'lawallet-wordpress' ),
-				'copied'   => __( 'Copied', 'lawallet-wordpress' ),
-				'payWebln' => __( 'Pay with WebLN', 'lawallet-wordpress' ),
-				'webLnPaying' => __( 'Opening WebLN', 'lawallet-wordpress' ),
-				'webLnChecking' => __( 'Checking payment', 'lawallet-wordpress' ),
+				'waiting'  => __( 'Waiting for payment', 'lawallet-lightning-address' ),
+				'checking' => __( 'Checking settlement', 'lawallet-lightning-address' ),
+				'paid'     => __( 'Payment received', 'lawallet-lightning-address' ),
+				'expired'  => __( 'Invoice expired', 'lawallet-lightning-address' ),
+				'copy'     => __( 'Copy invoice', 'lawallet-lightning-address' ),
+				'copied'   => __( 'Copied', 'lawallet-lightning-address' ),
+				'payWebln' => __( 'Pay with WebLN', 'lawallet-lightning-address' ),
+				'webLnPaying' => __( 'Opening WebLN', 'lawallet-lightning-address' ),
+				'webLnChecking' => __( 'Checking payment', 'lawallet-lightning-address' ),
 			),
 		);
 
@@ -182,7 +184,8 @@ class WCLL_Plugin {
 			return;
 		}
 
-		$order_key = isset( $_GET['key'] ) ? wc_clean( wp_unslash( $_GET['key'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Public order-pay page; the order key compared with hash_equals() is the access token.
+		$order_key = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
 		$order     = wc_get_order( $order_id );
 		if ( ! $order || 'wcll_gateway' !== $order->get_payment_method() || ! hash_equals( $order->get_order_key(), $order_key ) || ! $order->is_paid() ) {
 			return;
@@ -194,16 +197,16 @@ class WCLL_Plugin {
 
 	public static function ajax_claim_payment() {
 		$order_id  = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
-		$order_key = isset( $_POST['order_key'] ) ? wc_clean( wp_unslash( $_POST['order_key'] ) ) : '';
-		$nonce     = isset( $_POST['nonce'] ) ? wc_clean( wp_unslash( $_POST['nonce'] ) ) : '';
+		$order_key = isset( $_POST['order_key'] ) ? sanitize_text_field( wp_unslash( $_POST['order_key'] ) ) : '';
+		$nonce     = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
 		$order     = wc_get_order( $order_id );
 
 		if ( ! $order || 'wcll_gateway' !== $order->get_payment_method() || $order->get_order_key() !== $order_key ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid order.', 'lawallet-wordpress' ) ), 404 );
+			wp_send_json_error( array( 'message' => __( 'Invalid order.', 'lawallet-lightning-address' ) ), 404 );
 		}
 
 		if ( ! wp_verify_nonce( $nonce, self::nonce_action( $order ) ) ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid payment session.', 'lawallet-wordpress' ) ), 403 );
+			wp_send_json_error( array( 'message' => __( 'Invalid payment session.', 'lawallet-lightning-address' ) ), 403 );
 		}
 
 		$result = self::claim_order_payment( $order );
@@ -220,8 +223,8 @@ class WCLL_Plugin {
 				'limit'          => 50,
 				'status'         => array( 'pending', 'on-hold' ),
 				'payment_method' => 'wcll_gateway',
-				'meta_key'       => '_wcll_status',
-				'meta_value'     => 'pending',
+				'meta_key'       => '_wcll_status', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Bounded lookup (limit 50) of pending Lightning orders; WooCommerce maps it to an HPOS-aware query.
+				'meta_value'     => 'pending', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- See above.
 				'orderby'        => 'date',
 				'order'          => 'ASC',
 			)
@@ -271,7 +274,7 @@ class WCLL_Plugin {
 			$order->save();
 
 			$order->payment_complete();
-			$order->add_order_note( __( 'Lightning payment verified with LUD-21.', 'lawallet-wordpress' ) );
+			$order->add_order_note( __( 'Lightning payment verified with LUD-21.', 'lawallet-lightning-address' ) );
 
 			return self::payment_response( $order, 'paid' );
 		}
@@ -292,9 +295,10 @@ class WCLL_Plugin {
 		$order->update_meta_data( '_wcll_status', 'expired' );
 		$order->save();
 
-		$note = __( 'Lightning invoice expired before LUD-21 settlement was verified.', 'lawallet-wordpress' );
+		$note = __( 'Lightning invoice expired before LUD-21 settlement was verified.', 'lawallet-lightning-address' );
 		if ( $reason ) {
-			$note .= ' ' . sprintf( __( 'Last verification error: %s', 'lawallet-wordpress' ), $reason );
+			/* translators: %s: error message returned by the last LUD-21 verification attempt. */
+			$note .= ' ' . sprintf( __( 'Last verification error: %s', 'lawallet-lightning-address' ), $reason );
 		}
 		$order->update_status( 'cancelled', $note );
 	}

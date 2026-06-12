@@ -1,0 +1,465 @@
+# Spanish translation for LaWallet - Lightning Address.
+# Copyright (C) 2026 LaWallet
+# This file is distributed under the GPL-3.0-or-later.
+msgid ""
+msgstr ""
+"Project-Id-Version: LaWallet - Lightning Address 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-lightning-address\n"
+"Last-Translator: LaWallet <hello@lawallet.io>\n"
+"Language-Team: Spanish\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"POT-Creation-Date: 2026-06-12T00:51:32+00:00\n"
+"PO-Revision-Date: 2026-06-12T01:00:00+00:00\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: lawallet-lightning-address\n"
+
+#. Plugin Name of the plugin
+msgid "LaWallet - Lightning Address"
+msgstr "LaWallet - Lightning Address"
+
+#. Plugin URI of the plugin
+msgid "https://github.com/lawalletio/lawallet-wordpress"
+msgstr "https://github.com/lawalletio/lawallet-wordpress"
+
+#. Description of the plugin
+msgid "Accept Bitcoin Lightning payments in WooCommerce and route Lightning Address/NIP-05 discovery through LaWallet."
+msgstr "Acepta pagos Bitcoin Lightning en WooCommerce y dirige el descubrimiento de Lightning Address/NIP-05 a través de LaWallet."
+
+#. Author of the plugin
+msgid "LaWallet"
+msgstr "LaWallet"
+
+#. Author URI of the plugin
+msgid "https://lawallet.io"
+msgstr "https://lawallet.io"
+
+msgid "LaWallet gateway endpoint is not configured."
+msgstr "El endpoint del gateway de LaWallet no está configurado."
+
+msgid "You are not allowed to update LaWallet settings."
+msgstr "No tienes permisos para actualizar los ajustes de LaWallet."
+
+msgid "Enter a valid http(s) LaWallet gateway endpoint before connecting."
+msgstr "Introduce un endpoint http(s) válido del gateway de LaWallet antes de conectar."
+
+msgid "You are not allowed to verify LaWallet settings."
+msgstr "No tienes permisos para verificar los ajustes de LaWallet."
+
+msgid "Enter a valid http(s) LaWallet gateway endpoint."
+msgstr "Introduce un endpoint http(s) válido del gateway de LaWallet."
+
+msgid "LaWallet instance found."
+msgstr "Instancia de LaWallet encontrada."
+
+msgid "LaWallet instance connected"
+msgstr "Instancia de LaWallet conectada"
+
+msgid "Verification failed"
+msgstr "La verificación falló"
+
+msgid "Waiting for endpoint"
+msgstr "Esperando el endpoint"
+
+msgid "WooCommerce Lightning payments"
+msgstr "Pagos Lightning en WooCommerce"
+
+msgid "Accept checkout payments with a merchant Lightning Address. Orders are completed only after the backend verifies LUD-21 settlement."
+msgstr "Acepta pagos en el checkout con una Lightning Address de comerciante. Los pedidos se completan solo después de que el servidor verifique la liquidación LUD-21."
+
+#. translators: %s is a Lightning Address.
+#, php-format
+msgid "Payment Lightning Address: %s"
+msgstr "Lightning Address de pago: %s"
+
+msgid "Payment Lightning Address is not configured"
+msgstr "La Lightning Address de pago no está configurada"
+
+msgid "Configure WooCommerce payments"
+msgstr "Configurar los pagos de WooCommerce"
+
+msgid "WooCommerce is installed but inactive. Activate WooCommerce to enable Lightning checkout payments."
+msgstr "WooCommerce está instalado pero inactivo. Activa WooCommerce para habilitar los pagos Lightning en el checkout."
+
+msgid "Open plugins"
+msgstr "Abrir plugins"
+
+msgid "WooCommerce is required to accept checkout payments. Install WooCommerce from WordPress to enable this payment gateway."
+msgstr "WooCommerce es necesario para aceptar pagos en el checkout. Instala WooCommerce desde WordPress para habilitar esta pasarela de pago."
+
+msgid "Install WooCommerce"
+msgstr "Instalar WooCommerce"
+
+msgid "Lightning Address for your users"
+msgstr "Lightning Address para tus usuarios"
+
+msgid "You should have a LaWallet instance running. This integration redirects LNURL and NIP-05 discovery from this WordPress domain to your LaWallet API gateway."
+msgstr "Debes tener una instancia de LaWallet en funcionamiento. Esta integración redirige el descubrimiento LNURL y NIP-05 desde este dominio de WordPress hacia tu gateway de API de LaWallet."
+
+msgid "Learn more at lawallet.io"
+msgstr "Más información en lawallet.io"
+
+msgid "Connected"
+msgstr "Conectado"
+
+msgid "Could not connect"
+msgstr "No se pudo conectar"
+
+msgid "Not connected"
+msgstr "No conectado"
+
+msgid "Disconnecting"
+msgstr "Desconectando"
+
+msgid "Disconnect"
+msgstr "Desconectar"
+
+msgid "Generated discovery redirect"
+msgstr "Redirección de descubrimiento generada"
+
+msgid "LaWallet API gateway endpoint"
+msgstr "Endpoint del gateway de API de LaWallet"
+
+msgid "Requests such as /.well-known/lnurlp/alice and /.well-known/nostr.json?name=alice will redirect to this gateway after connection."
+msgstr "Las solicitudes como /.well-known/lnurlp/alice y /.well-known/nostr.json?name=alice se redirigirán a este gateway después de la conexión."
+
+msgid "Connecting"
+msgstr "Conectando"
+
+msgid "Connect"
+msgstr "Conectar"
+
+msgid "Checking LaWallet gateway"
+msgstr "Comprobando el gateway de LaWallet"
+
+msgid "LaWallet instance found"
+msgstr "Instancia de LaWallet encontrada"
+
+msgid "Connect a LaWallet instance"
+msgstr "Conecta una instancia de LaWallet"
+
+msgid "Server details, avatar, cover, theme and socials will appear here after connection."
+msgstr "Los detalles del servidor, avatar, portada, tema y redes sociales aparecerán aquí después de la conexión."
+
+msgid "Connected LaWallet instance"
+msgstr "Instancia de LaWallet conectada"
+
+msgid "Save a LaWallet API gateway endpoint first."
+msgstr "Primero guarda un endpoint del gateway de API de LaWallet."
+
+msgid "LaWallet instance connected."
+msgstr "Instancia de LaWallet conectada."
+
+#. translators: %d is the HTTP status code.
+#, php-format
+msgid "Endpoint did not look like a LaWallet gateway. /api/settings returned HTTP %d."
+msgstr "El endpoint no parece un gateway de LaWallet. /api/settings devolvió HTTP %d."
+
+msgid "Endpoint"
+msgstr "Endpoint"
+
+msgid "Subdomain"
+msgstr "Subdominio"
+
+msgid "Maintenance"
+msgstr "Mantenimiento"
+
+msgid "Enabled"
+msgstr "Activado"
+
+msgid "Off"
+msgstr "Desactivado"
+
+msgid "Website"
+msgstr "Sitio web"
+
+msgid "X/Twitter"
+msgstr "X/Twitter"
+
+msgid "Telegram"
+msgstr "Telegram"
+
+msgid "Discord"
+msgstr "Discord"
+
+msgid "Nostr"
+msgstr "Nostr"
+
+msgid "Email"
+msgstr "Correo electrónico"
+
+#. translators: 1: social label, 2: social value.
+#, php-format
+msgid "%1$s: %2$s"
+msgstr "%1$s: %2$s"
+
+msgid "Accept Bitcoin Lightning payments through a Lightning Address with LUD-21 settlement verification, and configure LaWallet discovery from the main settings page."
+msgstr "Acepta pagos Bitcoin Lightning a través de una Lightning Address con verificación de liquidación LUD-21, y configura el descubrimiento de LaWallet desde la página principal de ajustes."
+
+msgid "LaWallet Lightning"
+msgstr "LaWallet Lightning"
+
+msgid "Pay instantly with a Bitcoin Lightning wallet."
+msgstr "Paga al instante con una billetera Bitcoin Lightning."
+
+msgid "Enable/Disable"
+msgstr "Activar/Desactivar"
+
+msgid "Enable Bitcoin Lightning payments"
+msgstr "Activar pagos Bitcoin Lightning"
+
+msgid "Lightning Address"
+msgstr "Lightning Address"
+
+msgid "Merchant Lightning Address. It must support LNURL-pay and LUD-21 verify."
+msgstr "Lightning Address del comerciante. Debe ser compatible con LNURL-pay y con la verificación LUD-21."
+
+msgid "Checkout title"
+msgstr "Título en el checkout"
+
+msgid "Payment method name shown to customers."
+msgstr "Nombre del método de pago que ven los clientes."
+
+msgid "Checkout description"
+msgstr "Descripción en el checkout"
+
+msgid "Scan a Lightning invoice QR code or open it in your Lightning wallet."
+msgstr "Escanea el código QR de la factura Lightning o ábrela en tu billetera Lightning."
+
+msgid "Invoice expiry minutes"
+msgstr "Minutos de expiración de la factura"
+
+msgid "NIP-57 relay URLs"
+msgstr "URLs de relays NIP-57"
+
+msgid "Optional relay URLs used to listen for zap receipts. One URL per line."
+msgstr "URLs opcionales de relays para escuchar recibos zap. Una URL por línea."
+
+msgid "Manual sats per currency unit"
+msgstr "Sats manuales por unidad de moneda"
+
+msgid "Optional. Leave blank to use Yadio BTC exchange rates for fiat currencies."
+msgstr "Opcional. Déjalo en blanco para usar los tipos de cambio de BTC de Yadio para monedas fiat."
+
+msgid "Price buffer percent"
+msgstr "Porcentaje de margen de precio"
+
+msgid "Local development HTTP"
+msgstr "HTTP para desarrollo local"
+
+msgid "Allow HTTP Lightning Address endpoints for local development"
+msgstr "Permitir endpoints HTTP de Lightning Address para desarrollo local"
+
+msgid "Keep this disabled in production."
+msgstr "Mantén esto desactivado en producción."
+
+msgid "Set your Lightning Address to start accepting Lightning payments."
+msgstr "Configura tu Lightning Address para empezar a aceptar pagos Lightning."
+
+msgid "Saving this page will create a test invoice and require a LUD-21 verify URL."
+msgstr "Al guardar esta página se creará una factura de prueba y se exigirá una URL de verificación LUD-21."
+
+msgid "Lightning Address must look like name@example.com."
+msgstr "La Lightning Address debe tener el formato nombre@ejemplo.com."
+
+msgid "Manual sats per currency unit must be greater than zero."
+msgstr "Los sats manuales por unidad de moneda deben ser mayores que cero."
+
+msgid "Payment error: order could not be loaded."
+msgstr "Error de pago: no se pudo cargar el pedido."
+
+msgid "Payment error: merchant Lightning Address is not configured."
+msgstr "Error de pago: la Lightning Address del comerciante no está configurada."
+
+msgid "Payment error:"
+msgstr "Error de pago:"
+
+msgid "Awaiting Bitcoin Lightning payment."
+msgstr "Esperando el pago Bitcoin Lightning."
+
+msgid "Lightning Address is required."
+msgstr "La Lightning Address es obligatoria."
+
+msgid "Lightning Address supports LUD-21 verification."
+msgstr "La Lightning Address es compatible con la verificación LUD-21."
+
+msgid "Lightning Address verified with LUD-21."
+msgstr "Lightning Address verificada con LUD-21."
+
+msgid "No Lightning Address has been checked yet."
+msgstr "Todavía no se ha comprobado ninguna Lightning Address."
+
+msgid "Connection status"
+msgstr "Estado de la conexión"
+
+msgid "LUD-21 verify"
+msgstr "Verificación LUD-21"
+
+msgid "Verified"
+msgstr "Verificada"
+
+msgid "Not verified"
+msgstr "No verificada"
+
+#. translators: %s: date and time of the last Lightning Address verification.
+#, php-format
+msgid "Last checked: %s"
+msgstr "Última comprobación: %s"
+
+msgid "NIP-57 receipts are available for fast checkout detection."
+msgstr "Los recibos NIP-57 están disponibles para detectar el pago más rápido en el checkout."
+
+msgid "Enter a Lightning Address like name@example.com."
+msgstr "Introduce una Lightning Address como nombre@ejemplo.com."
+
+msgid "The Lightning Address minimum amount is higher than its maximum amount."
+msgstr "El importe mínimo de la Lightning Address es mayor que su importe máximo."
+
+msgid "This Lightning Address can create invoices, but the callback did not return a LUD-21 verify URL."
+msgstr "Esta Lightning Address puede crear facturas, pero el callback no devolvió una URL de verificación LUD-21."
+
+msgid "Order amount is outside the Lightning Address sendable range."
+msgstr "El importe del pedido está fuera del rango de envío de la Lightning Address."
+
+msgid "LNURL callback returned an error."
+msgstr "El callback LNURL devolvió un error."
+
+msgid "LNURL callback did not return a Lightning invoice."
+msgstr "El callback LNURL no devolvió una factura Lightning."
+
+msgid "LNURL callback did not return the required LUD-21 verify URL."
+msgstr "El callback LNURL no devolvió la URL de verificación LUD-21 requerida."
+
+msgid "LUD-21 verification failed."
+msgstr "La verificación LUD-21 falló."
+
+msgid "LUD-21 verification returned a different invoice."
+msgstr "La verificación LUD-21 devolvió una factura diferente."
+
+msgid "Lightning Address returned an error."
+msgstr "La Lightning Address devolvió un error."
+
+msgid "Lightning Address did not return an LNURL-pay request."
+msgstr "La Lightning Address no devolvió una solicitud LNURL-pay."
+
+msgid "Lightning Address returned an invalid sendable range."
+msgstr "La Lightning Address devolvió un rango de envío no válido."
+
+msgid "Lightning Address returned an invalid callback URL."
+msgstr "La Lightning Address devolvió una URL de callback no válida."
+
+msgid "NIP-57 signing needs the PHP GMP extension."
+msgstr "La firma NIP-57 necesita la extensión GMP de PHP."
+
+msgid "Lightning service returned invalid JSON."
+msgstr "El servicio Lightning devolvió un JSON no válido."
+
+msgid "PHP GMP extension is required to sign NIP-57 zap requests."
+msgstr "La extensión GMP de PHP es necesaria para firmar solicitudes zap NIP-57."
+
+msgid "Lightning Address returned an invalid Nostr public key."
+msgstr "La Lightning Address devolvió una clave pública de Nostr no válida."
+
+msgid "Could not serialize Nostr zap request."
+msgstr "No se pudo serializar la solicitud zap de Nostr."
+
+msgid "Generated an invalid Nostr private key."
+msgstr "Se generó una clave privada de Nostr no válida."
+
+msgid "Could not derive Nostr public key."
+msgstr "No se pudo derivar la clave pública de Nostr."
+
+msgid "Nostr event hash must be 32 bytes."
+msgstr "El hash del evento de Nostr debe tener 32 bytes."
+
+msgid "Invalid private key for Nostr signing."
+msgstr "Clave privada no válida para la firma de Nostr."
+
+msgid "Could not derive public key for Nostr signing."
+msgstr "No se pudo derivar la clave pública para la firma de Nostr."
+
+msgid "Generated an invalid nonce for Nostr signing."
+msgstr "Se generó un nonce no válido para la firma de Nostr."
+
+msgid "Could not derive nonce point for Nostr signing."
+msgstr "No se pudo derivar el punto del nonce para la firma de Nostr."
+
+msgid "Settings"
+msgstr "Ajustes"
+
+msgid "Every minute"
+msgstr "Cada minuto"
+
+msgid "LaWallet - Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet."
+msgstr "LaWallet - Lightning Address necesita WooCommerce activo para los pagos en el checkout. El descubrimiento de Lightning Address se puede configurar igualmente desde Ajustes -> LaWallet."
+
+msgid "Lightning payments need a merchant Lightning Address before checkout can accept payments."
+msgstr "Los pagos Lightning necesitan una Lightning Address de comerciante antes de que el checkout pueda aceptar pagos."
+
+msgid "Set Lightning Address"
+msgstr "Configurar Lightning Address"
+
+msgid "Lightning invoice is not available for this order."
+msgstr "La factura Lightning no está disponible para este pedido."
+
+msgid "Waiting for payment"
+msgstr "Esperando el pago"
+
+msgid "Checking settlement"
+msgstr "Comprobando la liquidación"
+
+msgid "Payment received"
+msgstr "Pago recibido"
+
+msgid "Invoice expired"
+msgstr "Factura expirada"
+
+msgid "Copy invoice"
+msgstr "Copiar factura"
+
+msgid "Copied"
+msgstr "Copiado"
+
+msgid "Pay with WebLN"
+msgstr "Pagar con WebLN"
+
+msgid "Opening WebLN"
+msgstr "Abriendo WebLN"
+
+msgid "Checking payment"
+msgstr "Comprobando el pago"
+
+msgid "Invalid order."
+msgstr "Pedido no válido."
+
+msgid "Invalid payment session."
+msgstr "Sesión de pago no válida."
+
+msgid "Lightning payment verified with LUD-21."
+msgstr "Pago Lightning verificado con LUD-21."
+
+msgid "Lightning invoice expired before LUD-21 settlement was verified."
+msgstr "La factura Lightning expiró antes de que se verificara la liquidación LUD-21."
+
+#. translators: %s: error message returned by the last LUD-21 verification attempt.
+#, php-format
+msgid "Last verification error: %s"
+msgstr "Último error de verificación: %s"
+
+msgid "Complete your payment"
+msgstr "Completa tu pago"
+
+msgid "Lightning invoice QR code"
+msgstr "Código QR de la factura Lightning"
+
+msgid "Amount"
+msgstr "Importe"
+
+msgid "Expires"
+msgstr "Expira"
+
+msgid "Open wallet"
+msgstr "Abrir billetera"
