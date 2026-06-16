@@ -8,6 +8,7 @@ LIGHTNING_ADDRESS="${LIGHTNING_ADDRESS:-merchant@mock-lnurl:4000}"
 NOSTR_RELAYS="${NOSTR_RELAYS:-ws://localhost:4000/nostr}"
 PRICE_BUFFER_PERCENT="${PRICE_BUFFER_PERCENT:-0}"
 INVOICE_EXPIRY_MINUTES="${INVOICE_EXPIRY_MINUTES:-30}"
+RATE_DISPLAY_UNIT="${RATE_DISPLAY_UNIT:-btc}"
 
 if [[ -z "${ALLOW_INSECURE_HTTP:-}" ]]; then
 	if [[ "$LIGHTNING_ADDRESS" == *"mock-lnurl"* || "$LIGHTNING_ADDRESS" == *"localhost"* || "$LIGHTNING_ADDRESS" == *"127.0.0.1"* ]]; then
@@ -17,13 +18,7 @@ if [[ -z "${ALLOW_INSECURE_HTTP:-}" ]]; then
 	fi
 fi
 
-if [[ -z "${MANUAL_SATS_PER_UNIT+x}" ]]; then
-	if [[ "$LIGHTNING_ADDRESS" == *"mock-lnurl"* || "$LIGHTNING_ADDRESS" == *"localhost"* || "$LIGHTNING_ADDRESS" == *"127.0.0.1"* ]]; then
-		MANUAL_SATS_PER_UNIT="1000"
-	else
-		MANUAL_SATS_PER_UNIT=""
-	fi
-fi
+MANUAL_SATS_PER_UNIT="${MANUAL_SATS_PER_UNIT:-}"
 
 docker compose up -d --build
 docker compose restart mock-lnurl >/dev/null
@@ -55,6 +50,8 @@ docker compose run --rm wpcli wp option update woocommerce_store_city "Buenos Ai
 docker compose run --rm wpcli wp option update woocommerce_default_country "AR:C"
 docker compose run --rm wpcli wp option update woocommerce_currency "USD"
 docker compose run --rm wpcli wp option update woocommerce_coming_soon "no"
+docker compose run --rm wpcli wp option update woocommerce_store_pages_only "no"
+docker compose run --rm wpcli wp option update woocommerce_private_link ""
 docker compose run --rm wpcli wp option update woocommerce_enable_guest_checkout "yes"
 docker compose run --rm wpcli wp option update woocommerce_registration_generate_username "yes"
 docker compose run --rm wpcli wp option update woocommerce_registration_generate_password "yes"
@@ -86,6 +83,7 @@ docker compose run --rm \
 	-e WCLL_LIGHTNING_ADDRESS="$LIGHTNING_ADDRESS" \
 	-e WCLL_NOSTR_RELAYS="$NOSTR_RELAYS" \
 	-e WCLL_MANUAL_SATS_PER_UNIT="$MANUAL_SATS_PER_UNIT" \
+	-e WCLL_RATE_DISPLAY_UNIT="$RATE_DISPLAY_UNIT" \
 	-e WCLL_PRICE_BUFFER_PERCENT="$PRICE_BUFFER_PERCENT" \
 	-e WCLL_INVOICE_EXPIRY_MINUTES="$INVOICE_EXPIRY_MINUTES" \
 	-e WCLL_ALLOW_INSECURE_HTTP="$ALLOW_INSECURE_HTTP" \
@@ -98,6 +96,7 @@ $settings = array(
 	"invoice_expiry_minutes" => getenv( "WCLL_INVOICE_EXPIRY_MINUTES" ),
 	"nostr_relays"           => getenv( "WCLL_NOSTR_RELAYS" ),
 	"manual_sats_per_unit"   => getenv( "WCLL_MANUAL_SATS_PER_UNIT" ),
+	"rate_display_unit"      => getenv( "WCLL_RATE_DISPLAY_UNIT" ),
 	"price_buffer_percent"   => getenv( "WCLL_PRICE_BUFFER_PERCENT" ),
 	"allow_insecure_http"    => getenv( "WCLL_ALLOW_INSECURE_HTTP" ),
 );

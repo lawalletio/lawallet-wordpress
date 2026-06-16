@@ -1,0 +1,14 @@
+.woocommerce-checkout #payment ul.payment_methods li.payment_method_wcll_gateway label {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+	width: 100%;
+}
+
+.woocommerce-checkout #payment ul.payment_methods li.payment_method_wcll_gateway label img {
+	height: 24px;
+	margin-left: auto;
+	max-height: 24px;
+	max-width: 24px;
+	width: 24px;
+}
