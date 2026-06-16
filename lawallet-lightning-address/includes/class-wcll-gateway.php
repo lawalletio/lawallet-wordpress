@@ -11,6 +11,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$this->method_description = __( 'Accept Bitcoin Lightning payments through a Lightning Address with LUD-21 settlement verification, and configure LaWallet discovery from the main settings page.', 'lawallet-lightning-address' );
 		$this->has_fields         = false;
 		$this->supports           = array( 'products' );
+		$this->icon               = WCLL_PLUGIN_URL . 'assets/bitcoin.png';
 
 		$this->init_form_fields();
 		$this->init_settings();
@@ -71,6 +72,17 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'type'        => 'text',
 				'description' => __( 'Optional. Leave blank to use Yadio BTC exchange rates for fiat currencies.', 'lawallet-lightning-address' ),
 				'default'     => '',
+				'desc_tip'    => true,
+			),
+			'rate_display_unit'     => array(
+				'title'       => __( 'Rate display unit', 'lawallet-lightning-address' ),
+				'type'        => 'select',
+				'description' => __( 'Choose whether the locked Yadio rate is shown as a BTC price or a SAT price on the payment page.', 'lawallet-lightning-address' ),
+				'default'     => 'btc',
+				'options'     => array(
+					'btc'  => __( 'BTC', 'lawallet-lightning-address' ),
+					'sats' => __( 'SATS', 'lawallet-lightning-address' ),
+				),
 				'desc_tip'    => true,
 			),
 			'price_buffer_percent'  => array(
@@ -138,6 +150,12 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		return (string) $number;
 	}
 
+	public function validate_rate_display_unit_field( $key, $value ) {
+		unset( $key );
+		$value = strtolower( sanitize_key( $value ) );
+		return in_array( $value, array( 'btc', 'sats' ), true ) ? $value : 'btc';
+	}
+
 	public function validate_invoice_expiry_minutes_field( $key, $value ) {
 		unset( $key );
 		return max( 1, absint( $value ) );
@@ -171,11 +189,13 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
-		$amount_msat = WCLL_Rates::order_amount_to_msat( $order, $settings );
-		if ( is_wp_error( $amount_msat ) ) {
-			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $amount_msat->get_error_message(), 'error' );
+		$amount_calculation = WCLL_Rates::calculate_order_amount( $order, $settings );
+		if ( is_wp_error( $amount_calculation ) ) {
+			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $amount_calculation->get_error_message(), 'error' );
 			return array( 'result' => 'failure' );
 		}
+
+		$amount_msat = (int) $amount_calculation['amount_msat'];
 
 		$client      = new WCLL_LNURL_Client( $settings );
 		$pay_request = $client->resolve_lightning_address( $address );
@@ -206,6 +226,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$order->update_meta_data( '_wcll_invoice', sanitize_text_field( $invoice['pr'] ) );
 		$order->update_meta_data( '_wcll_verify_url', esc_url_raw( $invoice['verify'] ) );
 		$order->update_meta_data( '_wcll_amount_msat', (int) $amount_msat );
+		$order->update_meta_data( '_wcll_rate', $amount_calculation['rate'] );
 		$order->update_meta_data( '_wcll_expires_at', $expires_at );
 		$order->update_meta_data( '_wcll_lightning_address', sanitize_text_field( $address ) );
 		$order->update_meta_data( '_wcll_lnurl_pay_url', esc_url_raw( $pay_request['lnurl_pay_url'] ) );

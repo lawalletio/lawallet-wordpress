@@ -31,15 +31,51 @@
 		var countdown = root.querySelector('[data-wcll-countdown]');
 		var copyButton = root.querySelector('[data-wcll-copy]');
 		var webLnButton = root.querySelector('[data-wcll-webln]');
+		var openWalletLink = root.querySelector('.wcll-payment__open');
+		var actionButtons = root.querySelectorAll('.wcll-payment__action');
 		var invoiceField = root.querySelector('[data-wcll-invoice]');
 		var pollTimer = null;
 		var countdownTimer = null;
 		var claimInFlight = false;
 		var terminal = false;
 
+		function setActionsDisabled(disabled) {
+			actionButtons.forEach(function (button) {
+				if (disabled) {
+					button.setAttribute('aria-disabled', 'true');
+					button.classList.add('is-disabled');
+					if (button.tagName.toLowerCase() === 'a') {
+						if (button.hasAttribute('href')) {
+							button.dataset.wcllHref = button.getAttribute('href');
+						}
+						button.removeAttribute('href');
+					} else {
+						button.disabled = true;
+					}
+					return;
+				}
+
+				button.removeAttribute('aria-disabled');
+				button.classList.remove('is-disabled');
+				if (button.tagName.toLowerCase() === 'a') {
+					if (button.dataset.wcllHref) {
+						button.setAttribute('href', button.dataset.wcllHref);
+					}
+				} else {
+					button.disabled = false;
+				}
+			});
+		}
+
 		function setStatus(status) {
 			root.classList.toggle('is-paid', status === 'paid');
 			root.classList.toggle('is-expired', status === 'expired');
+			setActionsDisabled(status === 'paid');
+			if (status === 'paid' || status === 'expired') {
+				actionButtons.forEach(function (button) {
+					button.classList.remove('is-loading');
+				});
+			}
 			if (paidOverlay) {
 				paidOverlay.hidden = status !== 'paid';
 			}
@@ -157,7 +193,11 @@
 			}
 
 			webLnButton.hidden = false;
+			webLnButton.classList.remove('is-loading');
 			webLnButton.textContent = config.i18n.payWebln || 'Pay with WebLN';
+			if (openWalletLink) {
+				openWalletLink.hidden = true;
+			}
 			root.classList.add('has-webln');
 			return true;
 		}
@@ -190,6 +230,7 @@
 				}
 
 				webLnButton.disabled = true;
+				webLnButton.classList.add('is-loading');
 				webLnButton.textContent = config.i18n.webLnPaying || 'Opening WebLN';
 				setStatus('checking');
 
@@ -210,6 +251,7 @@
 					.catch(function () {
 						if (!terminal) {
 							webLnButton.disabled = false;
+							webLnButton.classList.remove('is-loading');
 							webLnButton.textContent = config.i18n.payWebln || 'Pay with WebLN';
 							setStatus('waiting');
 						}
@@ -282,6 +324,10 @@
 
 		if (copyButton && invoiceField) {
 			copyButton.addEventListener('click', function () {
+				if (terminal || copyButton.disabled) {
+					return;
+				}
+
 				var original = copyButton.textContent;
 				navigator.clipboard.writeText(config.invoice).then(function () {
 					copyButton.textContent = config.i18n.copied || 'Copied';

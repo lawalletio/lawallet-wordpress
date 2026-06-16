@@ -71,6 +71,7 @@ test('customer pays a WooCommerce order through LUD-21 verified Lightning checko
 
   const webLnButton = page.getByRole('button', { name: 'Pay with WebLN' });
   await expect(webLnButton).toBeVisible();
+  await expect(page.locator('.wcll-payment__open')).toBeHidden();
   await webLnButton.click();
   await expect.poll(() => page.evaluate(() => window.__weblnPayments.length)).toBe(1);
   await expect.poll(() => page.evaluate(() => window.__weblnEnabled)).toBe(true);
@@ -84,6 +85,15 @@ test('customer pays a WooCommerce order through LUD-21 verified Lightning checko
 
   await expect(page.locator('[data-wcll-status-text]')).toContainText(/Payment received/i, { timeout: 15000 });
   await expect(page.locator('[data-wcll-paid-overlay]')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => ({
+    ariaDisabled: document.querySelectorAll('.wcll-payment__action[aria-disabled="true"]').length,
+    disabledButtons: document.querySelectorAll('.wcll-payment__action:disabled').length,
+    openHref: document.querySelector('.wcll-payment__open')?.getAttribute('href') ?? null,
+  }))).toEqual({
+    ariaDisabled: 3,
+    disabledButtons: 2,
+    openHref: null,
+  });
   await page.waitForURL(/order-received/, { timeout: 15000 });
   await expect(page.locator('.wcll-payment')).toHaveCount(0);
 

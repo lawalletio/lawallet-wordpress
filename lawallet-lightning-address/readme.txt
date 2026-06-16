@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -108,6 +108,11 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.1.1 =
+* Improve Lightning payment page rate display with locked Yadio conversion snapshots and BTC/SAT display options.
+* Polish checkout/payment controls, including WebLN loading states, paid-state disabling, and fallback wallet visibility.
+* Add a Bitcoin icon to the WooCommerce LaWallet payment method option.
 
 = 0.1.0 =
 * Initial release: WooCommerce Lightning gateway (LNURL-pay + LUD-21 verification, WebLN and
