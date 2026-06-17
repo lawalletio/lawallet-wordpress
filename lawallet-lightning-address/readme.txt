@@ -1,5 +1,5 @@
 === LaWallet - Lightning Address ===
-Contributors: magollo
+Contributors: Agustin Kassis
 Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
