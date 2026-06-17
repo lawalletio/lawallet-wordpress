@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: LaWallet - Lightning Address
- * Plugin URI: https://github.com/lawalletio/lawallet-wordpress
+ * Plugin URI: https://wordpress.lawallet.io
  * Description: Accept Bitcoin Lightning payments in WooCommerce and route Lightning Address/NIP-05 discovery through LaWallet.
  * Version: 0.1.2
  * Requires at least: 6.0
