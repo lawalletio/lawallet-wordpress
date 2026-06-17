@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="935 -11 156 156" role="img" aria-label="LaWallet">
+  <title>LaWallet</title>
+  <defs>
+    <style>
+      .lw-1 { fill: url(#lw-grad); }
+      .lw-2 { fill: #fdc800; }
+      .lw-4 { fill: #e95052; }
+      .lw-5 { fill: #55b68c; }
+    </style>
+    <linearGradient id="lw-grad" x1="981.4" y1="-854.85" x2="1044.89" y2="-854.85" gradientTransform="translate(0 921.89)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#1d1d1b"/>
+    </linearGradient>
+  </defs>
+  <path class="lw-4" d="M1003.53,83.69c4.44,0,8.06,3.61,8.06,8.06s-3.61,8.06-8.06,8.06v33.3c22.8,0,41.36-18.55,41.36-41.36,0-9.25-3.06-17.81-8.21-24.71-7.55,10.1-19.6,16.65-33.15,16.65Z"/>
+  <path class="lw-5" d="M1036.68,67.04c5.16-6.9,8.21-15.45,8.21-24.71,0-22.8-18.55-41.36-41.36-41.36v33.3c4.44,0,8.06,3.61,8.06,8.06s-3.61,8.06-8.06,8.06c13.55,0,25.6,6.55,33.15,16.65Z"/>
+  <path class="lw-1" d="M1036.68,67.04c-7.55-10.1-19.6-16.65-33.15-16.65h-22.13v33.3h22.13c13.55,0,25.6-6.55,33.15-16.65Z"/>
+  <path class="lw-2" d="M1036.68,67.04c-7.55-10.1-19.6-16.65-33.15-16.65h-22.13v33.3h22.13c13.55,0,25.6-6.55,33.15-16.65Z"/>
+</svg>

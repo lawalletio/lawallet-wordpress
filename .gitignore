@@ -8,3 +8,5 @@ e2e/package-lock.json
 mock-lnurl/node_modules/
 mock-lnurl/package-lock.json
 *.zip
+.claude/
+landing/.vercel/

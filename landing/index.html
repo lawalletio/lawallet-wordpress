@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Accept Bitcoin via Lightning Address — WordPress plugin</title>
+  <meta name="description" content="Accept Bitcoin via Lightning Address — the WordPress + WooCommerce plugin that turns your store into a Bitcoin checkout. Get paid to any Lightning Address, verified on your own server. Non-custodial and open source." />
+
+  <link rel="icon" type="image/svg+xml" href="assets/lawallet-icon.svg" />
+  <meta property="og:title" content="Accept Bitcoin via Lightning Address — WordPress plugin" />
+  <meta property="og:description" content="The WordPress + WooCommerce plugin to accept Bitcoin via Lightning Address. Connect LaWallet and give your community Lightning Addresses on your own domain." />
+  <meta property="og:type" content="website" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg: #07070a;
+      --bg-2: #0a0a0f;
+      --surface: rgba(255, 255, 255, 0.025);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.14);
+      --text: #ffffff;
+      --muted: rgba(255, 255, 255, 0.56);
+      --faint: rgba(255, 255, 255, 0.3);
+
+      --gold: #00836d;       /* LaWallet primary (teal-green) */
+      --gold-bright: #00c4a3;
+      --coral: #e95052;      /* LaWallet coral */
+      --yellow: #fdc800;     /* LaWallet bright accent */
+      --green: #55b68c;
+      --teal: #26a69a;
+
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --radius: 16px;
+      --maxw: 1120px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+    /* ---------- background ---------- */
+    .bg-layer { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .bg-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 131, 109, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 131, 109, 0.045) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse 100% 60% at 50% 0%, #000 35%, transparent 75%);
+      -webkit-mask-image: radial-gradient(ellipse 100% 60% at 50% 0%, #000 35%, transparent 75%);
+    }
+    .blob { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.5; }
+    .blob-1 { width: 520px; height: 520px; top: -160px; left: -120px; background: radial-gradient(circle, rgba(0,131,109,0.55), transparent 70%); animation: drift 18s ease-in-out infinite; }
+    .blob-2 { width: 460px; height: 460px; top: -80px; right: -140px; background: radial-gradient(circle, rgba(253,200,0,0.20), transparent 70%); animation: drift 22s ease-in-out infinite reverse; }
+    .blob-3 { width: 540px; height: 540px; top: 420px; left: 30%; background: radial-gradient(circle, rgba(233,80,82,0.18), transparent 70%); animation: drift 26s ease-in-out infinite; }
+    @keyframes drift {
+      0%, 100% { transform: translate(0, 0); }
+      33% { transform: translate(40px, -30px); }
+      66% { transform: translate(-30px, 40px); }
+    }
+    .noise::before {
+      content: ""; position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+    }
+
+    main, header, footer { position: relative; z-index: 2; }
+
+    /* ---------- nav ---------- */
+    header.nav {
+      position: sticky; top: 0; z-index: 50;
+      -webkit-backdrop-filter: saturate(180%) blur(22px);
+      backdrop-filter: saturate(180%) blur(22px);
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015)), rgba(12,12,18,0.5);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+      transition: background .4s ease, box-shadow .4s ease, border-color .4s ease;
+    }
+    header.nav.scrolled {
+      background: linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0.015)), rgba(12,12,18,0.68);
+      border-bottom-color: rgba(255,255,255,0.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 12px 34px -14px rgba(0,0,0,0.6);
+    }
+    .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 68px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand img.mark { height: 28px; width: auto; }
+    .brand .x { color: var(--faint); font-size: 18px; font-weight: 300; }
+    .brand .wp { display: inline-flex; align-items: center; gap: 7px; color: rgba(255,255,255,0.82); font-weight: 600; font-size: 15px; }
+    .brand .wp img { height: 20px; width: 20px; color: #fff; }
+    .nav-links { display: flex; align-items: center; gap: 30px; }
+    .nav-links a { font-size: 14.5px; color: var(--muted); transition: color .25s; }
+    .nav-links a:hover { color: var(--text); }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px; justify-content: center;
+      font-weight: 600; font-size: 14.5px; border-radius: 999px;
+      padding: 11px 20px; cursor: pointer; border: 1px solid transparent;
+      transition: transform .2s ease, box-shadow .3s ease, background .25s, border-color .25s;
+      white-space: nowrap;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold-bright), var(--gold));
+      color: #04140f;
+      box-shadow: 0 8px 28px -8px rgba(0,196,163,0.5);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 34px -8px rgba(0,196,163,0.65); }
+    .btn-ghost { background: var(--surface); border-color: var(--border); color: var(--text); }
+    .btn-ghost:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.06); }
+    .btn-lg { padding: 15px 28px; font-size: 16px; }
+
+    .nav-cta { display: flex; align-items: center; gap: 14px; }
+    .menu-toggle { display: none; background: none; border: 0; color: #fff; cursor: pointer; }
+
+    /* ---------- hero ---------- */
+    .hero { padding: 86px 0 70px; text-align: center; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 9px;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--gold-bright);
+      border: 1px solid rgba(0,196,163,0.28); background: rgba(0,131,109,0.10);
+      border-radius: 999px; padding: 7px 15px; margin-bottom: 30px;
+    }
+    .pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gold-bright); box-shadow: 0 0 10px var(--gold-bright); }
+
+    h1.headline {
+      font-size: clamp(40px, 7vw, 78px); font-weight: 800; line-height: 1.03;
+      letter-spacing: -0.03em; margin-bottom: 24px;
+    }
+    h1 .grad {
+      background: linear-gradient(110deg, var(--yellow), var(--gold-bright) 45%, var(--green));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .sub {
+      font-size: clamp(17px, 2.2vw, 21px); color: var(--muted);
+      max-width: 680px; margin: 0 auto 38px;
+    }
+    .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .trust {
+      margin-top: 28px; display: flex; gap: 22px; justify-content: center; flex-wrap: wrap;
+      font-family: var(--mono); font-size: 12.5px; color: var(--faint);
+    }
+    .trust span { display: inline-flex; align-items: center; gap: 7px; }
+    .trust svg { width: 14px; height: 14px; color: var(--gold-bright); }
+
+    /* ---------- checkout mock ---------- */
+    .hero-visual { margin-top: 64px; display: flex; justify-content: center; }
+    .checkout {
+      width: 100%; max-width: 420px; text-align: left;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+      border: 1px solid var(--border); border-radius: 22px; padding: 26px;
+      box-shadow: 0 40px 80px -30px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.02);
+      position: relative; animation: floaty 6s ease-in-out infinite;
+    }
+    @keyframes floaty { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-10px); } }
+    .checkout .ck-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .checkout .ck-store { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; }
+    .checkout .ck-store img { width: 22px; height: 22px; color: #fff; }
+    .checkout .ck-badge { font-family: var(--mono); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold-bright); border: 1px solid rgba(0,196,163,0.3); border-radius: 999px; padding: 4px 9px; }
+    .qr { width: 180px; height: 180px; margin: 6px auto 18px; border-radius: 16px; background: #fff; padding: 12px; display: block; }
+    .ck-amount { text-align: center; margin-bottom: 6px; }
+    .ck-amount .sats { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; }
+    .ck-amount .fiat { color: var(--faint); font-family: var(--mono); font-size: 12.5px; }
+    .ck-addr { text-align: center; font-family: var(--mono); font-size: 12.5px; color: var(--gold-bright); margin: 10px 0 18px; word-break: break-all; }
+    .ck-pay { width: 100%; }
+    .ck-verify { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; font-family: var(--mono); font-size: 11.5px; color: var(--green); }
+    .ck-verify .ring { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--green); border-right-color: transparent; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- section primitives ---------- */
+    section { padding: 84px 0; }
+    .eyebrow {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: var(--gold-bright); margin-bottom: 16px; text-align: center;
+    }
+    h2.section-title {
+      font-size: clamp(30px, 4.4vw, 46px); font-weight: 800; letter-spacing: -0.025em;
+      text-align: center; line-height: 1.1; margin-bottom: 16px;
+    }
+    .section-lead { text-align: center; color: var(--muted); max-width: 620px; margin: 0 auto 52px; font-size: 17px; }
+
+    /* ---------- wallets ---------- */
+    .wallet-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
+    }
+    .wallet {
+      display: flex; align-items: center; gap: 13px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 16px 18px; transition: transform .25s ease, border-color .25s ease, background .25s ease;
+    }
+    .wallet:hover { transform: translateY(-3px); border-color: var(--border-strong); background: rgba(255,255,255,0.05); }
+    .wallet .ic {
+      width: 46px; height: 46px; flex-shrink: 0; border-radius: 12px;
+      background: #fff; display: grid; place-items: center; padding: 6px; overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+    }
+    .wallet .ic img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+    .wallet .wname { font-weight: 600; font-size: 15px; line-height: 1.2; }
+    .wallet .wtag { font-family: var(--mono); font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+    .wallet-note { text-align: center; margin-top: 26px; color: var(--faint); font-size: 14px; }
+    .wallet-note b { color: var(--muted); font-weight: 600; }
+
+    /* ---------- split value props ---------- */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+    .vcard {
+      background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.012));
+      border: 1px solid var(--border); border-radius: 22px; padding: 34px;
+      position: relative; overflow: hidden;
+    }
+    .vcard::after {
+      content: ""; position: absolute; width: 240px; height: 240px; border-radius: 50%;
+      filter: blur(70px); top: -90px; right: -70px; opacity: 0.5; pointer-events: none;
+    }
+    .vcard.a::after { background: radial-gradient(circle, rgba(0,131,109,0.4), transparent 70%); }
+    .vcard.b::after { background: radial-gradient(circle, rgba(253,200,0,0.18), transparent 70%); }
+    .vicon { display: inline-flex; gap: 10px; align-items: center; margin-bottom: 20px; }
+    .vicon img { width: 40px; height: 40px; }
+    .vicon .plus { color: var(--faint); font-size: 20px; font-weight: 300; }
+    .vcard h3 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px; }
+    .vcard p { color: var(--muted); font-size: 16px; }
+    .vcard ul { list-style: none; margin-top: 18px; display: grid; gap: 10px; }
+    .vcard li { display: flex; gap: 10px; align-items: flex-start; color: var(--muted); font-size: 14.5px; }
+    .vcard li svg { width: 17px; height: 17px; color: var(--gold-bright); flex-shrink: 0; margin-top: 3px; }
+    .vbadge {
+      position: absolute; top: 22px; right: 22px; z-index: 2;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--yellow); background: rgba(253,200,0,0.10); border: 1px solid rgba(253,200,0,0.32);
+      border-radius: 999px; padding: 5px 11px;
+    }
+    .vgithub {
+      display: inline-flex; align-items: center; gap: 9px; margin-top: 20px;
+      font-size: 14px; font-weight: 600; color: var(--text);
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 999px; padding: 10px 16px; transition: border-color .25s, background .25s, transform .2s;
+    }
+    .vgithub:hover { border-color: var(--border-strong); background: rgba(255,255,255,0.08); transform: translateY(-2px); }
+    .vgithub img { width: 18px; height: 18px; }
+
+    /* ---------- features ---------- */
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .feature {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 26px; transition: transform .25s, border-color .25s;
+    }
+    .feature:hover { transform: translateY(-4px); border-color: var(--border-strong); }
+    .feature .fi {
+      width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center;
+      background: rgba(0,131,109,0.12); border: 1px solid rgba(0,196,163,0.22); margin-bottom: 16px;
+    }
+    .feature .fi svg { width: 22px; height: 22px; color: var(--gold-bright); }
+    .feature h4 { font-size: 17.5px; font-weight: 700; margin-bottom: 8px; }
+    .feature p { color: var(--muted); font-size: 14.5px; }
+
+    /* ---------- wallets scroll showcase ---------- */
+    .wsection { position: relative; height: 235vh; }
+    .wsticky { position: sticky; top: 0; min-height: 100vh; display: flex; align-items: center; padding: 90px 0; }
+    .wgrid { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 56px; align-items: center; width: 100%; }
+
+    .wleft .wtitle { font-size: clamp(26px, 3vw, 38px); font-weight: 800; letter-spacing: -0.025em; line-height: 1.12; margin-bottom: 26px; max-width: 440px; }
+    .wlist { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .witem {
+      display: flex; align-items: center; gap: 14px; padding: 11px 14px; border-radius: 13px;
+      cursor: pointer; opacity: 0.45; border: 1px solid transparent;
+      transition: opacity .35s ease, background .35s ease, border-color .35s ease, transform .35s ease;
+    }
+    .witem .ic { width: 40px; height: 40px; border-radius: 10px; background: #fff; padding: 5px; display: grid; place-items: center; flex-shrink: 0; }
+    .witem .ic img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .witem .wt { display: flex; flex-direction: column; line-height: 1.25; }
+    .witem .wt b { font-size: 15.5px; font-weight: 700; }
+    .witem .wt i { font-style: normal; font-size: 12.5px; color: var(--faint); transition: color .3s; }
+    .witem.is-active { opacity: 1; background: var(--surface); border-color: var(--border-strong); transform: translateX(8px); }
+    .witem.is-active .wt i { color: var(--accent); }
+    .wlist-note { margin-top: 18px; color: var(--faint); font-size: 13.5px; }
+    .wlist-note b { color: var(--muted); }
+
+    .wright { position: relative; min-height: 440px; }
+    .wpanel {
+      position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; opacity: 0; transform: translateY(18px) scale(0.97); pointer-events: none;
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .wpanel.is-active { opacity: 1; transform: none; }
+    .wbig {
+      position: relative; width: 196px; height: 196px; border-radius: 38px; background: #fff;
+      display: grid; place-items: center; padding: 30px; margin-bottom: 30px;
+      box-shadow: 0 34px 70px -24px rgba(0,0,0,0.7);
+    }
+    .wbig::before {
+      content: ""; position: absolute; inset: -36px; z-index: -1; border-radius: 50%;
+      background: radial-gradient(circle, var(--accent), transparent 62%); opacity: 0.4; filter: blur(26px);
+    }
+    .wbig img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .wpname { font-size: clamp(30px, 4vw, 46px); font-weight: 800; letter-spacing: -0.025em; }
+    .wpsub {
+      display: inline-block; margin-top: 12px; font-family: var(--mono); font-size: 12.5px;
+      text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent);
+      border: 1px solid var(--accent); border-radius: 999px; padding: 6px 14px;
+    }
+    .wpdesc { margin-top: 20px; color: var(--muted); font-size: 16.5px; max-width: 400px; line-height: 1.6; }
+
+    /* ---------- steps: pencil sketch (light) ---------- */
+    .steps-light {
+      background: #fbfaf7; color: #1c1a17; position: relative;
+      border-top: 1px solid rgba(0,0,0,0.06); border-bottom: 1px solid rgba(0,0,0,0.06);
+    }
+    .steps-light .wrap { text-align: center; }
+    .sk-eyebrow {
+      font-family: 'Caveat', cursive; font-size: 26px; font-weight: 700; color: #8a8378;
+      transform: rotate(-2deg); margin-bottom: 2px;
+    }
+    .sk-title {
+      font-size: clamp(30px, 4.4vw, 48px); font-weight: 800; letter-spacing: -0.025em;
+      color: #1c1a17; margin-bottom: 56px;
+    }
+    .sk-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+    .sk-step { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0 10px; }
+    .sk-num {
+      font-family: 'Caveat', cursive; font-weight: 700; font-size: 84px; line-height: 0.8;
+      color: #c9542f; /* pencil red-orange */ margin-bottom: 6px;
+    }
+    .sk-draw { width: 150px; height: 138px; margin: 6px 0 14px; }
+    .sk-draw svg { width: 100%; height: 100%; }
+    .sk-draw .ink { fill: none; stroke: #2a2722; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    .sk-draw .ink circle { fill: #2a2722; stroke: none; }
+    .sk-step h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: #1c1a17; }
+    .sk-step p { margin-top: 6px; color: #6b655c; font-size: 15px; }
+    .sk-step code { font-family: var(--mono); font-size: 13px; color: #c9542f; background: rgba(201,84,47,0.08); padding: 1px 6px; border-radius: 5px; }
+    /* hand-drawn connectors between steps */
+    .sk-step:not(:last-child)::after {
+      content: ""; position: absolute; top: 92px; right: -22px; width: 44px; height: 18px;
+      background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 44 18'%3E%3Cpath d='M2 10 C12 2 20 16 30 8 L26 6 M30 8 L27 13' fill='none' stroke='%23bdb7ab' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    }
+    .sk-note {
+      display: inline-flex; align-items: center; gap: 12px; margin-top: 54px;
+      font-family: 'Caveat', cursive; font-size: 34px; font-weight: 700; color: #4a453d;
+    }
+    .sk-note svg { width: 30px; height: 30px; color: #c9542f; }
+
+    /* staggered scroll-driven entrance for each step */
+    @keyframes sk-rise { from { opacity: 0; transform: translateY(58px); } to { opacity: 1; transform: none; } }
+    @keyframes sk-pop  { from { opacity: 0; transform: translateY(20px) scale(0.55) rotate(-8deg); } to { opacity: 1; transform: none; } }
+    .sk-step { opacity: 1; }
+    @supports (animation-timeline: view()) {
+      .sk-step { opacity: 1; animation: sk-rise linear both; animation-timeline: view(); }
+      .sk-step:nth-child(1) { animation-range: entry 2% cover 36%; }
+      .sk-step:nth-child(2) { animation-range: entry 12% cover 46%; }
+      .sk-step:nth-child(3) { animation-range: entry 22% cover 56%; }
+      .sk-num { animation: sk-pop linear both; animation-timeline: view(); animation-range: entry 6% cover 42%; transform-origin: 50% 80%; }
+    }
+    @media (max-width: 760px) {
+      .sk-steps { grid-template-columns: 1fr; gap: 40px; }
+      .sk-step:not(:last-child)::after { display: none; }
+    }
+
+    /* ---------- highlights ---------- */
+    .highlights { padding: 70px 0 30px; }
+    .hl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .hl {
+      text-align: center; background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.012));
+      border: 1px solid var(--border); border-radius: 18px; padding: 32px 26px;
+      transition: transform .25s ease, border-color .25s ease;
+    }
+    .hl:hover { transform: translateY(-4px); border-color: var(--border-strong); }
+    .hl-ic {
+      width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center;
+      margin: 0 auto 16px;
+    }
+    .hl-ic svg { width: 28px; height: 28px; }
+    .hl-ic.ic-gold { background: rgba(0,131,109,0.14); border: 1px solid rgba(0,196,163,0.28); color: var(--gold-bright); }
+    .hl-ic.ic-yellow { background: rgba(253,200,0,0.12); border: 1px solid rgba(253,200,0,0.30); color: var(--yellow); }
+    .hl-ic.ic-coral { background: rgba(233,80,82,0.12); border: 1px solid rgba(233,80,82,0.32); color: #ff6b6d; }
+    .hl-title { font-size: 21px; font-weight: 800; letter-spacing: -0.015em; }
+    .hl-sub { color: var(--muted); font-size: 14.5px; margin-top: 6px; }
+
+    /* ---------- steps ---------- */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
+    .step {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 28px; position: relative;
+    }
+    .step .num {
+      font-family: var(--mono); font-weight: 700; font-size: 13px; color: var(--gold-bright);
+      border: 1px solid rgba(0,196,163,0.28); border-radius: 999px; width: 34px; height: 34px;
+      display: grid; place-items: center; margin-bottom: 16px;
+    }
+    .step h4 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+    .step p { color: var(--muted); font-size: 14.5px; }
+    .step code { font-family: var(--mono); font-size: 13px; color: var(--yellow); background: rgba(253,200,0,0.08); padding: 2px 6px; border-radius: 6px; }
+    .setup-chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      background: rgba(0,131,109,0.12); border: 1px solid rgba(0,196,163,0.28); color: var(--gold-bright);
+      border-radius: 999px; padding: 6px 14px; letter-spacing: 0.06em;
+    }
+    .steps-note {
+      display: flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%;
+      margin: 30px auto 0; padding: 12px 20px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+      color: var(--muted); font-size: 14.5px;
+    }
+    .steps-note svg { width: 18px; height: 18px; color: var(--gold-bright); flex-shrink: 0; }
+
+    /* ---------- cta band ---------- */
+    .cta-band {
+      text-align: center;
+      background: linear-gradient(180deg, rgba(0,131,109,0.12), rgba(255,255,255,0.012));
+      border: 1px solid rgba(0,196,163,0.2); border-radius: 26px; padding: 60px 30px;
+    }
+    .cta-band h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -0.025em; margin-bottom: 14px; }
+    .cta-band p { color: var(--muted); font-size: 17px; max-width: 520px; margin: 0 auto 30px; }
+
+    /* ---------- footer ---------- */
+    footer.site { border-top: 1px solid var(--border); padding: 48px 0 60px; margin-top: 30px; }
+    .foot-inner { display: flex; align-items: center; justify-content: space-between; gap: 26px; flex-wrap: wrap; }
+    .foot-brand { display: flex; align-items: center; gap: 12px; }
+    .foot-brand img { height: 22px; opacity: 0.7; }
+    .foot-brand .x { color: var(--faint); }
+    .foot-brand .wp { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 14px; font-weight: 600; }
+    .foot-brand .wp img { height: 18px; width: 18px; opacity: 1; }
+    .foot-links { display: flex; gap: 24px; font-family: var(--mono); font-size: 13px; color: var(--faint); flex-wrap: wrap; }
+    .foot-links a:hover { color: var(--gold-bright); }
+    .foot-copy { width: 100%; margin-top: 26px; font-family: var(--mono); font-size: 12px; color: rgba(255,255,255,0.22); }
+
+    /* ---------- reveal ---------- */
+    .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+
+    /* scroll-linked progress reveal: each element animates in sync with scroll position */
+    @keyframes reveal-progress {
+      from { opacity: 0; transform: translateY(46px) scale(0.985); filter: blur(6px); }
+      to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+    }
+    @supports (animation-timeline: view()) {
+      .reveal {
+        opacity: 1; transform: none; transition: none;
+        animation: reveal-progress linear both;
+        animation-timeline: view();
+        animation-range: entry 0% entry 55%;
+      }
+    }
+
+    /* ---------- responsive ---------- */
+    @media (max-width: 900px) {
+      .features, .steps, .wallet-grid { grid-template-columns: repeat(2, 1fr); }
+      .split { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .menu-toggle { display: inline-flex; }
+      .nav-links.open {
+        display: flex; flex-direction: column; gap: 18px; position: absolute; top: 68px; left: 0; right: 0;
+        background: rgba(7,7,10,0.96); border-bottom: 1px solid var(--border); padding: 22px 24px;
+      }
+    }
+    @media (max-width: 560px) {
+      .wallet-grid { grid-template-columns: 1fr 1fr; }
+      .trust { gap: 14px; }
+      .nav-cta .btn-ghost { display: none; }
+      section { padding: 60px 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .blob, .checkout, .ck-verify .ring { animation: none; }
+      .reveal { transition: none; opacity: 1; transform: none; }
+      html { scroll-behavior: auto; }
+    }
+    /* ============ LIGHT WORDPRESS-PLUGIN HERO ============ */
+    .hero-wp {
+      position: relative; overflow: hidden;
+      background: radial-gradient(120% 90% at 50% -8%, #ffffff 0%, #f4eefc 48%, #ece4f7 100%);
+      color: #0b1020;
+      padding: 70px 0 210px;
+      isolation: isolate;
+    }
+    .wp-watermark {
+      position: absolute; inset: -12% 0 -6% 0; z-index: 0;
+      background: url("assets/wp-woo-pattern.svg") repeat;
+      background-size: 150px;
+      opacity: 0.55;
+      will-change: transform;
+    }
+    .wp-vignette {
+      position: absolute; inset: 0; z-index: 1; pointer-events: none;
+      background:
+        radial-gradient(60% 50% at 50% 32%, rgba(255,255,255,0.92), rgba(255,255,255,0) 70%),
+        radial-gradient(90% 70% at 50% 120%, rgba(56,88,233,0.10), rgba(255,255,255,0) 60%);
+    }
+    .wp-float {
+      position: absolute; z-index: 1; pointer-events: none;
+      opacity: 0.22; will-change: transform; filter: drop-shadow(0 10px 20px rgba(40,60,120,0.12));
+    }
+    .wp-float.f1 { width: 92px; top: 120px; left: 6%; opacity: 0.28; }
+    .wp-float.f2 { width: 120px; top: 90px; right: 7%; opacity: 0.20; }
+    .wp-float.f3 { width: 74px; top: 360px; left: 11%; opacity: 0.16; }
+    .wp-float.f4 { width: 66px; top: 300px; right: 12%; opacity: 0.24; }
+    .wp-float.f5 { width: 54px; top: 520px; right: 22%; opacity: 0.5; }
+
+    .hero-wp-inner { position: relative; z-index: 3; text-align: center; }
+
+    .hero-lockup { display: inline-flex; gap: 10px; margin-bottom: 26px; flex-wrap: wrap; justify-content: center; }
+    .lk {
+      display: inline-flex; align-items: center; gap: 8px; border-radius: 999px;
+      padding: 9px 16px; font-size: 13.5px; font-weight: 600;
+      box-shadow: 0 6px 20px -12px rgba(60,40,120,0.4);
+    }
+    .lk img { width: 18px; height: 18px; }
+    .lk-woo { background: #f4ecfd; border: 1px solid #e1cffb; color: #6d28d9; }
+    .lk-woo strong { color: #7F54B3; font-weight: 800; }
+    .lk-wp { background: #fff; border: 1px solid #e3e7ef; color: #2b3550; }
+
+    .wp-title {
+      font-size: clamp(42px, 7.4vw, 88px); font-weight: 900; line-height: 1.0;
+      letter-spacing: -0.035em; color: #0b1020; margin-bottom: 22px;
+    }
+    .wp-title .accent {
+      background: linear-gradient(100deg, #3858E9, #873EFF 52%, #00a98c);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .wp-sub {
+      font-size: clamp(17px, 2.1vw, 21px); color: #4b5571; line-height: 1.6;
+      max-width: 660px; margin: 0 auto 34px;
+    }
+    .hero-wp .hero-cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn-install {
+      background: linear-gradient(135deg, #9b6dff, #6d28d9);
+      color: #fff; box-shadow: 0 12px 30px -10px rgba(109,40,217,0.6);
+    }
+    .btn-install:hover { transform: translateY(-2px); box-shadow: 0 18px 38px -10px rgba(109,40,217,0.72); }
+    .btn-install svg { width: 18px; height: 18px; }
+    .btn-light-ghost { background: #fff; border-color: #dde2ec; color: #1c2438; }
+    .btn-light-ghost:hover { border-color: #c4ccda; background: #f7f9fc; }
+
+    .wp-trust {
+      margin-top: 22px; font-size: 13.5px; color: #6b7488;
+      display: flex; align-items: center; gap: 8px; justify-content: center; flex-wrap: wrap;
+    }
+    .wp-trust em { color: #c2c9d6; font-style: normal; }
+    .wp-stars { color: #f5a623; letter-spacing: 2px; }
+
+    /* ---- plugin showcase screen ---- */
+    .wp-stage { position: relative; margin-top: 64px; perspective: 1600px; }
+    .screen {
+      position: relative; max-width: 760px; margin: 0 auto; text-align: left;
+      background: #fff; border: 1px solid #e4e8f0; border-radius: 18px; overflow: hidden;
+      box-shadow: 0 50px 90px -40px rgba(28,40,90,0.55), 0 10px 30px -20px rgba(28,40,90,0.3);
+      transform: perspective(1600px) rotateX(var(--rx, 9deg)) rotateY(var(--ry, 0deg));
+      transform-style: preserve-3d; transition: transform .25s ease-out; will-change: transform;
+    }
+    .screen-bar {
+      display: flex; align-items: center; gap: 8px;
+      background: #f3f5f9; border-bottom: 1px solid #e7eaf1; padding: 12px 16px;
+    }
+    .screen-bar i { width: 11px; height: 11px; border-radius: 50%; background: #d6dae3; }
+    .screen-bar i:nth-child(1){ background:#ff5f57; } .screen-bar i:nth-child(2){ background:#febc2e; } .screen-bar i:nth-child(3){ background:#28c840; }
+    .screen-url {
+      margin-left: 10px; display: inline-flex; align-items: center; gap: 7px;
+      font-family: var(--mono); font-size: 12px; color: #8a93a6;
+      background: #fff; border: 1px solid #e7eaf1; border-radius: 7px; padding: 5px 12px;
+    }
+    .screen-url img { width: 14px; height: 14px; }
+    .screen-body { padding: 22px; display: grid; grid-template-columns: 1fr 230px; gap: 20px; align-items: start; }
+
+    .pcard {
+      display: grid; grid-template-columns: 64px 1fr; gap: 16px; align-items: center;
+      border: 1px solid #e8ebf2; border-radius: 14px; padding: 18px; background: #fcfdff;
+    }
+    .pcard-icon { width: 64px; height: 64px; border-radius: 14px; background: #0a0a0f; padding: 9px; box-shadow: 0 6px 16px -8px rgba(0,0,0,0.4); }
+    .pcard-meta h3 { font-size: 18px; font-weight: 800; color: #10182b; line-height: 1.2; letter-spacing: -0.01em; }
+    .pcard-meta p { font-size: 13px; color: #6b7488; margin-top: 3px; }
+    .pcard-meta p strong { color: #3858E9; }
+    .pcard-stars { margin-top: 8px; font-size: 12.5px; color: #f5a623; letter-spacing: 1px; }
+    .pcard-stars span { color: #8a93a6; letter-spacing: 0; margin-left: 6px; }
+    .pcard-install {
+      grid-column: 1 / -1; margin-top: 4px; text-align: center;
+      background: linear-gradient(135deg, #9b6dff, #6d28d9); color: #fff;
+      font-weight: 700; font-size: 14px; border-radius: 8px; padding: 11px 16px;
+      box-shadow: 0 10px 24px -10px rgba(109,40,217,0.6); transition: transform .2s, box-shadow .3s;
+    }
+    .pcard-install:hover { transform: translateY(-2px); box-shadow: 0 14px 28px -10px rgba(109,40,217,0.75); }
+
+    .shot {
+      background: linear-gradient(180deg, #0e1118, #0a0a0f); border: 1px solid #1b2030;
+      border-radius: 14px; padding: 16px; text-align: center; color: #fff;
+    }
+    .shot-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .shot-store { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 600; color: #e7e9ee; }
+    .shot-store img { width: 15px; height: 15px; }
+    .shot-badge { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gold-bright); border: 1px solid rgba(0,196,163,0.3); border-radius: 999px; padding: 3px 7px; }
+    .shot-qr { width: 120px; height: 120px; background: #fff; border-radius: 10px; padding: 8px; display: block; margin: 0 auto 12px; }
+    .shot-amount { font-size: 18px; font-weight: 800; }
+    .shot-amount em { display: block; font-style: normal; font-size: 11px; color: var(--faint); font-family: var(--mono); margin-top: 2px; }
+    .shot-addr { font-family: var(--mono); font-size: 11px; color: var(--gold-bright); margin: 8px 0 12px; word-break: break-all; }
+    .shot-pay { display: block; background: linear-gradient(135deg, var(--gold-bright), var(--gold)); color: #04140f; font-weight: 700; font-size: 13px; border-radius: 8px; padding: 9px; }
+
+    .install-fab {
+      position: absolute; right: max(18px, 8%); bottom: -22px; z-index: 5;
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, #9b6dff, #6d28d9); color: #fff;
+      font-weight: 700; font-size: 14px; border-radius: 999px; padding: 13px 22px;
+      box-shadow: 0 16px 34px -10px rgba(109,40,217,0.7); animation: fab-bob 3.4s ease-in-out infinite;
+    }
+    .install-fab svg { width: 17px; height: 17px; }
+    @keyframes fab-bob { 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-8px); } }
+
+    .bridge {
+      position: absolute; left: 0; right: 0; bottom: -1px; z-index: 4; height: 170px;
+      display: flex; align-items: center; pointer-events: none;
+      background: linear-gradient(180deg, rgba(7,7,10,0) 0 50%, var(--bg) 50% 100%);
+    }
+    .bridge .cable { flex: 1 1 auto; height: 11px; border-radius: 999px; }
+    .bridge .cable-l { background: linear-gradient(90deg, rgba(247,147,26,0) 0%, #f7931a 16%, #f7931a 100%); box-shadow: 0 0 22px rgba(247,147,26,0.55); }
+    .bridge .cable-r { background: linear-gradient(270deg, rgba(135,62,255,0) 0%, #873EFF 16%, #873EFF 100%); box-shadow: 0 0 22px rgba(135,62,255,0.55); }
+    .bridge .bridge-logos {
+      flex: 0 0 auto; display: inline-flex; align-items: center; gap: 22px;
+      background: #fff; border-radius: 18px; padding: 16px 26px;
+      box-shadow: 0 16px 40px -16px rgba(0,0,0,0.55);
+    }
+    .bridge .b-btc { width: 52px; height: 52px; display: block; }
+    .bridge .bridge-logos::before {
+      content: ""; width: 1px; height: 38px; background: #e5e7ef; order: 1;
+    }
+    .bridge .b-woo { height: 40px; width: auto; display: block; order: 2; }
+
+    @media (max-width: 760px) {
+      .hero-wp { padding: 84px 0 140px; }
+      .screen-body { grid-template-columns: 1fr; }
+      .wp-float { display: none; }
+      .install-fab { right: 50%; transform: translateX(50%); }
+      @keyframes fab-bob { 0%,100%{ transform: translateX(50%) translateY(0);} 50%{ transform: translateX(50%) translateY(-8px);} }
+    }
+  </style>
+</head>
+
+<body class="noise">
+  <div class="bg-layer">
+    <div class="bg-grid"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- NAV -->
+  <header class="nav" id="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top" aria-label="LaWallet for WordPress">
+        <img class="mark" src="assets/lawallet-wordmark.svg" alt="LaWallet" />
+        <span class="x">&times;</span>
+        <span class="wp"><img src="assets/wordpress.svg" alt="" aria-hidden="true" /> WordPress</span>
+      </a>
+      <nav class="nav-links" id="navLinks">
+        <a href="#wallets">Wallets</a>
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#lawallet">LaWallet</a>
+        <a href="https://github.com/lawalletio/lawallet-wordpress" target="_blank" rel="noopener">GitHub</a>
+      </nav>
+      <div class="nav-cta">
+        <a class="btn btn-ghost" href="https://github.com/lawalletio/lawallet-wordpress" target="_blank" rel="noopener">View source</a>
+        <a class="btn btn-primary" href="#get">Get the plugin</a>
+        <button class="menu-toggle" id="menuToggle" aria-label="Menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- HERO — WordPress plugin standout (light) -->
+    <section class="hero-wp">
+      <div class="wp-watermark" data-parallax="0.10"></div>
+      <div class="wp-vignette"></div>
+
+      <!-- flying brand logos -->
+      <img class="wp-float f1" data-parallax="0.55" data-depth="26" src="assets/wordpress-blue.svg" alt="" aria-hidden="true" />
+      <img class="wp-float f2" data-parallax="-0.45" data-depth="-34" src="assets/woocommerce.svg" alt="" aria-hidden="true" />
+      <img class="wp-float f3" data-parallax="0.32" data-depth="18" src="assets/woocommerce.svg" alt="" aria-hidden="true" />
+      <img class="wp-float f4" data-parallax="-0.6" data-depth="-22" src="assets/wordpress-blue.svg" alt="" aria-hidden="true" />
+      <img class="wp-float f5" data-parallax="0.48" data-depth="30" src="assets/bitcoin.svg" alt="" aria-hidden="true" />
+
+      <div class="wrap hero-wp-inner">
+        <div class="hero-lockup">
+          <span class="lk lk-woo"><img src="assets/woocommerce.svg" alt="WooCommerce" /> Built for <strong>WooCommerce</strong></span>
+          <span class="lk lk-wp"><img src="assets/wordpress-blue.svg" alt="WordPress" /> WordPress plugin</span>
+        </div>
+
+        <h1 class="wp-title">Accept Bitcoin<br /><span class="accent">via Lightning Address</span></h1>
+        <p class="wp-sub">
+          Turn your WooCommerce store into a Bitcoin checkout. Paid to any Lightning Address &mdash;
+          non-custodial.
+        </p>
+
+        <div class="hero-cta">
+          <a class="btn btn-install btn-lg" href="#get">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>
+            Install the plugin
+          </a>
+          <a class="btn btn-light-ghost btn-lg" href="https://github.com/lawalletio/lawallet-wordpress" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+
+        <div class="wp-trust">
+          <span class="wp-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
+          Non-custodial <em>&middot;</em> LUD-21 verified <em>&middot;</em> Open source (GPL-3.0)
+        </div>
+
+        <!-- plugin showcase: a screen with the plugin install card + a screenshot -->
+        <div class="wp-stage">
+          <div class="screen" data-tilt>
+            <div class="screen-bar">
+              <i></i><i></i><i></i>
+              <span class="screen-url"><img src="assets/wordpress-blue.svg" alt="" aria-hidden="true" /> Plugins &rsaquo; Add New</span>
+            </div>
+            <div class="screen-body">
+              <div class="pcard">
+                <img class="pcard-icon" src="assets/lawallet-icon.svg" alt="Plugin icon" />
+                <div class="pcard-meta">
+                  <h3>Accept Bitcoin via Lightning Address</h3>
+                  <p>By <strong>LaWallet</strong> &middot; WooCommerce</p>
+                  <div class="pcard-stars">&#9733;&#9733;&#9733;&#9733;&#9733; <span>Lightning &middot; LUD-21 verified</span></div>
+                </div>
+                <a class="pcard-install" href="#get">Install Now</a>
+              </div>
+
+              <div class="shot">
+                <div class="shot-head">
+                  <span class="shot-store"><img src="assets/wordpress.svg" alt="" aria-hidden="true" /> Your Store — Checkout</span>
+                  <span class="shot-badge">Lightning</span>
+                </div>
+                <svg class="shot-qr" viewBox="0 0 100 100" role="img" aria-label="Lightning invoice QR code">
+                  <rect width="100" height="100" fill="#fff"/>
+                  <g fill="#0a0a0f">
+                    <rect x="6" y="6" width="22" height="22"/><rect x="12" y="12" width="10" height="10" fill="#fff"/>
+                    <rect x="72" y="6" width="22" height="22"/><rect x="78" y="12" width="10" height="10" fill="#fff"/>
+                    <rect x="6" y="72" width="22" height="22"/><rect x="12" y="78" width="10" height="10" fill="#fff"/>
+                    <rect x="36" y="6" width="6" height="6"/><rect x="48" y="6" width="6" height="6"/><rect x="60" y="12" width="6" height="6"/>
+                    <rect x="36" y="18" width="6" height="6"/><rect x="54" y="18" width="6" height="6"/>
+                    <rect x="6" y="36" width="6" height="6"/><rect x="18" y="36" width="6" height="6"/><rect x="36" y="36" width="6" height="6"/><rect x="48" y="42" width="6" height="6"/><rect x="60" y="36" width="6" height="6"/><rect x="72" y="36" width="6" height="6"/><rect x="84" y="42" width="6" height="6"/>
+                    <rect x="12" y="48" width="6" height="6"/><rect x="30" y="48" width="6" height="6"/><rect x="42" y="54" width="6" height="6"/><rect x="66" y="48" width="6" height="6"/><rect x="84" y="54" width="6" height="6"/>
+                    <rect x="6" y="60" width="6" height="6"/><rect x="24" y="60" width="6" height="6"/><rect x="48" y="66" width="6" height="6"/><rect x="60" y="60" width="6" height="6"/><rect x="78" y="66" width="6" height="6"/>
+                    <rect x="36" y="72" width="6" height="6"/><rect x="48" y="78" width="6" height="6"/><rect x="60" y="72" width="6" height="6"/><rect x="72" y="78" width="6" height="6"/><rect x="84" y="72" width="6" height="6"/>
+                    <rect x="36" y="84" width="6" height="6"/><rect x="54" y="84" width="6" height="6"/><rect x="72" y="90" width="6" height="6"/>
+                  </g>
+                </svg>
+                <div class="shot-amount">21,000 sats <em>&asymp; $14.20</em></div>
+                <div class="shot-addr">store@yourdomain.com</div>
+                <span class="shot-pay">Pay with any wallet</span>
+              </div>
+            </div>
+          </div>
+          <a class="install-fab" href="#get">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg>
+            Install Now
+          </a>
+        </div>
+      </div>
+
+      <div class="bridge" aria-hidden="true">
+        <span class="cable cable-l"></span>
+        <span class="bridge-logos">
+          <img class="b-btc" src="assets/bitcoin.svg" alt="Bitcoin" />
+          <img class="b-woo" src="assets/woocommerce-2015.svg" alt="WooCommerce" />
+        </span>
+        <span class="cable cable-r"></span>
+      </div>
+    </section>
+
+    <!-- HIGHLIGHTS -->
+    <section class="highlights">
+      <div class="wrap hl-grid">
+        <div class="hl reveal">
+          <div class="hl-ic ic-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.6 6.6a4 4 0 1 0 0 5.6L12 12l-6.6-.2a4 4 0 1 1 0-5.6L12 12z"/></svg></div>
+          <div class="hl-title">Free forever</div>
+          <div class="hl-sub">No fees, no subscription, no upsell.</div>
+        </div>
+        <div class="hl reveal">
+          <div class="hl-ic ic-yellow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+          <div class="hl-title">Open source</div>
+          <div class="hl-sub">GPL-3.0, fully auditable on GitHub.</div>
+        </div>
+        <div class="hl reveal">
+          <div class="hl-ic ic-coral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg></div>
+          <div class="hl-title">No registration required</div>
+          <div class="hl-sub">No account, no KYC, no sign-up.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WALLETS (scroll-driven showcase) -->
+    <section id="wallets" class="wsection">
+      <div class="wsticky">
+        <div class="wrap wgrid">
+          <div class="wleft">
+            <p class="eyebrow" style="text-align:left">Use the wallet you already have</p>
+            <h2 class="wtitle">Works with every Lightning Address wallet</h2>
+            <ul class="wlist">
+              <li class="witem is-active" data-i="0" style="--accent:#14B8A6"><span class="ic"><img src="assets/wallets/wallet-of-satoshi.png" alt="Wallet of Satoshi" /></span><span class="wt"><b>Wallet of Satoshi</b><i>Easiest</i></span></li>
+              <li class="witem" data-i="1" style="--accent:#8B2FF7"><span class="ic"><img src="assets/wallets/primal.svg" alt="Primal" /></span><span class="wt"><b>Primal</b><i>Nostr native</i></span></li>
+              <li class="witem" data-i="2" style="--accent:#cfd3da"><span class="ic"><img src="assets/wallets/strike.png" alt="Strike" /></span><span class="wt"><b>Strike</b><i>Most popular</i></span></li>
+              <li class="witem" data-i="3" style="--accent:#FFC83A"><span class="ic"><img src="assets/wallets/alby.svg" alt="Alby" /></span><span class="wt"><b>Alby</b><i>Self custody</i></span></li>
+              <li class="witem" data-i="4" style="--accent:#37BCE4"><span class="ic"><img src="assets/wallets/coincorner.svg" alt="CoinCorner" /></span><span class="wt"><b>CoinCorner</b><i>Fiat integrated</i></span></li>
+              <li class="witem" data-i="5" style="--accent:#0EA5E9"><span class="ic"><img src="assets/wallets/spark.png" alt="Spark" /></span><span class="wt"><b>Spark</b><i>Stablecoin ready</i></span></li>
+              <li class="witem" data-i="6" style="--accent:#EC4899"><span class="ic"><img src="assets/wallets/lnbits.svg" alt="LNbits" /></span><span class="wt"><b>LNbits</b><i>Own infra</i></span></li>
+              <li class="witem" data-i="7" style="--accent:#fdc800"><span class="ic"><img src="assets/lawallet-icon.svg" alt="LaWallet" /></span><span class="wt"><b>LaWallet</b><i>Own Lightning addresses</i></span></li>
+            </ul>
+            <p class="wlist-note">&hellip; and <b>any wallet</b> with a Lightning Address (LUD-16).</p>
+          </div>
+
+          <div class="wright">
+            <div class="wpanel is-active" data-i="0" style="--accent:#14B8A6"><div class="wbig"><img src="assets/wallets/wallet-of-satoshi.png" alt="Wallet of Satoshi" /></div><div class="wpname">Wallet of Satoshi</div><span class="wpsub">Easiest</span><p class="wpdesc">The simplest way to start &mdash; download, get a Lightning Address, and receive in seconds.</p></div>
+            <div class="wpanel" data-i="1" style="--accent:#8B2FF7"><div class="wbig"><img src="assets/wallets/primal.svg" alt="Primal" /></div><div class="wpname">Primal</div><span class="wpsub">Nostr native</span><p class="wpdesc">A Nostr social client with a built-in Lightning wallet and address.</p></div>
+            <div class="wpanel" data-i="2" style="--accent:#cfd3da"><div class="wbig"><img src="assets/wallets/strike.png" alt="Strike" /></div><div class="wpname">Strike</div><span class="wpsub">Most popular</span><p class="wpdesc">One of the most widely used Bitcoin apps, with Lightning Addresses across many regions.</p></div>
+            <div class="wpanel" data-i="3" style="--accent:#FFC83A"><div class="wbig"><img src="assets/wallets/alby.svg" alt="Alby" /></div><div class="wpname">Alby</div><span class="wpsub">Self custody</span><p class="wpdesc">A self-custodial Lightning wallet and browser extension for the open web.</p></div>
+            <div class="wpanel" data-i="4" style="--accent:#37BCE4"><div class="wbig"><img src="assets/wallets/coincorner.svg" alt="CoinCorner" /></div><div class="wpname">CoinCorner</div><span class="wpsub">Fiat integrated</span><p class="wpdesc">Buy, sell and spend Bitcoin with a built-in Lightning Address.</p></div>
+            <div class="wpanel" data-i="5" style="--accent:#0EA5E9"><div class="wbig"><img src="assets/wallets/spark.png" alt="Spark" /></div><div class="wpname">Spark</div><span class="wpsub">Stablecoin ready</span><p class="wpdesc">A modern self-custodial wallet built for Lightning and stablecoins.</p></div>
+            <div class="wpanel" data-i="6" style="--accent:#EC4899"><div class="wbig"><img src="assets/wallets/lnbits.svg" alt="LNbits" /></div><div class="wpname">LNbits</div><span class="wpsub">Own infra</span><p class="wpdesc">Run your own Lightning accounts and addresses on your infrastructure.</p></div>
+            <div class="wpanel" data-i="7" style="--accent:#fdc800"><div class="wbig"><img src="assets/lawallet-icon.svg" alt="LaWallet" /></div><div class="wpname">LaWallet</div><span class="wpsub">Own Lightning addresses</span><p class="wpdesc">Open-source wallet &mdash; give your whole community Lightning Addresses on your domain.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW IT WORKS (pencil sketch, light) -->
+    <section id="how" class="steps-light">
+      <svg width="0" height="0" style="position:absolute"><defs>
+        <filter id="pencil"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3"/></filter>
+      </defs></svg>
+      <div class="wrap">
+        <p class="sk-eyebrow reveal">1-minute setup</p>
+        <h2 class="sk-title reveal">Three simple steps</h2>
+
+        <div class="sk-steps">
+          <div class="sk-step">
+            <span class="sk-num">1</span>
+            <div class="sk-draw">
+              <svg viewBox="0 0 130 120" class="ink"><g filter="url(#pencil)">
+                <rect x="44" y="14" width="42" height="80" rx="9"/>
+                <line x1="58" y1="22" x2="72" y2="22"/>
+                <path d="M68 38 l-13 20 h11 l-4 18 15-22 h-11 z"/>
+                <line x1="65" y1="100" x2="65" y2="112"/>
+                <path d="M58 105 l7 7 7-7"/>
+                <line x1="48" y1="116" x2="82" y2="116"/>
+              </g></svg>
+            </div>
+            <h3>Install a wallet</h3>
+            <p>Any Lightning wallet works.</p>
+          </div>
+
+          <div class="sk-step">
+            <span class="sk-num">2</span>
+            <div class="sk-draw">
+              <svg viewBox="0 0 130 120" class="ink"><g filter="url(#pencil)">
+                <rect x="38" y="28" width="44" height="54" rx="8"/>
+                <rect x="54" y="42" width="44" height="54" rx="8" fill="#fbfaf7"/>
+                <line x1="63" y1="58" x2="89" y2="58"/>
+                <line x1="63" y1="69" x2="89" y2="69"/>
+                <line x1="63" y1="80" x2="80" y2="80"/>
+              </g></svg>
+            </div>
+            <h3>Copy your Lightning Address</h3>
+            <p>Like <code>you@wallet.com</code>.</p>
+          </div>
+
+          <div class="sk-step">
+            <span class="sk-num">3</span>
+            <div class="sk-draw">
+              <svg viewBox="0 0 130 120" class="ink"><g filter="url(#pencil)">
+                <rect x="24" y="26" width="82" height="62" rx="8"/>
+                <line x1="24" y1="42" x2="106" y2="42"/>
+                <circle cx="33" cy="34" r="1.6"/><circle cx="41" cy="34" r="1.6"/><circle cx="49" cy="34" r="1.6"/>
+                <path d="M52 56 h10 v-5 a5 5 0 0 1 10 0 v5 h10 v10 h-5 a5 5 0 0 0 0 10 h5 v8 h-30 z"/>
+                <path d="M40 96 l8 8 16-18"/>
+              </g></svg>
+            </div>
+            <h3>Paste it into the plugin</h3>
+            <p>You&rsquo;re live.</p>
+          </div>
+        </div>
+
+        <p class="sk-note reveal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          No sensitive data &mdash; just your public Lightning Address.
+        </p>
+      </div>
+    </section>
+
+    <!-- SPLIT VALUE PROPS -->
+    <section>
+      <div class="wrap">
+        <div class="split">
+          <div class="vcard a reveal">
+            <div class="vicon"><img src="assets/bitcoin.svg" alt="Bitcoin" /><span class="plus">+</span><img src="assets/wordpress.svg" alt="WordPress" /></div>
+            <h3>Accept Bitcoin in WooCommerce</h3>
+            <p>Set your Lightning Address and get paid in sats. Fiat totals convert automatically.</p>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Pay by QR, wallet link, or WebLN</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Settlement verified server-side with LUD-21</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Funds go straight to your wallet &mdash; never ours</li>
+            </ul>
+          </div>
+          <div class="vcard b reveal" id="lawallet">
+            <span class="vbadge">Optional</span>
+            <div class="vicon"><img src="assets/lawallet-icon.svg" alt="LaWallet" /></div>
+            <h3>Connect LaWallet, own your domain</h3>
+            <p>Optional. Run a self-hosted LaWallet instance to give your community Lightning Addresses on your own domain.</p>
+            <ul>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Multiple Lightning Addresses at <code style="font-family:var(--mono);font-size:13px;color:var(--yellow)">name@yourdomain</code></li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Lightning Address &amp; NIP-05 discovery routed to your gateway</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Verified before redirects go live</li>
+            </ul>
+            <a class="vgithub" href="https://github.com/lawalletio/lawallet-nwc" target="_blank" rel="noopener">
+              <img src="assets/github.svg" alt="" aria-hidden="true" /> Self-host LaWallet on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features">
+      <div class="wrap">
+        <p class="eyebrow reveal">Built for real stores</p>
+        <h2 class="section-title reveal">Everything you need to get paid in Bitcoin</h2>
+        <p class="section-lead reveal">A complete Lightning toolkit for WordPress &mdash; checkout, verification, and identity.</p>
+        <div class="features">
+          <div class="feature reveal">
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></div>
+            <h4>Lightning checkout</h4>
+            <p>A WooCommerce gateway that invoices your Lightning Address via LNURL-pay.</p>
+          </div>
+          <div class="feature reveal">
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 3a9 9 0 1 0 9 9"/></svg></div>
+            <h4>Server-verified payments</h4>
+            <p>Orders complete only after LUD-21 settlement is verified server-side.</p>
+          </div>
+          <div class="feature reveal">
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
+            <h4>Lightning Address &amp; NIP-05</h4>
+            <p>Serve <code>/.well-known/</code> discovery and route it to a LaWallet gateway.</p>
+          </div>
+          <div class="feature reveal">
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg></div>
+            <h4>Auto fiat&rarr;sats</h4>
+            <p>Order totals convert with live exchange rates, or a manual rate.</p>
+          </div>
+          <div class="feature reveal">
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <h4>Non-custodial</h4>
+            <p>Never holds funds or keys. Payments settle to your wallet.</p>
+          </div>
+          <div class="feature reveal">
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg></div>
+            <h4>Open source</h4>
+            <p>GPL-3.0, built on open standards: LNURL, LUD-16/21, NIP-05/57.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section id="get">
+      <div class="wrap">
+        <div class="cta-band reveal">
+          <h2>Start accepting Bitcoin today</h2>
+          <p>No excuses.</p>
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="https://github.com/lawalletio/lawallet-wordpress" target="_blank" rel="noopener">
+              <img src="assets/wordpress.svg" alt="" aria-hidden="true" style="width:18px;height:18px;color:#04140f" />
+              Download the plugin
+            </a>
+            <a class="btn btn-ghost btn-lg" href="https://lawallet.io" target="_blank" rel="noopener">Learn about LaWallet</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap foot-inner">
+      <div class="foot-brand">
+        <img src="assets/lawallet-wordmark.svg" alt="LaWallet" />
+        <span class="x">&times;</span>
+        <span class="wp"><img src="assets/wordpress.svg" alt="" aria-hidden="true" /> WordPress</span>
+      </div>
+      <div class="foot-links">
+        <a href="https://github.com/lawalletio/lawallet-wordpress" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://lawallet.io" target="_blank" rel="noopener">LaWallet</a>
+        <a href="https://docs.lawallet.io" target="_blank" rel="noopener">Docs</a>
+        <a href="https://lawallet.io/terms" target="_blank" rel="noopener">Terms</a>
+        <a href="https://lawallet.io/privacy" target="_blank" rel="noopener">Privacy</a>
+      </div>
+      <p class="foot-copy">&copy; <span id="year">2026</span> LaWallet &mdash; Open source, forever. Bitcoin is for everyone.</p>
+    </div>
+  </footer>
+
+  <script>
+    // year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // nav background on scroll
+    var nav = document.getElementById('nav');
+    var onScroll = function () { nav.classList.toggle('scrolled', window.scrollY > 16); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    // mobile menu
+    var toggle = document.getElementById('menuToggle');
+    var links = document.getElementById('navLinks');
+    toggle.addEventListener('click', function () { links.classList.toggle('open'); });
+    links.addEventListener('click', function (e) { if (e.target.tagName === 'A') links.classList.remove('open'); });
+
+    // reveal on scroll
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) { if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll('.reveal').forEach(function (el, i) {
+      el.style.transitionDelay = (Math.min(i % 4, 3) * 0.06) + 's';
+      io.observe(el);
+    });
+
+    // ---- wallets: scroll-driven active switching ----
+    (function () {
+      var sec = document.getElementById('wallets');
+      if (!sec) return;
+      var items = Array.prototype.slice.call(sec.querySelectorAll('.witem'));
+      var panels = Array.prototype.slice.call(sec.querySelectorAll('.wpanel'));
+      var steps = items.length, cur = -1, ticking = false;
+
+      var lockIdx = -1, lockY = 0, lockTimer = null;
+
+      function setActive(i) {
+        if (i === cur) return; cur = i;
+        items.forEach(function (el, idx) { el.classList.toggle('is-active', idx === i); });
+        panels.forEach(function (el, idx) { el.classList.toggle('is-active', idx === i); });
+      }
+      function targetFor(idx) {
+        var scrollable = Math.max(0, sec.offsetHeight - window.innerHeight);
+        return Math.round(sec.offsetTop + ((idx + 0.5) / steps) * scrollable);
+      }
+      function update() {
+        ticking = false;
+        // While a click-scroll is in flight, hold the chosen wallet selected.
+        if (lockIdx >= 0) {
+          setActive(lockIdx);
+          if (Math.abs(window.pageYOffset - lockY) < 6) lockIdx = -1;
+          return;
+        }
+        var scrollable = sec.offsetHeight - window.innerHeight;
+        if (scrollable <= 0) { setActive(0); return; }
+        var scrolled = Math.min(scrollable, Math.max(0, -sec.getBoundingClientRect().top));
+        var p = scrolled / scrollable;
+        setActive(Math.min(steps - 1, Math.max(0, Math.floor(p * steps - 0.00001))));
+      }
+      function req() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+      window.addEventListener('scroll', req, { passive: true });
+      window.addEventListener('resize', req);
+      items.forEach(function (el, idx) {
+        el.addEventListener('click', function () {
+          var y = targetFor(idx);
+          lockIdx = idx; lockY = y;
+          setActive(idx);                 // select immediately
+          window.scrollTo({ top: y, behavior: 'smooth' });
+          if (lockTimer) clearTimeout(lockTimer);
+          lockTimer = setTimeout(function () { lockIdx = -1; update(); }, 1200); // fail-safe release
+        });
+      });
+      update();
+    })();
+
+    // ---- parallax: watermark, flying logos, screen tilt ----
+    (function () {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      var floats = Array.prototype.slice.call(document.querySelectorAll('[data-parallax]'));
+      var screenEl = document.querySelector('.screen');
+      var hero = document.querySelector('.hero-wp');
+      var mx = 0, my = 0, ticking = false;
+
+      function update() {
+        ticking = false;
+        var y = window.pageYOffset;
+        floats.forEach(function (el) {
+          var sp = parseFloat(el.getAttribute('data-parallax')) || 0;
+          var depth = parseFloat(el.getAttribute('data-depth'));
+          var dx = isNaN(depth) ? 0 : mx * depth;
+          var dy = isNaN(depth) ? 0 : my * depth;
+          el.style.transform = 'translate3d(' + dx.toFixed(1) + 'px,' + (y * sp + dy).toFixed(1) + 'px,0)';
+        });
+        if (screenEl && hero) {
+          var prog = Math.min(1, Math.max(0, y / (hero.offsetHeight || 1)));
+          screenEl.style.setProperty('--rx', (9 * (1 - prog)).toFixed(2) + 'deg');
+          screenEl.style.setProperty('--ry', (mx * 6).toFixed(2) + 'deg');
+        }
+      }
+      function request() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+
+      window.addEventListener('scroll', request, { passive: true });
+      window.addEventListener('resize', request);
+      window.addEventListener('mousemove', function (e) {
+        mx = (e.clientX / window.innerWidth - 0.5) * 2;
+        my = (e.clientY / window.innerHeight - 0.5) * 2;
+        request();
+      }, { passive: true });
+      update();
+    })();
+  </script>
+</body>
+</html>
