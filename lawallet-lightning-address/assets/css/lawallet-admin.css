@@ -1,0 +1,216 @@
+.lawallet-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	margin-top: 18px;
+	max-width: 860px;
+	padding: 22px;
+}
+.lawallet-status {
+	align-items: center;
+	background: #f0f0f1;
+	border-radius: 999px;
+	display: inline-flex;
+	font-size: 13px;
+	gap: 8px;
+	margin: 6px 0 16px;
+	padding: 6px 10px;
+}
+.lawallet-status.ready {
+	background: #edfaef;
+	color: #0a7f28;
+}
+.lawallet-status.error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+.lawallet-grid {
+	display: grid;
+	gap: 14px;
+}
+.lawallet-option-copy {
+	max-width: 720px;
+}
+.lawallet-endpoint-field {
+	max-width: 560px;
+	position: relative;
+}
+.lawallet-input {
+	box-sizing: border-box;
+	max-width: 560px;
+	padding-right: 40px;
+	width: 100%;
+}
+.lawallet-endpoint-check {
+	align-items: center;
+	color: #646970;
+	display: inline-flex;
+	height: 20px;
+	justify-content: center;
+	position: absolute;
+	right: 12px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 20px;
+}
+.lawallet-endpoint-check .dashicons {
+	font-size: 20px;
+	height: 20px;
+	width: 20px;
+}
+.lawallet-endpoint-check.is-ready {
+	color: #0a7f28;
+}
+.lawallet-endpoint-check.is-error {
+	color: #b32d2e;
+}
+.lawallet-endpoint-check.is-loading {
+	color: #2271b1;
+}
+.lawallet-endpoint-check.is-loading .dashicons {
+	animation: lawallet-spin 800ms linear infinite;
+}
+.lawallet-instance-preview {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	margin: 4px 0 18px;
+	max-width: 680px;
+	overflow: hidden;
+}
+.lawallet-instance-preview.is-empty .lawallet-instance-body {
+	grid-template-columns: minmax(0, 1fr);
+	padding: 18px;
+}
+.lawallet-instance-preview.is-empty .lawallet-instance-cover,
+.lawallet-instance-preview.is-empty .lawallet-instance-avatar {
+	display: none;
+}
+.lawallet-instance-preview.is-empty .lawallet-instance-name {
+	margin-top: 0;
+}
+.lawallet-instance-cover {
+	background-color: #111827;
+	background-position: center;
+	background-size: cover;
+	min-height: 118px;
+}
+.lawallet-instance-body {
+	align-items: flex-start;
+	display: grid;
+	gap: 14px;
+	grid-template-columns: 72px minmax(0, 1fr);
+	padding: 0 18px 18px;
+}
+.lawallet-instance-avatar {
+	align-items: center;
+	background: #f6f7f7 center / cover no-repeat;
+	border: 4px solid #fff;
+	border-radius: 8px;
+	box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+	color: #1d2327;
+	display: flex;
+	font-size: 20px;
+	font-weight: 700;
+	height: 72px;
+	justify-content: center;
+	letter-spacing: 0;
+	margin-top: -28px;
+	text-transform: uppercase;
+	width: 72px;
+}
+.lawallet-instance-avatar.is-empty {
+	background: #f6f7f7;
+}
+.lawallet-instance-content {
+	margin-left: 10px;
+}
+.lawallet-instance-name {
+	font-size: 18px;
+	font-weight: 700;
+	line-height: 1.25;
+	margin: 12px 0 4px;
+}
+.lawallet-instance-meta {
+	color: #646970;
+	margin: 0;
+}
+.lawallet-instance-details {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 12px;
+}
+.lawallet-detail-pill {
+	background: #f6f7f7;
+	border-radius: 999px;
+	color: #2c3338;
+	display: inline-flex;
+	font-size: 12px;
+	gap: 4px;
+	padding: 5px 9px;
+}
+.lawallet-socials {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 12px;
+}
+.lawallet-socials a,
+.lawallet-socials span {
+	background: #f6f7f7;
+	border-radius: 6px;
+	color: #1d2327;
+	display: inline-flex;
+	font-size: 12px;
+	padding: 5px 8px;
+	text-decoration: none;
+}
+.lawallet-socials a:hover {
+	background: #eef6ff;
+	color: #135e96;
+}
+@keyframes lawallet-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+.lawallet-code {
+	background: #f6f7f7;
+	border-radius: 6px;
+	display: block;
+	margin-top: 10px;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	padding: 12px;
+}
+.lawallet-actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.lawallet-submit-button {
+	align-items: center;
+	display: inline-flex !important;
+	gap: 8px;
+}
+.lawallet-submit-button.is-loading {
+	cursor: progress;
+	opacity: 0.82;
+	pointer-events: none;
+}
+.lawallet-submit-button.is-loading::before {
+	animation: lawallet-spin 800ms linear infinite;
+	border: 2px solid currentColor;
+	border-radius: 50%;
+	border-right-color: transparent;
+	content: "";
+	display: inline-block;
+	height: 12px;
+	width: 12px;
+}

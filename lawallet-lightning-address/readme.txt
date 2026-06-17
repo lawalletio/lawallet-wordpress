@@ -1,5 +1,5 @@
 === LaWallet - Lightning Address ===
-Contributors: lawallet
+Contributors: magollo
 Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
@@ -66,8 +66,11 @@ redirected to the LaWallet gateway endpoint you configure, and the plugin probes
 = Yadio exchange rates =
 
 For stores not priced in BTC, the plugin fetches BTC exchange rates from
-[Yadio](https://yadio.io) (`https://api.yadio.io`). Only the store currency code is sent. See the
-[Yadio site](https://yadio.io) for its terms.
+[Yadio](https://yadio.io) by requesting `https://api.yadio.io/rate/{CURRENCY}/BTC` server-side
+whenever a fresh rate is needed (results are cached for 5 minutes). Only the store currency code
+is sent - no customer or order data. Yadio is a free public rate API that does not publish a
+formal terms of service or privacy policy; see the [Yadio website](https://yadio.io) and its
+[API documentation](https://yadio.io/api.html).
 
 = Nostr relays (optional) =
 
@@ -113,6 +116,8 @@ fallback. BTC-denominated stores need no conversion.
 * Improve Lightning payment page rate display with locked Yadio conversion snapshots and BTC/SAT display options.
 * Polish checkout/payment controls, including WebLN loading states, paid-state disabling, and fallback wallet visibility.
 * Add a Bitcoin icon to the WooCommerce LaWallet payment method option.
+* Enqueue the settings-page CSS and JavaScript instead of printing them inline.
+* Expand the Yadio external service documentation and load translations on the init hook.
 
 = 0.1.0 =
 * Initial release: WooCommerce Lightning gateway (LNURL-pay + LUD-21 verification, WebLN and

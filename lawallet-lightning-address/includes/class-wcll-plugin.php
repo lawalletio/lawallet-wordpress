@@ -8,8 +8,7 @@ class WCLL_Plugin {
 	const CRON_HOOK = 'wcll_check_pending_payments';
 
 	public static function init() {
-		// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads the es_* translations bundled in /languages until translate.wordpress.org provides them.
-		load_plugin_textdomain( 'lawallet-lightning-address', false, dirname( plugin_basename( WCLL_PLUGIN_FILE ) ) . '/languages' );
+		add_action( 'init', array( __CLASS__, 'load_textdomain' ) );
 		WCLL_Discovery::init();
 
 		if ( class_exists( 'WC_Payment_Gateway' ) ) {
@@ -27,6 +26,11 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_claim_payment', array( __CLASS__, 'ajax_claim_payment' ) );
 		add_action( 'wp_ajax_nopriv_wcll_claim_payment', array( __CLASS__, 'ajax_claim_payment' ) );
 		add_action( 'woocommerce_receipt_wcll_gateway', array( __CLASS__, 'render_payment_page' ) );
+	}
+
+	public static function load_textdomain() {
+		// phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound -- Loads the bundled es_* translations until translate.wordpress.org provides them.
+		load_plugin_textdomain( 'lawallet-lightning-address', false, dirname( plugin_basename( WCLL_PLUGIN_FILE ) ) . '/languages' );
 	}
 
 	public static function enqueue_checkout_assets() {
