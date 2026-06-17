@@ -1,5 +1,5 @@
 === LaWallet - Lightning Address ===
-Contributors: Agustin Kassis
+Contributors: agustinkassis
 Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
@@ -115,7 +115,7 @@ fallback. BTC-denominated stores need no conversion.
 = 0.1.2 =
 * Enqueue the settings-page CSS and JavaScript instead of printing them inline.
 * Expand the Yadio external service documentation and load translations on the init hook.
-* Set the plugin Contributors to magollo.
+* Set the plugin Contributors to agustinkassis.
 
 = 0.1.1 =
 * Improve Lightning payment page rate display with locked Yadio conversion snapshots and BTC/SAT display options.
