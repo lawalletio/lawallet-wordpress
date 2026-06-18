@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1544px; height: 500px; overflow: hidden; }
+    body { position: relative; color: #0b1020; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      background: radial-gradient(120% 150% at 78% -25%, #ffffff 0%, #f4eefc 52%, #ece4f7 100%); }
+    .wm { position: absolute; inset: 0; background: url('assets/wp-woo-pattern.svg') repeat; background-size: 168px; opacity: 0.4; }
+    .vig { position: absolute; inset: 0; background: radial-gradient(70% 90% at 30% 50%, rgba(255,255,255,0.9), rgba(255,255,255,0) 75%); }
+    .grad { background: linear-gradient(100deg, #3858E9, #873EFF 52%, #00a98c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .btc { position: absolute; top: 40px; right: 46px; width: 64px; height: 64px; filter: drop-shadow(0 8px 16px rgba(247,147,26,0.3)); }
+    .row { position: relative; height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 60px; padding: 0 90px; }
+    .left { max-width: 880px; }
+    .logo { height: 44px; width: auto; margin-bottom: 26px; }
+    h1 { font-size: 84px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.0; }
+    h1 .grad { display: inline-block; line-height: 1.18; padding-bottom: 8px; }
+    .sub { margin-top: 18px; font-size: 27px; font-weight: 600; color: #6b6577; }
+    .right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 26px; }
+    .lockup { display: inline-flex; align-items: center; gap: 22px; background: #fff; border: 1px solid #e7e3f0; border-radius: 18px; padding: 16px 28px; box-shadow: 0 18px 44px -22px rgba(60,40,120,0.45); }
+    .lockup .wp { height: 50px; width: auto; } .lockup .woo { height: 42px; width: auto; } .lockup .div { width: 1px; height: 46px; background: #e6e1ee; }
+    .wallets { display: flex; gap: 14px; }
+    .chip { width: 74px; height: 74px; border-radius: 18px; background: #fff; display: flex; align-items: center; justify-content: center; padding: 12px; box-shadow: 0 12px 28px -16px rgba(40,40,80,0.45); }
+    .chip img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  </style>
+</head>
+<body>
+  <div class="wm"></div>
+  <div class="vig"></div>
+  <img class="btc" src="assets/bitcoin.svg" alt="" />
+  <div class="row">
+    <div class="left">
+      <img class="logo" src="assets/lawallet-logo.svg" alt="LaWallet" />
+      <h1>Accept Bitcoin<br /><span class="grad">via Lightning Address</span></h1>
+      <div class="sub">WooCommerce plugin &middot; No registration &middot; Non-custodial</div>
+    </div>
+    <div class="right">
+      <div class="lockup">
+        <img class="wp" src="assets/wordpress.png" alt="WordPress" />
+        <span class="div"></span>
+        <img class="woo" src="assets/woocommerce-2015.svg" alt="WooCommerce" />
+      </div>
+      <div class="wallets">
+        <span class="chip"><img src="assets/wallets/wallet-of-satoshi.png" alt="" /></span>
+        <span class="chip"><img src="assets/wallets/strike.png" alt="" /></span>
+        <span class="chip"><img src="assets/wallets/alby.svg" alt="" /></span>
+        <span class="chip"><img src="assets/wallets/blink.png" alt="" /></span>
+        <span class="chip"><img src="assets/lawallet-icon.svg" alt="" /></span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

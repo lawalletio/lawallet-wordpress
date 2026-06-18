@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 256px; height: 256px; overflow: hidden; }
+    body { position: relative; background: linear-gradient(150deg, #16112a 0%, #0a0a0f 60%); }
+    .glow {
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(circle at 50% 40%, rgba(0,196,163,0.34), transparent 58%),
+        radial-gradient(circle at 74% 80%, rgba(135,62,255,0.32), transparent 56%),
+        radial-gradient(circle at 24% 78%, rgba(247,147,26,0.16), transparent 55%);
+    }
+    .mark { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+    .mark img { width: 150px; height: auto; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.5)); }
+  </style>
+</head>
+<body>
+  <div class="glow"></div>
+  <div class="mark"><img src="assets/lawallet-icon.svg" alt="LaWallet" /></div>
+</body>
+</html>
