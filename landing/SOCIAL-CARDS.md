@@ -38,7 +38,7 @@ The live Open Graph / Twitter card is set in `index.html`
 - **Wallet chips** — white rounded tiles (so dark app icons read on light):
   `width/height ~80–96; border-radius 20; background:#fff; padding 14–16;`
   `img { object-fit: contain; max-width/height: 100% }`. Sources in `assets/wallets/`
-  (`wallet-of-satoshi.png`, `primal.svg`, `strike.png`, `alby.svg`, `coincorner.svg`,
+  (`wallet-of-satoshi.png`, `primal.svg`, `strike.png`, `alby.svg`,
   `blink.png`, `lnbits.svg`) + `assets/lawallet-icon.svg`.
 - **WooCommerce pill** — `#f4ecfd` bg, `#e1cffb` border, `#6d28d9` text, label "WooCommerce Plugin".
 - **Bitcoin accent** — `assets/bitcoin.svg` (~60–70px) in a corner.
