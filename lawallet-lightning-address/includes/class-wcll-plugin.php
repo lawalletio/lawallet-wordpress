@@ -10,7 +10,9 @@ class WCLL_Plugin {
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'load_textdomain' ) );
 		WCLL_Discovery::init();
-		WCLL_Updater::init();
+		if ( class_exists( 'WCLL_Updater' ) ) {
+			WCLL_Updater::init();
+		}
 
 		if ( class_exists( 'WC_Payment_Gateway' ) ) {
 			require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-gateway.php';
