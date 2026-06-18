@@ -1,0 +1,12 @@
+{
+  "note": "Wallet registry for the social campaign. Verify Twitter handles and fill the Nostr npubs before publishing. `accent` is chosen to read on the light card; `logo` is relative to landing/.",
+  "wallets": [
+    { "slug": "wallet-of-satoshi", "name": "Wallet of Satoshi", "tagline": "Easiest",                 "logo": "assets/wallets/wallet-of-satoshi.png", "accent": "#0D9488", "twitter": "walletofsatoshi", "nostr": "" },
+    { "slug": "primal",            "name": "Primal",            "tagline": "Nostr native",            "logo": "assets/wallets/primal.svg",            "accent": "#7C3AED", "twitter": "PrimalHQ",        "nostr": "" },
+    { "slug": "strike",            "name": "Strike",            "tagline": "Most popular",            "logo": "assets/wallets/strike.png",            "accent": "#1C1A17", "twitter": "ln_strike",       "nostr": "" },
+    { "slug": "alby",              "name": "Alby",              "tagline": "Self custody",            "logo": "assets/wallets/alby.svg",              "accent": "#C98A00", "twitter": "getAlby",         "nostr": "" },
+    { "slug": "blink",             "name": "Blink",             "tagline": "Good for merchants",      "logo": "assets/wallets/blink.png",             "accent": "#FF6B00", "twitter": "blinkbtc",        "nostr": "" },
+    { "slug": "lnbits",            "name": "LNbits",            "tagline": "Own infra",               "logo": "assets/wallets/lnbits.svg",            "accent": "#DB2777", "twitter": "lnbits",          "nostr": "" },
+    { "slug": "lawallet",          "name": "LaWallet",          "tagline": "Own Lightning addresses", "logo": "assets/lawallet-icon.svg",             "accent": "#00836D", "twitter": "lawalletok",      "nostr": "" }
+  ]
+}

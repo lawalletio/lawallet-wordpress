@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Template — make-card.sh fills {{NAME}}, {{LOGO}} (path relative to landing/), {{ACCENT}}. -->
+  <style>
+    :root { --accent: {{ACCENT}}; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1200px; height: 630px; overflow: hidden; }
+    body { position: relative; color: #0b1020; font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      background: radial-gradient(120% 105% at 50% -12%, #ffffff 0%, #f4eefc 50%, #ece4f7 100%); }
+    .wm { position: absolute; inset: 0; background: url('../assets/wp-woo-pattern.svg') repeat; background-size: 156px; opacity: 0.42; }
+    .vig { position: absolute; inset: 0; background: radial-gradient(60% 64% at 50% 44%, rgba(255,255,255,0.92), rgba(255,255,255,0) 78%); }
+    .btc { position: absolute; top: 46px; right: 64px; width: 60px; height: 60px; filter: drop-shadow(0 8px 16px rgba(247,147,26,0.3)); }
+    .wrap { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 80px 0; }
+    .lockup { display: inline-flex; align-items: center; gap: 24px; background: #fff; border: 1px solid #e7e3f0;
+      border-radius: 20px; padding: 16px 28px; margin-bottom: 30px; box-shadow: 0 18px 44px -22px rgba(60,40,120,0.45); }
+    .lockup .woo { height: 42px; width: auto; }
+    .lockup .wlogo { height: 60px; width: auto; border-radius: 14px; }
+    .lockup .x { font-size: 30px; font-weight: 300; color: #c2bcd0; }
+    h1 { font-size: 66px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.0; }
+    h1 .meets { color: #8a8497; font-weight: 700; }
+    h1 .wallet { color: var(--accent); }
+    .sub { margin-top: 22px; font-size: 37px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; max-width: 920px; }
+    .sub .sec { color: var(--accent); }
+    .note { margin-top: 16px; font-size: 25px; font-weight: 500; color: #6b6577; }
+    .brand { position: absolute; left: 80px; bottom: 46px; height: 19px; width: auto; z-index: 4; }
+    .oss { position: absolute; right: 80px; bottom: 46px; z-index: 4; display: inline-flex; align-items: center; gap: 9px; font-size: 21px; font-weight: 700; color: #1c1a17; }
+    .oss svg { width: 24px; height: 24px; }
+  </style>
+</head>
+<body>
+  <div class="wm"></div>
+  <div class="vig"></div>
+  <img class="btc" src="../assets/bitcoin.svg" alt="" />
+
+  <div class="wrap">
+    <div class="lockup">
+      <img class="woo" src="../assets/woocommerce-2015.svg" alt="WooCommerce" />
+      <span class="x">&times;</span>
+      <img class="wlogo" src="../{{LOGO}}" alt="{{NAME}}" />
+    </div>
+    <h1>WooCommerce <span class="meets">meets</span> <span class="wallet">{{NAME}}</span></h1>
+    <div class="sub">Accept Lightning payments with {{NAME}} in <span class="sec">60 seconds</span></div>
+    <div class="note">Just use your Lightning Address to receive directly.</div>
+  </div>
+
+  <img class="brand" src="../assets/lawallet-logo.svg" alt="LaWallet" />
+  <span class="oss">
+    <svg viewBox="0 0 24 24" fill="#1c1a17" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+    100% open source
+  </span>
+</body>
+</html>

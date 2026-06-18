@@ -1,18 +1,33 @@
-# Social content data
+# Social content
 
-Source data for the per-wallet social media campaign (image + caption).
+Tooling and data for the per-wallet social campaign (Twitter/X + Nostr): a
+WooCommerce fact paired with a Lightning wallet, promoting "Accept Bitcoin via
+your Lightning Address" with the LaWallet WordPress plugin.
+
+Driven by the **`wallet-social`** skill — see `.claude/skills/wallet-social/SKILL.md`
+and `AGENTS.md`.
 
 ## Files
-- `woocommerce-facts.json` — 20 WooCommerce stats. Pair one fact per post with a
-  wallet co-marketing card.
+- `wallets.json` — wallet registry: `slug, name, tagline, logo, accent, twitter, nostr`.
+  Verify Twitter handles and fill the Nostr npubs before publishing.
+- `woocommerce-facts.json` — 20 WooCommerce stats to rotate through (one per post).
+- `published.json` — log of generated/published posts (which fact → which wallet, when).
+- `wallet-card.template.html` — the 1200×630 card (`{{NAME}}`, `{{LOGO}}`, `{{ACCENT}}`).
+- `make-card.sh` — renders a card from the registry: `./make-card.sh <slug>`.
 
-## How it fits together
-- Card template: `landing/wallet-<wallet>.html` → rendered PNG (1200×630), e.g.
-  "WooCommerce meets Blink". See `landing/SOCIAL-CARDS.md` for the design system
-  and the headless-Chrome render command.
-- A fact from `woocommerce-facts.json` becomes the post caption (or an on-image
-  line), so each wallet post leads with a different WooCommerce proof point.
+## Generate a card
+```bash
+./landing/social/make-card.sh blink     # -> landing/social/wallet-blink.png
+```
+
+## Caption shape
+> {WooCommerce fact}. Now those merchants can accept Bitcoin ⚡
+> Get paid to your @{handle} Lightning Address — no registration, non-custodial.
+> WooCommerce meets {Name} → https://wordpress.lawallet.io
+> #Bitcoin #Lightning #WooCommerce
+
+Then append the post to `published.json`.
 
 ## Before publishing
-The figures are marketing stats — verify and cite a source for each before
-posting publicly (some are approximate or vary by source).
+Verify the wallet handle/npub and source-check the WooCommerce stat. The plugin is
+free, open-source, and non-custodial — payments go to the merchant's own address.

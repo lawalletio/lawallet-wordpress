@@ -1,0 +1,4 @@
+{
+  "note": "Log of published / generated wallet posts. The skill appends an entry per post and reads it to avoid repeating a fact for the same wallet and to rotate which wallet posts next.",
+  "posts": []
+}
