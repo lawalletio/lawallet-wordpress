@@ -5,30 +5,26 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { width: 1200px; height: 630px; overflow: hidden; }
-    body {
-      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
-      position: relative; color: #0b1020;
-      background: radial-gradient(120% 105% at 50% -12%, #ffffff 0%, #f4eefc 50%, #ece4f7 100%);
-    }
+    body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; position: relative; color: #0b1020;
+      background: radial-gradient(120% 105% at 50% -12%, #ffffff 0%, #f4eefc 50%, #ece4f7 100%); }
     .wm { position: absolute; inset: 0; background: url('assets/wp-woo-pattern.svg') repeat; background-size: 156px; opacity: 0.5; }
-    .vig { position: absolute; inset: 0; background: radial-gradient(58% 62% at 50% 44%, rgba(255,255,255,0.9), rgba(255,255,255,0) 76%); }
-    .btc { position: absolute; top: 52px; left: 70px; width: 70px; height: 70px; filter: drop-shadow(0 10px 20px rgba(247,147,26,0.3)); }
-    .wrap { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 80px 0; text-align: center; }
-    .badges { display: flex; gap: 14px; margin-bottom: 34px; }
-    .pill { display: inline-flex; align-items: center; gap: 11px; font-size: 23px; font-weight: 600; border-radius: 999px; padding: 12px 24px; box-shadow: 0 10px 26px -14px rgba(60,40,120,0.45); }
-    .pill img { width: 28px; height: 28px; }
-    .pill.woo { background: #f4ecfd; border: 1px solid #e1cffb; color: #6d28d9; }
-    .pill.woo b { color: #7F54B3; font-weight: 800; }
-    .pill.wp { background: #fff; border: 1px solid #e3e7ef; color: #2b3550; }
-    h1 { font-size: 92px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.0; }
-    .tag { margin-top: 16px; font-size: 46px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; max-width: 940px;
-      background: linear-gradient(100deg, #3858E9, #873EFF 52%, #00a98c); -webkit-background-clip: text; background-clip: text; color: transparent; }
-    .sub { margin-top: 26px; font-size: 28px; font-weight: 600; color: #6b6577; }
-    .footer { position: absolute; left: 70px; right: 70px; bottom: 48px; display: flex; align-items: center; justify-content: space-between; }
-    .free { display: inline-flex; align-items: center; gap: 13px; font-size: 27px; font-weight: 700; color: #1c1a17; }
-    .free svg { width: 32px; height: 32px; }
-    .by { display: inline-flex; align-items: center; gap: 12px; font-size: 27px; color: #6b6577; font-weight: 500; }
-    .by img { height: 40px; width: auto; }
+    .vig { position: absolute; inset: 0; background: radial-gradient(58% 64% at 50% 42%, rgba(255,255,255,0.92), rgba(255,255,255,0) 76%); }
+    .btc { position: absolute; top: 48px; left: 60px; width: 66px; height: 66px; filter: drop-shadow(0 10px 20px rgba(247,147,26,0.28)); }
+    .wrap { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 50px 80px 0; }
+    .lockup { display: inline-flex; align-items: center; gap: 26px; background: #fff; border: 1px solid #e7e3f0;
+      border-radius: 20px; padding: 18px 30px; margin-bottom: 34px; box-shadow: 0 18px 44px -20px rgba(60,40,120,0.45); }
+    .lockup .wp { height: 52px; width: auto; }
+    .lockup .woo { height: 44px; width: auto; }
+    .lockup .div { width: 1px; height: 46px; background: #e6e1ee; }
+    h1 { font-size: 86px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.0; }
+    h1 .grad { background: linear-gradient(100deg, #3858E9, #873EFF 52%, #00a98c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .pill { margin-top: 24px; display: inline-block; font-size: 24px; font-weight: 700; color: #6d28d9;
+      background: #f4ecfd; border: 1px solid #e1cffb; border-radius: 999px; padding: 10px 24px; }
+    .foot { position: absolute; left: 64px; right: 64px; bottom: 46px; display: flex; align-items: center; justify-content: space-between; }
+    .hl { font-size: 27px; font-weight: 700; color: #1c1a17; }
+    .hl em { color: #b9a9e0; font-style: normal; margin: 0 6px; }
+    .by { display: inline-flex; align-items: center; gap: 12px; font-size: 26px; color: #6b6577; font-weight: 500; }
+    .by img { height: 38px; width: auto; }
     .by b { color: #0b1020; font-weight: 800; }
   </style>
 </head>
@@ -36,23 +32,17 @@
   <div class="wm"></div>
   <div class="vig"></div>
   <img class="btc" src="assets/bitcoin.svg" alt="" />
-
   <div class="wrap">
-    <div class="badges">
-      <span class="pill woo"><img src="assets/woocommerce.svg" alt="" /> Built for <b>WooCommerce</b></span>
-      <span class="pill wp"><img src="assets/wordpress-blue.svg" alt="" /> WordPress plugin</span>
+    <div class="lockup">
+      <img class="wp" src="assets/wordpress.png" alt="WordPress" />
+      <span class="div"></span>
+      <img class="woo" src="assets/woocommerce-2015.svg" alt="WooCommerce" />
     </div>
-
-    <h1>Accept Bitcoin</h1>
-    <div class="tag">connecting the most popular Lightning wallets</div>
-    <div class="sub">WooCommerce plugin</div>
+    <h1>Accept Bitcoin<br /><span class="grad">via Lightning Address</span></h1>
+    <span class="pill">WooCommerce Plugin</span>
   </div>
-
-  <div class="footer">
-    <span class="free">
-      <svg viewBox="0 0 24 24" fill="#1c1a17" aria-hidden="true"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
-      Free forever
-    </span>
+  <div class="foot">
+    <span class="hl">No registration required <em>&middot;</em> public Lightning Address</span>
     <span class="by">by <img src="assets/lawallet-icon.svg" alt="" /> <b>LaWallet</b></span>
   </div>
 </body>

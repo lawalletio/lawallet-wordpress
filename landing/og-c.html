@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1200px; height: 630px; overflow: hidden; }
+    body { font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif; position: relative; color: #0b1020;
+      background: radial-gradient(120% 105% at 50% -12%, #ffffff 0%, #f4eefc 50%, #ece4f7 100%); }
+    .wm { position: absolute; inset: 0; background: url('assets/wp-woo-pattern.svg') repeat; background-size: 156px; opacity: 0.5; }
+    .vig { position: absolute; inset: 0; background: radial-gradient(60% 66% at 50% 46%, rgba(255,255,255,0.93), rgba(255,255,255,0) 78%); }
+    .btc { position: absolute; bottom: 46px; right: 64px; width: 64px; height: 64px; filter: drop-shadow(0 10px 18px rgba(247,147,26,0.3)); }
+    .wrap { position: relative; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 48px 80px; }
+    .logos { display: inline-flex; align-items: center; gap: 22px; margin-bottom: 26px; }
+    .logos .wp { height: 46px; width: auto; }
+    .logos .woo { height: 40px; width: auto; }
+    .logos .div { width: 1px; height: 38px; background: #d9d2e6; }
+    .eyebrow { font-size: 25px; font-weight: 700; color: #6b6577; letter-spacing: -0.01em; }
+    .eyebrow b { color: #6d28d9; }
+    .big { margin-top: 14px; font-size: 92px; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98;
+      background: linear-gradient(100deg, #3858E9, #873EFF 52%, #00a98c); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .sub { margin-top: 14px; font-size: 40px; font-weight: 700; color: #0b1020; letter-spacing: -0.02em; }
+    .by { margin-top: 36px; display: inline-flex; align-items: center; gap: 12px; font-size: 26px; color: #6b6577; font-weight: 500; }
+    .by img { height: 38px; width: auto; }
+    .by b { color: #0b1020; font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="wm"></div>
+  <div class="vig"></div>
+  <img class="btc" src="assets/bitcoin.svg" alt="" />
+  <div class="wrap">
+    <div class="logos">
+      <img class="wp" src="assets/wordpress.png" alt="WordPress" />
+      <span class="div"></span>
+      <img class="woo" src="assets/woocommerce-2015.svg" alt="WooCommerce" />
+    </div>
+    <div class="eyebrow">Accept Bitcoin <b>&middot; WooCommerce Plugin</b></div>
+    <div class="big">No registration<br />required</div>
+    <div class="sub">just your public Lightning Address</div>
+    <span class="by">by <img src="assets/lawallet-icon.svg" alt="" /> <b>LaWallet</b></span>
+  </div>
+</body>
+</html>
