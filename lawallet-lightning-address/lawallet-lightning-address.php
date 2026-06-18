@@ -29,6 +29,7 @@ require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-nostr.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-lnurl-client.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-rates.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-discovery.php';
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-updater.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-plugin.php';
 
 register_activation_hook( __FILE__, array( 'WCLL_Plugin', 'activate' ) );
