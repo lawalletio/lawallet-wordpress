@@ -1,5 +1,7 @@
 # LaWallet - Wordpress
 
+![Accept Bitcoin via your Lightning Address — a WooCommerce plugin by LaWallet](landing/og-image-e.png)
+
 LaWallet - Wordpress combines two Lightning features in one WordPress plugin:
 
 1. WooCommerce checkout payments through a merchant Lightning Address with LNURL-pay, LUD-21 backend verification, NIP-57 fast detection, Yadio fiat conversion, and WebLN support.
