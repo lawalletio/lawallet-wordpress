@@ -1,0 +1,27 @@
+{
+  "subject": "WooCommerce",
+  "purpose": "Source facts for per-wallet social media content (image + caption). Pair one fact with each wallet co-marketing card.",
+  "note": "User-provided marketing stats. Verify / cite a source before publishing — some figures are approximate or vary by source (e.g. #4 'one in four' vs the '30%' label).",
+  "facts": [
+    { "id": 1,  "title": "Largest market share",            "text": "WooCommerce holds 38.76% of the ecommerce platform market, beating Shopify (23.43%) and Wix (11.87%)." },
+    { "id": 2,  "title": "Most installations",              "text": "8+ million active installs on WordPress.org — the highest of any ecommerce plugin." },
+    { "id": 3,  "title": "Dominates WordPress ecommerce",   "text": "93.7% of WordPress-based ecommerce sites use WooCommerce." },
+    { "id": 4,  "title": "Powers a huge share of stores",   "text": "Approximately 1 in every 4 online stores globally runs on WooCommerce." },
+    { "id": 5,  "title": "$20B+ annual GMV",                "text": "WooCommerce stores process over $20 billion in transactions every year since 2020." },
+    { "id": 6,  "title": "#1 by store count",               "text": "It's the #1 ecommerce platform ahead of Shopify, Magento, and BigCommerce when measured by number of stores." },
+    { "id": 7,  "title": "Most downloaded",                 "text": "WooCommerce has been downloaded 200M+ times lifetime." },
+    { "id": 8,  "title": "Fastest-growing open source",     "text": "It's the fastest-growing open-source ecommerce platform on Earth." },
+    { "id": 9,  "title": "Massive ecosystem",               "text": "55,000+ WordPress plugins work with WooCommerce, and stores use 25–35 active plugins on average." },
+    { "id": 10, "title": "1,100+ official extensions",      "text": "The WooCommerce marketplace lists 1,100+ official extensions." },
+    { "id": 11, "title": "3,700+ themes",                   "text": "Over 3,700 WooCommerce-compatible themes exist (ThemeForest + WordPress.org)." },
+    { "id": 12, "title": "Global reach",                    "text": "Used in 200+ countries with multilingual support in 93 languages." },
+    { "id": 13, "title": "SMB dominance",                   "text": "70%+ of WooCommerce stores are Small to Medium Businesses (SMBs)." },
+    { "id": 14, "title": "High merchant retention",         "text": "WooCommerce retains ~82% year-over-year merchant continuity — merchants rarely switch away." },
+    { "id": 15, "title": "Solo entrepreneur favorite",      "text": "62% of WooCommerce stores are run by solo entrepreneurs or micro-teams." },
+    { "id": 16, "title": "Top 1% earn $1M+/year",           "text": "The top 1% of WooCommerce stores earn $1M+ annually." },
+    { "id": 17, "title": "Surpassed Shopify & Wix",         "text": "WooCommerce has surpassed Shopify and Wix in market share (38.76% vs. 23.43% vs. 11.87%)." },
+    { "id": 18, "title": "30% of the top 1M sites",         "text": "WooCommerce accounts for ~30% of the top 1M ecommerce sites worldwide." },
+    { "id": 19, "title": "7% of global online sales",       "text": "The platform accounts for approximately 7% of all global online sales." },
+    { "id": 20, "title": "Open-source freedom",             "text": "Unlike Shopify's hosted model, WooCommerce is completely free and open-source — full control over customization, data, and hosting." }
+  ]
+}
