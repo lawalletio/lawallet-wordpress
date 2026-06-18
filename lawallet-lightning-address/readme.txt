@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.3
+Stable tag: 0.1.4
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -111,6 +111,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.1.4 =
+* Add a GitHub-based self-updater so installs distributed outside the WordPress.org directory can update from the project's GitHub Releases. Self-disables when the plugin is hosted on WordPress.org.
 
 = 0.1.3 =
 * Point the Plugin URI to the project site (wordpress.lawallet.io).
