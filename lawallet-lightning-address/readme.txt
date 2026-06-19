@@ -1,10 +1,10 @@
 === LaWallet - Lightning Address ===
-Contributors: agustinkassis
+Contributors: magollo
 Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.4
+Stable tag: 0.1.5
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -65,12 +65,21 @@ redirected to the LaWallet gateway endpoint you configure, and the plugin probes
 
 = Yadio exchange rates =
 
-For stores not priced in BTC, the plugin fetches BTC exchange rates from
-[Yadio](https://yadio.io) by requesting `https://api.yadio.io/rate/{CURRENCY}/BTC` server-side
-whenever a fresh rate is needed (results are cached for 5 minutes). Only the store currency code
-is sent - no customer or order data. Yadio is a free public rate API that does not publish a
-formal terms of service or privacy policy; see the [Yadio website](https://yadio.io) and its
-[API documentation](https://yadio.io/api.html).
+For stores **not** priced in BTC, the plugin converts the order total to satoshis using a Bitcoin
+exchange rate from [Yadio](https://yadio.io), a free public rate API. It sends a single server-side
+GET request to `https://api.yadio.io/rate/{CURRENCY}/BTC` whenever a fresh rate is needed, where
+`{CURRENCY}` is your WooCommerce store currency code (for example `USD` or `ARS`). Results are
+cached for 5 minutes. Only that three-letter currency code is sent - no customer, order, account,
+or site data ever leaves your server.
+
+This request is optional. Stores priced in BTC/SAT need no conversion, and any store can avoid
+Yadio entirely by setting a fixed "manual sats-per-unit" rate in the gateway settings.
+
+Yadio is a free, public, no-account API. To the best of our knowledge it does not publish a formal
+terms of service or privacy policy document; the information it makes available is on the
+[Yadio website](https://yadio.io) and its [API documentation](https://yadio.io/api.html). Yadio's
+role as the rate provider for the LaWallet ecosystem is also disclosed in the
+[LaWallet privacy policy](https://lawallet.io/privacy).
 
 = Nostr relays (optional) =
 
@@ -111,6 +120,10 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.1.5 =
+* Set the Contributors field to the plugin owner's WordPress.org account (magollo).
+* Expand the Yadio external-service disclosure: clarify the optional, currency-code-only request, the manual-rate opt-out, and the available Yadio documentation.
 
 = 0.1.4 =
 * Add a GitHub-based self-updater so installs distributed outside the WordPress.org directory can update from the project's GitHub Releases. Self-disables when the plugin is hosted on WordPress.org.
