@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/hooks/check-release-version.sh\"; [ -f \"$f\" ] && bash \"$f\" || exit 0",
+            "timeout": 15,
+            "statusMessage": "Checking release version + changelog"
+          }
+        ]
+      }
+    ]
+  }
+}

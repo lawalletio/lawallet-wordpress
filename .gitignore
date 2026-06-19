@@ -9,4 +9,6 @@ mock-lnurl/package-lock.json
 *.zip
 .claude/*
 !.claude/skills/
+!.claude/settings.json
+!.claude/hooks/
 landing/.vercel/
