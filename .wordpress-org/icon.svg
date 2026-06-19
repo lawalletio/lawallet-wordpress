@@ -1,0 +1,19 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Accept Bitcoin with your Lightning Address">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="80%">
+      <stop offset="0%" stop-color="#FBA844"/>
+      <stop offset="56%" stop-color="#F7931A"/>
+      <stop offset="100%" stop-color="#E9870F"/>
+    </radialGradient>
+    <linearGradient id="boltGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#FFE6C4"/>
+    </linearGradient>
+    <filter id="boltShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="13" flood-color="#5A2C00" flood-opacity="0.34"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <path d="M173.5 91 L173.5 272.5 L223 272.5 L223 421 L338.5 223 L272.5 223 L338.5 91 Z"
+        fill="url(#boltGrad)" filter="url(#boltShadow)"/>
+</svg>

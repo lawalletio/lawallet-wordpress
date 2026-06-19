@@ -2,7 +2,7 @@
 # This file is distributed under the GPL-3.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: LaWallet - Lightning Address 0.1.0\n"
+"Project-Id-Version: Accept Bitcoin with your Lightning Address 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-lightning-address\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,7 @@ msgstr ""
 #: includes/class-wcll-discovery.php:68
 #: includes/class-wcll-discovery.php:457
 #: includes/class-wcll-gateway.php:10
-msgid "LaWallet - Lightning Address"
+msgid "Accept Bitcoin with your Lightning Address"
 msgstr ""
 
 #. Plugin URI of the plugin
@@ -30,7 +30,7 @@ msgstr ""
 
 #. Description of the plugin
 #: lawallet-lightning-address.php
-msgid "Accept Bitcoin Lightning payments in WooCommerce and route Lightning Address/NIP-05 discovery through LaWallet."
+msgid "Connect payments with most popular Lightning wallets without registration or credentials."
 msgstr ""
 
 #. Author of the plugin
@@ -524,7 +524,7 @@ msgid "Every minute"
 msgstr ""
 
 #: includes/class-wcll-plugin.php:101
-msgid "LaWallet - Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet."
+msgid "Accept Bitcoin with your Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet."
 msgstr ""
 
 #: includes/class-wcll-plugin.php:109

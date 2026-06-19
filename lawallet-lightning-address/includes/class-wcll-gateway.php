@@ -7,7 +7,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCLL_Gateway extends WC_Payment_Gateway {
 	public function __construct() {
 		$this->id                 = 'wcll_gateway';
-		$this->method_title       = __( 'LaWallet - Lightning Address', 'lawallet-lightning-address' );
+		$this->method_title       = __( 'Accept Bitcoin with your Lightning Address', 'lawallet-lightning-address' );
 		$this->method_description = __( 'Accept Bitcoin Lightning payments through a Lightning Address with LUD-21 settlement verification, and configure LaWallet discovery from the main settings page.', 'lawallet-lightning-address' );
 		$this->has_fields         = false;
 		$this->supports           = array( 'products' );

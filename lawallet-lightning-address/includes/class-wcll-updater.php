@@ -100,7 +100,7 @@ class WCLL_Updater {
 		}
 
 		return (object) array(
-			'name'          => 'LaWallet - Lightning Address',
+			'name'          => 'Accept Bitcoin with your Lightning Address',
 			'slug'          => self::$slug,
 			'version'       => $release['version'],
 			'author'        => '<a href="https://lawallet.io">LaWallet</a>',

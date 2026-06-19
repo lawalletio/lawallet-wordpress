@@ -1,9 +1,9 @@
-# Spanish translation for LaWallet - Lightning Address.
+# Spanish translation for Accept Bitcoin with your Lightning Address.
 # Copyright (C) 2026 LaWallet
 # This file is distributed under the GPL-3.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: LaWallet - Lightning Address 0.1.0\n"
+"Project-Id-Version: Accept Bitcoin with your Lightning Address 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-lightning-address\n"
 "Last-Translator: LaWallet <hello@lawallet.io>\n"
 "Language-Team: Spanish\n"
@@ -18,16 +18,16 @@ msgstr ""
 "X-Domain: lawallet-lightning-address\n"
 
 #. Plugin Name of the plugin
-msgid "LaWallet - Lightning Address"
-msgstr "LaWallet - Lightning Address"
+msgid "Accept Bitcoin with your Lightning Address"
+msgstr "Accept Bitcoin with your Lightning Address"
 
 #. Plugin URI of the plugin
 msgid "https://github.com/lawalletio/lawallet-wordpress"
 msgstr "https://github.com/lawalletio/lawallet-wordpress"
 
 #. Description of the plugin
-msgid "Accept Bitcoin Lightning payments in WooCommerce and route Lightning Address/NIP-05 discovery through LaWallet."
-msgstr "Acepta pagos Bitcoin Lightning en WooCommerce y dirige el descubrimiento de Lightning Address/NIP-05 a través de LaWallet."
+msgid "Connect payments with most popular Lightning wallets without registration or credentials."
+msgstr "Conecta los pagos con las billeteras Lightning más populares sin registro ni credenciales."
 
 #. Author of the plugin
 msgid "LaWallet"
@@ -393,8 +393,8 @@ msgstr "Ajustes"
 msgid "Every minute"
 msgstr "Cada minuto"
 
-msgid "LaWallet - Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet."
-msgstr "LaWallet - Lightning Address necesita WooCommerce activo para los pagos en el checkout. El descubrimiento de Lightning Address se puede configurar igualmente desde Ajustes -> LaWallet."
+msgid "Accept Bitcoin with your Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet."
+msgstr "Accept Bitcoin with your Lightning Address necesita WooCommerce activo para los pagos en el checkout. El descubrimiento de Lightning Address se puede configurar igualmente desde Ajustes -> LaWallet."
 
 msgid "Lightning payments need a merchant Lightning Address before checkout can accept payments."
 msgstr "Los pagos Lightning necesitan una Lightning Address de comerciante antes de que el checkout pueda aceptar pagos."

@@ -1,18 +1,18 @@
-=== LaWallet - Lightning Address ===
+=== Accept Bitcoin with your Lightning Address ===
 Contributors: magollo
 Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.5
+Stable tag: 0.1.6
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Accept Bitcoin Lightning payments in WooCommerce and route Lightning Address/NIP-05 discovery from your domain to a LaWallet gateway.
+Connect payments with most popular Lightning wallets without registration or credentials.
 
 == Description ==
 
-**LaWallet - Lightning Address** combines two Lightning features in one plugin:
+**Accept Bitcoin with your Lightning Address** combines two Lightning features in one plugin:
 
 1. **WooCommerce Lightning payments.** A checkout gateway that pays to your merchant Lightning
    Address using LNURL-pay, verifies settlement server-side with LUD-21, optionally detects payment
@@ -91,7 +91,7 @@ request data is exchanged. Relays are operated by third parties chosen by your w
 
 1. Upload the plugin ZIP from **Plugins -> Add New -> Upload Plugin**, or unzip it into
    `wp-content/plugins/`.
-2. Activate **LaWallet - Lightning Address**.
+2. Activate **Accept Bitcoin with your Lightning Address**.
 3. For payments: go to **WooCommerce -> Settings -> Payments -> Lightning (LaWallet)** and set
    your merchant Lightning Address. Saving creates a test invoice and requires a LUD-21 verify
    URL, so you know settlement verification works before going live.
@@ -120,6 +120,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.1.6 =
+* Rename the plugin to "Accept Bitcoin with your Lightning Address" and update the short description.
 
 = 0.1.5 =
 * Set the Contributors field to the plugin owner's WordPress.org account (magollo).

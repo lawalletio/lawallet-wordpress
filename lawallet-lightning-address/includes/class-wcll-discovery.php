@@ -63,7 +63,7 @@ class WCLL_Discovery {
 
 	public static function register_admin_page() {
 		add_options_page(
-			__( 'LaWallet - Lightning Address', 'lawallet-lightning-address' ),
+			__( 'Accept Bitcoin with your Lightning Address', 'lawallet-lightning-address' ),
 			__( 'LaWallet', 'lawallet-lightning-address' ),
 			'manage_options',
 			'lawallet-lightning-address',
@@ -91,7 +91,7 @@ class WCLL_Discovery {
 			status_header( 503 );
 			wp_die(
 				esc_html__( 'LaWallet gateway endpoint is not configured.', 'lawallet-lightning-address' ),
-				esc_html__( 'LaWallet - Lightning Address', 'lawallet-lightning-address' ),
+				esc_html__( 'Accept Bitcoin with your Lightning Address', 'lawallet-lightning-address' ),
 				array( 'response' => 503 )
 			);
 		}
@@ -262,7 +262,7 @@ class WCLL_Discovery {
 		?>
 		<div class="wrap lawallet-wrap">
 
-			<h1><?php echo esc_html__( 'LaWallet - Lightning Address', 'lawallet-lightning-address' ); ?></h1>
+			<h1><?php echo esc_html__( 'Accept Bitcoin with your Lightning Address', 'lawallet-lightning-address' ); ?></h1>
 
 			<div class="lawallet-card">
 				<h2><?php echo esc_html__( 'WooCommerce Lightning payments', 'lawallet-lightning-address' ); ?></h2>
@@ -459,7 +459,7 @@ class WCLL_Discovery {
 				'redirection' => 3,
 				'headers'     => array(
 					'Accept'     => 'application/json',
-					'User-Agent' => 'LaWallet - Lightning Address',
+					'User-Agent' => 'Accept Bitcoin with your Lightning Address',
 				),
 			)
 		);

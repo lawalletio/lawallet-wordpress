@@ -114,7 +114,7 @@ class WCLL_Plugin {
 		}
 
 		if ( ! class_exists( 'WooCommerce' ) ) {
-			echo '<div class="notice notice-error"><p>' . esc_html__( 'LaWallet - Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet.', 'lawallet-lightning-address' ) . '</p></div>';
+			echo '<div class="notice notice-error"><p>' . esc_html__( 'Accept Bitcoin with your Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet.', 'lawallet-lightning-address' ) . '</p></div>';
 			return;
 		}
 
