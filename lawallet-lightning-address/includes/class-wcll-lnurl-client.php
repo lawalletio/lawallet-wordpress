@@ -107,8 +107,11 @@ class WCLL_LNURL_Client {
 			return new WP_Error( 'wcll_invoice_missing', __( 'LNURL callback did not return a Lightning invoice.', 'lawallet-lightning-address' ) );
 		}
 
-		if ( empty( $response['verify'] ) || ! is_string( $response['verify'] ) ) {
-			return new WP_Error( 'wcll_verify_missing', __( 'LNURL callback did not return the required LUD-21 verify URL.', 'lawallet-lightning-address' ) );
+		// A LUD-21 verify URL is optional: when it is absent, settlement is
+		// confirmed via NIP-57 zap receipts instead. Normalize the key so
+		// callers can rely on it always being a string.
+		if ( ! isset( $response['verify'] ) || ! is_string( $response['verify'] ) ) {
+			$response['verify'] = '';
 		}
 
 		$response['nostr'] = is_wp_error( $nostr ) ? array( 'error' => $nostr->get_error_message() ) : $nostr;

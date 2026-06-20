@@ -108,7 +108,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flag that only toggles an onboarding notice for admins.
 		if ( isset( $_GET['wcll_setup'] ) ) {
 			echo '<div class="notice notice-info inline"><p><strong>' . esc_html__( 'Set your Lightning Address to start accepting Lightning payments.', 'lawallet-lightning-address' ) . '</strong> ';
-			echo esc_html__( 'Saving this page will create a test invoice and require a LUD-21 verify URL.', 'lawallet-lightning-address' ) . '</p></div>';
+			echo esc_html__( 'Saving this page creates a test invoice and confirms the address supports LUD-21 verification or NIP-57 zap receipts.', 'lawallet-lightning-address' ) . '</p></div>';
 		}
 
 		parent::admin_options();
@@ -218,6 +218,15 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
+		// Settlement must be confirmable later, either through a LUD-21 verify URL
+		// or NIP-57 zap receipts on the relays advertised by the wallet.
+		$has_verify = ! empty( $invoice['verify'] );
+		$has_zap    = ! empty( $invoice['nostr']['event'] );
+		if ( ! $has_verify && ! $has_zap ) {
+			wc_add_notice( __( 'Payment error: this Lightning Address cannot confirm payments. It returned no LUD-21 verify URL and does not support NIP-57 zap receipts.', 'lawallet-lightning-address' ), 'error' );
+			return array( 'result' => 'failure' );
+		}
+
 		$expiry_minutes = isset( $settings['invoice_expiry_minutes'] ) ? max( 1, absint( $settings['invoice_expiry_minutes'] ) ) : 30;
 		$expires_at     = time() + ( $expiry_minutes * MINUTE_IN_SECONDS );
 		$nostr          = isset( $invoice['nostr'] ) && is_array( $invoice['nostr'] ) ? $invoice['nostr'] : array();
@@ -273,9 +282,28 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$result = $client->test_lud21( $address );
 
 		if ( is_wp_error( $result ) ) {
+			// No LUD-21 verify URL: the address can still take payments if it
+			// supports NIP-57 zap receipts and relays are configured.
+			$nip57 = $this->check_nip57_capability( $address, $settings );
+			if ( ! is_wp_error( $nip57 ) ) {
+				$this->save_connection_status(
+					array(
+						'lud21_verified' => 'no',
+						'settlement'     => 'nip57',
+						'verified_at'    => gmdate( 'c' ),
+						'allows_nostr'   => 'yes',
+						'nostr_pubkey'   => $nip57['pubkey'],
+						'status_message' => __( 'No LUD-21 verify URL; payments will be confirmed via NIP-57 zap receipts.', 'lawallet-lightning-address' ),
+					)
+				);
+				WC_Admin_Settings::add_message( __( 'Lightning Address will be confirmed via NIP-57 zap receipts.', 'lawallet-lightning-address' ) );
+				return;
+			}
+
 			$this->save_connection_status(
 				array(
 					'lud21_verified' => 'no',
+					'settlement'     => 'none',
 					'status_message' => $result->get_error_message(),
 				)
 			);
@@ -287,6 +315,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$this->save_connection_status(
 			array(
 				'lud21_verified' => 'yes',
+				'settlement'     => 'lud21',
 				'verified_at'    => gmdate( 'c' ),
 				'allows_nostr'   => ! empty( $pay_request['allowsNostr'] ) ? 'yes' : 'no',
 				'nostr_pubkey'   => ! empty( $pay_request['nostrPubkey'] ) ? sanitize_text_field( $pay_request['nostrPubkey'] ) : '',
@@ -295,6 +324,29 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		);
 
 		WC_Admin_Settings::add_message( __( 'Lightning Address verified with LUD-21.', 'lawallet-lightning-address' ) );
+	}
+
+	private function check_nip57_capability( $address, array $settings ) {
+		$client      = new WCLL_LNURL_Client( $settings );
+		$pay_request = $client->resolve_lightning_address( $address );
+		if ( is_wp_error( $pay_request ) ) {
+			return $pay_request;
+		}
+
+		$pubkey = isset( $pay_request['nostrPubkey'] ) ? strtolower( (string) $pay_request['nostrPubkey'] ) : '';
+		if ( empty( $pay_request['allowsNostr'] ) || ! preg_match( '/^[0-9a-f]{64}$/', $pubkey ) ) {
+			return new WP_Error( 'wcll_no_nip57', __( 'This Lightning Address does not advertise NIP-57 zap receipts.', 'lawallet-lightning-address' ) );
+		}
+
+		$relays = WCLL_LNURL_Client::parse_relays( isset( $settings['nostr_relays'] ) ? $settings['nostr_relays'] : '' );
+		if ( empty( $relays ) ) {
+			return new WP_Error( 'wcll_no_relays', __( 'Add at least one NIP-57 relay URL to confirm payments when LUD-21 is unavailable.', 'lawallet-lightning-address' ) );
+		}
+
+		return array(
+			'pubkey' => $pubkey,
+			'relays' => $relays,
+		);
 	}
 
 	private function save_connection_status( array $values ) {
@@ -306,14 +358,20 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	}
 
 	private function render_connection_status() {
-		$settings = self::get_gateway_settings();
-		$verified = isset( $settings['lud21_verified'] ) && 'yes' === $settings['lud21_verified'];
-		$message  = ! empty( $settings['status_message'] ) ? $settings['status_message'] : __( 'No Lightning Address has been checked yet.', 'lawallet-lightning-address' );
+		$settings   = self::get_gateway_settings();
+		$settlement = ! empty( $settings['settlement'] ) ? $settings['settlement'] : ( ( isset( $settings['lud21_verified'] ) && 'yes' === $settings['lud21_verified'] ) ? 'lud21' : 'none' );
+		$message    = ! empty( $settings['status_message'] ) ? $settings['status_message'] : __( 'No Lightning Address has been checked yet.', 'lawallet-lightning-address' );
 
 		echo '<h2>' . esc_html__( 'Connection status', 'lawallet-lightning-address' ) . '</h2>';
 		echo '<table class="form-table" role="presentation"><tbody>';
-		echo '<tr><th scope="row">' . esc_html__( 'LUD-21 verify', 'lawallet-lightning-address' ) . '</th><td>';
-		echo $verified ? '<mark class="yes">' . esc_html__( 'Verified', 'lawallet-lightning-address' ) . '</mark>' : '<mark class="error">' . esc_html__( 'Not verified', 'lawallet-lightning-address' ) . '</mark>';
+		echo '<tr><th scope="row">' . esc_html__( 'Settlement verification', 'lawallet-lightning-address' ) . '</th><td>';
+		if ( 'lud21' === $settlement ) {
+			echo '<mark class="yes">' . esc_html__( 'LUD-21 verified', 'lawallet-lightning-address' ) . '</mark>';
+		} elseif ( 'nip57' === $settlement ) {
+			echo '<mark class="yes">' . esc_html__( 'NIP-57 zap receipts', 'lawallet-lightning-address' ) . '</mark>';
+		} else {
+			echo '<mark class="error">' . esc_html__( 'Not verified', 'lawallet-lightning-address' ) . '</mark>';
+		}
 		echo '<p class="description">' . esc_html( $message ) . '</p>';
 		if ( ! empty( $settings['verified_at'] ) ) {
 			/* translators: %s: date and time of the last Lightning Address verification. */

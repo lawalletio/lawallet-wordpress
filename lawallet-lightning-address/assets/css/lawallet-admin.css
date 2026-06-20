@@ -214,3 +214,41 @@
 	height: 12px;
 	width: 12px;
 }
+.lawallet-endpoint-preview {
+	max-width: 560px;
+}
+.lawallet-endpoint-preview-body {
+	padding: 14px 16px;
+}
+.lawallet-endpoint-preview .lawallet-instance-name {
+	font-size: 16px;
+	margin: 0 0 4px;
+}
+.lawallet-endpoint-preview.is-empty .lawallet-instance-name {
+	color: #646970;
+	font-size: 14px;
+	font-weight: 600;
+}
+.lawallet-domain-warning {
+	align-items: flex-start;
+	background: #fcf9e8;
+	border-left: 4px solid #dba617;
+	border-radius: 4px;
+	color: #5d4b00;
+	display: flex;
+	font-size: 13px;
+	gap: 8px;
+	line-height: 1.4;
+	margin-top: 10px;
+	padding: 8px 12px;
+}
+.lawallet-domain-warning .dashicons {
+	color: #dba617;
+	flex: 0 0 auto;
+	font-size: 18px;
+	height: 18px;
+	width: 18px;
+}
+.lawallet-domain-warning[hidden] {
+	display: none;
+}

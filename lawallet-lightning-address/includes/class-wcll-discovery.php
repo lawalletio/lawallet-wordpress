@@ -36,9 +36,10 @@ class WCLL_Discovery {
 		wp_enqueue_script( 'lawallet-admin', WCLL_PLUGIN_URL . 'assets/js/lawallet-admin.js', array(), WCLL_VERSION, true );
 
 		$config = array(
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( self::CHECK_ACTION ),
-			'i18n'    => array(
+			'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
+			'nonce'      => wp_create_nonce( self::CHECK_ACTION ),
+			'siteDomain' => self::site_domain(),
+			'i18n'       => array(
 				'pending'            => __( 'Waiting for endpoint', 'lawallet-lightning-address' ),
 				'loading'            => __( 'Checking LaWallet gateway', 'lawallet-lightning-address' ),
 				'ready'              => __( 'LaWallet instance found', 'lawallet-lightning-address' ),
@@ -46,6 +47,7 @@ class WCLL_Discovery {
 				'instanceEmptyTitle' => __( 'Connect a LaWallet instance', 'lawallet-lightning-address' ),
 				'instanceEmptyMeta'  => __( 'Server details, avatar, cover, theme and socials will appear here after connection.', 'lawallet-lightning-address' ),
 				'instanceReadyTitle' => __( 'Connected LaWallet instance', 'lawallet-lightning-address' ),
+				'domainMismatch'     => __( 'Domain mismatch: this gateway serves "%1$s", not your site domain "%2$s". Lightning addresses may not resolve on your domain.', 'lawallet-lightning-address' ),
 			),
 		);
 
@@ -64,7 +66,7 @@ class WCLL_Discovery {
 	public static function register_admin_page() {
 		add_options_page(
 			__( 'Accept Bitcoin with your Lightning Address', 'lawallet-lightning-address' ),
-			__( 'LaWallet', 'lawallet-lightning-address' ),
+			__( 'Lightning by LaWallet', 'lawallet-lightning-address' ),
 			'manage_options',
 			'lawallet-lightning-address',
 			array( __CLASS__, 'render_admin_page' )
@@ -304,10 +306,10 @@ class WCLL_Discovery {
 			</div>
 
 			<div class="lawallet-card">
-				<h2><?php echo esc_html__( 'Lightning Address for your users', 'lawallet-lightning-address' ); ?></h2>
+				<h2><?php echo esc_html__( 'Provide lightning addresses with your domain', 'lawallet-lightning-address' ); ?></h2>
 				<?php if ( ! $is_connected ) : ?>
 					<p class="lawallet-option-copy">
-						<?php echo esc_html__( 'You should have a LaWallet instance running. This integration redirects LNURL and NIP-05 discovery from this WordPress domain to your LaWallet API gateway.', 'lawallet-lightning-address' ); ?>
+						<?php echo esc_html__( 'Enabled lightning addresses for your users using this domain. You need to connect to a lawallet.io or host your own instance. It\'s free and fully open source.', 'lawallet-lightning-address' ); ?>
 						<a href="https://lawallet.io" target="_blank" rel="noopener noreferrer"><?php echo esc_html__( 'Learn more at lawallet.io', 'lawallet-lightning-address' ); ?></a>
 					</p>
 				<?php endif; ?>
@@ -352,6 +354,13 @@ class WCLL_Discovery {
 								<p class="lawallet-instance-meta" data-lawallet-instance-meta>
 									<?php echo esc_html( trim( $instance['domain'] . ' · ' . $instance['endpoint'], ' ·' ) ); ?>
 								</p>
+								<?php $domain_warning = self::domain_mismatch_message( $instance['domain'] ); ?>
+								<?php if ( '' !== $domain_warning ) : ?>
+									<div class="lawallet-domain-warning">
+										<span class="dashicons dashicons-warning" aria-hidden="true"></span>
+										<span><?php echo esc_html( $domain_warning ); ?></span>
+									</div>
+								<?php endif; ?>
 								<div class="lawallet-instance-details" data-lawallet-instance-details>
 									<?php foreach ( $instance['details'] as $detail ) : ?>
 										<span class="lawallet-detail-pill">
@@ -422,6 +431,16 @@ class WCLL_Discovery {
 						<p class="description">
 							<?php echo esc_html__( 'Requests such as /.well-known/lnurlp/alice and /.well-known/nostr.json?name=alice will redirect to this gateway after connection.', 'lawallet-lightning-address' ); ?>
 						</p>
+						<div class="lawallet-instance-preview lawallet-endpoint-preview is-empty" data-lawallet-instance-card>
+							<div class="lawallet-endpoint-preview-body">
+								<div class="lawallet-instance-name" data-lawallet-instance-name></div>
+								<p class="lawallet-instance-meta" data-lawallet-instance-meta></p>
+								<div class="lawallet-domain-warning" data-lawallet-domain-warning hidden>
+									<span class="dashicons dashicons-warning" aria-hidden="true"></span>
+									<span data-lawallet-domain-warning-text></span>
+								</div>
+							</div>
+						</div>
 						<div class="lawallet-actions">
 							<button
 								type="submit"
@@ -602,6 +621,28 @@ class WCLL_Discovery {
 			'cover'    => $cover,
 			'details'  => $details,
 			'socials'  => $socials,
+		);
+	}
+
+	private static function site_domain() {
+		$host = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+		$host = strtolower( $host );
+		return (string) preg_replace( '/^www\./', '', $host );
+	}
+
+	private static function domain_mismatch_message( $gateway_domain ) {
+		$site_domain = self::site_domain();
+		$gateway     = strtolower( trim( (string) $gateway_domain ) );
+		$gateway     = (string) preg_replace( '/^www\./', '', $gateway );
+		if ( '' === $gateway || '' === $site_domain || $gateway === $site_domain ) {
+			return '';
+		}
+
+		return sprintf(
+			/* translators: 1: gateway domain, 2: this site's domain */
+			__( 'Domain mismatch: this gateway serves "%1$s", not your site domain "%2$s". Lightning addresses may not resolve on your domain.', 'lawallet-lightning-address' ),
+			$gateway_domain,
+			$site_domain
 		);
 	}
 

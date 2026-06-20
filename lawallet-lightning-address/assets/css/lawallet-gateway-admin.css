@@ -1,0 +1,46 @@
+.wcll-la-checks {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 8px;
+}
+.wcll-la-check {
+	align-items: center;
+	background: #f0f0f1;
+	border-radius: 999px;
+	color: #646970;
+	display: inline-flex;
+	font-size: 12px;
+	font-weight: 600;
+	gap: 5px;
+	line-height: 1;
+	padding: 5px 11px 5px 8px;
+}
+.wcll-la-check-icon.dashicons {
+	font-size: 16px;
+	height: 16px;
+	width: 16px;
+}
+.wcll-la-check.is-ok {
+	background: #edfaef;
+	color: #0a7f28;
+}
+.wcll-la-check.is-error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+.wcll-la-check.is-loading {
+	background: #eef4fb;
+	color: #2271b1;
+}
+.wcll-la-check.is-loading .wcll-la-check-icon {
+	animation: wcll-la-spin 800ms linear infinite;
+}
+@keyframes wcll-la-spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}

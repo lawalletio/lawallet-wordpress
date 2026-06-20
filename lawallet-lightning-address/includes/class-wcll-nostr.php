@@ -60,6 +60,40 @@ class WCLL_Nostr {
 		);
 	}
 
+	/**
+	 * Verify a Nostr event: recompute its id from the NIP-01 serialization and
+	 * BIP-340 schnorr-verify its signature against its pubkey. Returns true only
+	 * for a genuinely-signed event.
+	 */
+	public static function verify_event( $event ) {
+		if ( ! is_array( $event ) || ! self::can_sign() ) {
+			return false;
+		}
+
+		foreach ( array( 'id', 'sig', 'pubkey', 'created_at', 'kind', 'tags', 'content' ) as $field ) {
+			if ( ! isset( $event[ $field ] ) ) {
+				return false;
+			}
+		}
+
+		$pubkey = strtolower( (string) $event['pubkey'] );
+		$id     = strtolower( (string) $event['id'] );
+		$sig    = strtolower( (string) $event['sig'] );
+		if ( ! preg_match( '/^[0-9a-f]{64}$/', $pubkey )
+			|| ! preg_match( '/^[0-9a-f]{64}$/', $id )
+			|| ! preg_match( '/^[0-9a-f]{128}$/', $sig )
+		) {
+			return false;
+		}
+
+		$serialized = self::event_serialization( $event );
+		if ( false === $serialized || ! hash_equals( $id, hash( 'sha256', $serialized ) ) ) {
+			return false;
+		}
+
+		return self::schnorr_verify( hex2bin( $id ), $pubkey, $sig );
+	}
+
 	private static function sign_event( array $event, $private_key_hex ) {
 		$serialized = self::event_serialization( $event );
 		if ( false === $serialized ) {
@@ -156,6 +190,64 @@ class WCLL_Nostr {
 		$s  = self::mod( gmp_add( $k, gmp_mul( $e, $d ) ), self::$n );
 
 		return self::int_to_hex( $r[0] ) . self::int_to_hex( $s );
+	}
+
+	private static function schnorr_verify( $message, $pubkey_hex, $sig_hex ) {
+		self::init_curve();
+
+		if ( 32 !== strlen( $message ) ) {
+			return false;
+		}
+
+		$px = gmp_init( $pubkey_hex, 16 );
+		if ( gmp_cmp( $px, self::$p ) >= 0 ) {
+			return false;
+		}
+
+		$point = self::lift_x( $px );
+		if ( null === $point ) {
+			return false;
+		}
+
+		$r = gmp_init( substr( $sig_hex, 0, 64 ), 16 );
+		$s = gmp_init( substr( $sig_hex, 64, 64 ), 16 );
+		if ( gmp_cmp( $r, self::$p ) >= 0 || gmp_cmp( $s, self::$n ) >= 0 ) {
+			return false;
+		}
+
+		$r_bytes  = hex2bin( substr( $sig_hex, 0, 64 ) );
+		$px_bytes = hex2bin( $pubkey_hex );
+		$e = self::mod( gmp_init( bin2hex( self::tagged_hash( 'BIP0340/challenge', $r_bytes . $px_bytes . $message ) ), 16 ), self::$n );
+
+		// R = s*G - e*P  (computed as s*G + (n-e)*P).
+		$sg = self::point_mul( $s, array( self::$gx, self::$gy ) );
+		$ep = self::point_mul( self::mod( gmp_sub( self::$n, $e ), self::$n ), $point );
+		$rr = self::point_add( $sg, $ep );
+
+		if ( null === $rr || ! self::has_even_y( $rr ) ) {
+			return false;
+		}
+
+		return 0 === gmp_cmp( $rr[0], $r );
+	}
+
+	private static function lift_x( $x ) {
+		if ( gmp_cmp( $x, 1 ) < 0 || gmp_cmp( $x, self::$p ) >= 0 ) {
+			return null;
+		}
+
+		$c = self::mod( gmp_add( gmp_powm( $x, 3, self::$p ), 7 ), self::$p );
+		$y = gmp_powm( $c, gmp_div_q( gmp_add( self::$p, 1 ), 4 ), self::$p );
+
+		if ( 0 !== gmp_cmp( gmp_powm( $y, 2, self::$p ), $c ) ) {
+			return null;
+		}
+
+		if ( 0 !== gmp_intval( gmp_mod( $y, 2 ) ) ) {
+			$y = gmp_sub( self::$p, $y );
+		}
+
+		return array( $x, $y );
 	}
 
 	private static function init_curve() {

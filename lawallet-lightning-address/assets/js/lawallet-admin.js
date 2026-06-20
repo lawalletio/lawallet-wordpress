@@ -49,6 +49,8 @@
 	var details = document.querySelector('[data-lawallet-instance-details]');
 	var socials = document.querySelector('[data-lawallet-instance-socials]');
 	var connectButton = document.querySelector('[data-lawallet-connect-button]');
+	var domainWarning = document.querySelector('[data-lawallet-domain-warning]');
+	var domainWarningText = document.querySelector('[data-lawallet-domain-warning-text]');
 	if (!input || !status) {
 		return;
 	}
@@ -103,6 +105,27 @@
 		}
 		clearNode(details);
 		clearNode(socials);
+		if (domainWarning) {
+			domainWarning.hidden = true;
+		}
+	}
+
+	function updateDomainWarning(domain) {
+		if (!domainWarning) {
+			return;
+		}
+		var site = String(config.siteDomain || '').toLowerCase().replace(/^www\./, '');
+		var gateway = String(domain || '').toLowerCase().replace(/^www\./, '');
+		if (gateway && site && gateway !== site) {
+			if (domainWarningText) {
+				domainWarningText.textContent = String(config.i18n.domainMismatch || '')
+					.replace('%1$s', domain)
+					.replace('%2$s', config.siteDomain);
+			}
+			domainWarning.hidden = false;
+		} else {
+			domainWarning.hidden = true;
+		}
 	}
 
 	function renderInstance(instance) {
@@ -134,6 +157,7 @@
 		if (meta) {
 			meta.textContent = [instance.domain, instance.endpoint].filter(Boolean).join(' · ');
 		}
+		updateDomainWarning(instance.domain);
 		clearNode(details);
 		(instance.details || []).forEach(function (detail) {
 			var pill = document.createElement('span');
@@ -218,5 +242,7 @@
 
 	if (input.value.trim()) {
 		checkEndpoint(input.value.trim());
+	} else {
+		setEmptyInstance();
 	}
 })(window.WCLLDiscovery || {});
