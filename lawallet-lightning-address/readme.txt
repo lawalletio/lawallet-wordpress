@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.1.7
+Stable tag: 0.2.0
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -120,6 +120,12 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.2.0 =
+* Add live LUD-16, LUD-21 and NIP-57 checks beside the merchant Lightning Address field, each with a status icon.
+* Accept Lightning Addresses that do not support LUD-21: settlement is confirmed from signed NIP-57 zap receipts (at checkout and via the cron re-check), with BIP-340 signature verification so only genuine receipts can settle an order.
+* Show the connected gateway name and domain on the discovery settings page, and warn when the gateway domain does not match your site.
+* Refresh the discovery settings copy and rename the Settings menu entry to "Lightning by LaWallet".
 
 = 0.1.7 =
 * Refresh the plugin directory icon (new lightning mark with a subtle Bitcoin watermark).

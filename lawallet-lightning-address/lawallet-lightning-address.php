@@ -3,7 +3,7 @@
  * Plugin Name: Accept Bitcoin with your Lightning Address
  * Plugin URI: https://wordpress.lawallet.io
  * Description: Connect payments with most popular Lightning wallets without registration or credentials.
- * Version: 0.1.7
+ * Version: 0.2.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: LaWallet
@@ -20,12 +20,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'WCLL_VERSION', '0.1.7' );
+define( 'WCLL_VERSION', '0.2.0' );
 define( 'WCLL_PLUGIN_FILE', __FILE__ );
 define( 'WCLL_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WCLL_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-nostr.php';
+require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-nostr-relay.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-lnurl-client.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-rates.php';
 require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-discovery.php';

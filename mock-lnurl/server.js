@@ -2,10 +2,13 @@ import crypto from 'node:crypto';
 import http from 'node:http';
 import express from 'express';
 import { WebSocketServer } from 'ws';
+import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
 
 const app = express();
 const port = Number(process.env.MOCK_LNURL_PORT || 4000);
-const nostrPubkey = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+// Fixed test key so the advertised pubkey and the signed zap receipts are consistent.
+const nostrSecretKey = Uint8Array.from(Buffer.from('01'.repeat(32), 'hex'));
+const nostrPubkey = getPublicKey(nostrSecretKey);
 const invoices = new Map();
 const sockets = new Map();
 
@@ -36,16 +39,15 @@ function receiptFor(record) {
 
   tags.push(['preimage', record.preimage]);
 
-  const event = {
-    pubkey: nostrPubkey,
-    created_at: record.paidAt || Math.floor(Date.now() / 1000),
-    kind: 9735,
-    tags,
-    content: ''
-  };
-  event.id = eventId(event);
-  event.sig = '0'.repeat(128);
-  return event;
+  return finalizeEvent(
+    {
+      kind: 9735,
+      created_at: record.paidAt || Math.floor(Date.now() / 1000),
+      tags,
+      content: ''
+    },
+    nostrSecretKey
+  );
 }
 
 function matchesFilter(event, filter) {
@@ -155,12 +157,18 @@ app.get('/lnurl/callback/:name', (req, res) => {
   };
   invoices.set(id, record);
 
-  res.json({
+  const responseBody = {
     status: 'OK',
     routes: [],
     pr,
     verify: record.verify
-  });
+  };
+  // Test affordance: the "nolud21" address simulates a wallet without LUD-21,
+  // so settlement must be confirmed via NIP-57 zap receipts instead.
+  if (req.params.name === 'nolud21') {
+    delete responseBody.verify;
+  }
+  res.json(responseBody);
 });
 
 app.get('/lnurl/verify/:id', (req, res) => {

@@ -22,6 +22,7 @@ class WCLL_Plugin {
 		add_filter( 'plugin_action_links_' . plugin_basename( WCLL_PLUGIN_FILE ), array( __CLASS__, 'plugin_action_links' ) );
 		add_filter( 'cron_schedules', array( __CLASS__, 'add_cron_interval' ) );
 		add_action( self::CRON_HOOK, array( __CLASS__, 'check_pending_payments' ) );
+		add_action( 'init', array( __CLASS__, 'ensure_cron_scheduled' ) );
 		add_action( 'admin_notices', array( __CLASS__, 'admin_notices' ) );
 		add_action( 'admin_init', array( __CLASS__, 'activation_redirect' ) );
 		add_action( 'template_redirect', array( __CLASS__, 'redirect_paid_order_pay_to_order_received' ), 0 );
@@ -29,6 +30,8 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_claim_payment', array( __CLASS__, 'ajax_claim_payment' ) );
 		add_action( 'wp_ajax_nopriv_wcll_claim_payment', array( __CLASS__, 'ajax_claim_payment' ) );
 		add_action( 'woocommerce_receipt_wcll_gateway', array( __CLASS__, 'render_payment_page' ) );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_gateway_admin_assets' ) );
+		add_action( 'wp_ajax_wcll_check_lightning_address', array( __CLASS__, 'ajax_check_lightning_address' ) );
 	}
 
 	public static function load_textdomain() {
@@ -40,6 +43,105 @@ class WCLL_Plugin {
 		if ( function_exists( 'is_checkout' ) && is_checkout() && ! is_wc_endpoint_url( 'order-pay' ) ) {
 			wp_enqueue_style( 'wcll-checkout-method', WCLL_PLUGIN_URL . 'assets/css/checkout-method.css', array(), WCLL_VERSION );
 		}
+	}
+
+	public static function enqueue_gateway_admin_assets( $hook ) {
+		if ( 'woocommerce_page_wc-settings' !== $hook ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page routing check.
+		$tab = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only page routing check.
+		$section = isset( $_GET['section'] ) ? sanitize_key( wp_unslash( $_GET['section'] ) ) : '';
+		if ( 'checkout' !== $tab || 'wcll_gateway' !== $section ) {
+			return;
+		}
+
+		wp_enqueue_style( 'lawallet-gateway-admin', WCLL_PLUGIN_URL . 'assets/css/lawallet-gateway-admin.css', array( 'dashicons' ), WCLL_VERSION );
+		wp_enqueue_script( 'lawallet-gateway-admin', WCLL_PLUGIN_URL . 'assets/js/lawallet-gateway-admin.js', array(), WCLL_VERSION, true );
+
+		$config = array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce'   => wp_create_nonce( 'wcll_check_lightning_address' ),
+			'fieldId' => 'woocommerce_wcll_gateway_lightning_address',
+			'i18n'    => array(
+				'lud16Label' => __( 'LUD-16', 'lawallet-lightning-address' ),
+				'lud21Label' => __( 'LUD-21', 'lawallet-lightning-address' ),
+				'nip57Label' => __( 'NIP-57', 'lawallet-lightning-address' ),
+				'checking'   => __( 'Checking the Lightning Address', 'lawallet-lightning-address' ),
+				'pending'    => __( 'Enter a Lightning Address to check', 'lawallet-lightning-address' ),
+			),
+		);
+		wp_add_inline_script( 'lawallet-gateway-admin', 'window.WCLLGatewayAdmin = ' . wp_json_encode( $config ) . ';', 'before' );
+	}
+
+	public static function ajax_check_lightning_address() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'You are not allowed to verify the Lightning Address.', 'lawallet-lightning-address' ) ), 403 );
+		}
+
+		check_ajax_referer( 'wcll_check_lightning_address', 'nonce' );
+
+		$address = isset( $_POST['address'] ) ? trim( strtolower( sanitize_text_field( wp_unslash( $_POST['address'] ) ) ) ) : '';
+		if ( '' === $address || ! preg_match( '/^[^@\s]+@[^@\s]+$/', $address ) ) {
+			$invalid = __( 'Enter a Lightning Address like name@example.com.', 'lawallet-lightning-address' );
+			wp_send_json_success(
+				array(
+					'address' => $address,
+					'lud16'   => array( 'ok' => false, 'message' => $invalid ),
+					'lud21'   => array( 'ok' => false, 'message' => $invalid ),
+					'nip57'   => array( 'ok' => false, 'message' => $invalid ),
+				)
+			);
+		}
+
+		$settings = get_option( 'woocommerce_wcll_gateway_settings', array() );
+		$settings = is_array( $settings ) ? $settings : array();
+		$client   = new WCLL_LNURL_Client( $settings );
+
+		$pay_request = $client->resolve_lightning_address( $address );
+		if ( is_wp_error( $pay_request ) ) {
+			$resolve_error = $pay_request->get_error_message();
+			$lud16         = array( 'ok' => false, 'message' => $resolve_error );
+			$lud21         = array( 'ok' => false, 'message' => $resolve_error );
+			$nip57         = array( 'ok' => false, 'message' => $resolve_error );
+		} else {
+			$lud16 = array( 'ok' => true, 'message' => __( 'Lightning Address resolves (LUD-16).', 'lawallet-lightning-address' ) );
+
+			$amount_msat = max( 1000, (int) $pay_request['minSendable'] );
+			if ( $amount_msat > (int) $pay_request['maxSendable'] ) {
+				$lud21 = array( 'ok' => false, 'message' => __( 'The Lightning Address minimum amount is higher than its maximum amount.', 'lawallet-lightning-address' ) );
+			} else {
+				$invoice = $client->request_invoice(
+					$pay_request,
+					$amount_msat,
+					array(
+						'description' => 'WooCommerce LUD-21 check',
+						'use_nostr'   => false,
+					)
+				);
+				$lud21 = is_wp_error( $invoice )
+					? array( 'ok' => false, 'message' => $invoice->get_error_message() )
+					: array( 'ok' => true, 'message' => __( 'LUD-21 settlement verification supported.', 'lawallet-lightning-address' ) );
+			}
+
+			$nostr_pubkey = isset( $pay_request['nostrPubkey'] ) ? (string) $pay_request['nostrPubkey'] : '';
+			if ( ! empty( $pay_request['allowsNostr'] ) && preg_match( '/^[0-9a-f]{64}$/i', $nostr_pubkey ) ) {
+				$nip57 = array( 'ok' => true, 'message' => __( 'NIP-57 zap receipts supported.', 'lawallet-lightning-address' ) );
+			} else {
+				$nip57 = array( 'ok' => false, 'message' => __( 'This Lightning Address does not advertise NIP-57 zap receipts.', 'lawallet-lightning-address' ) );
+			}
+		}
+
+		wp_send_json_success(
+			array(
+				'address' => $address,
+				'lud16'   => $lud16,
+				'lud21'   => $lud21,
+				'nip57'   => $nip57,
+			)
+		);
 	}
 
 	public static function declare_woocommerce_features() {
@@ -106,6 +208,12 @@ class WCLL_Plugin {
 		}
 
 		return $schedules;
+	}
+
+	public static function ensure_cron_scheduled() {
+		if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
+			wp_schedule_event( time() + MINUTE_IN_SECONDS, 'wcll_every_minute', self::CRON_HOOK );
+		}
 	}
 
 	public static function admin_notices() {
@@ -254,16 +362,14 @@ class WCLL_Plugin {
 			return self::payment_response( $order, 'paid' );
 		}
 
-		$verify_url = $order->get_meta( '_wcll_verify_url', true );
 		$invoice    = $order->get_meta( '_wcll_invoice', true );
 		$expires_at = (int) $order->get_meta( '_wcll_expires_at', true );
 
-		if ( empty( $verify_url ) || empty( $invoice ) ) {
+		if ( empty( $invoice ) ) {
 			return self::payment_response( $order, 'missing' );
 		}
 
-		$client = new WCLL_LNURL_Client( WCLL_Gateway::get_gateway_settings() );
-		$check  = $client->verify_invoice( $verify_url, $invoice );
+		$check = self::verify_order_settlement( $order, $invoice );
 
 		if ( is_wp_error( $check ) ) {
 			if ( $from_cron && $expires_at && time() > $expires_at ) {
@@ -288,7 +394,11 @@ class WCLL_Plugin {
 			$order->save();
 
 			$order->payment_complete();
-			$order->add_order_note( __( 'Lightning payment verified with LUD-21.', 'lawallet-lightning-address' ) );
+			$order->add_order_note(
+				isset( $check['method'] ) && 'nip57' === $check['method']
+					? __( 'Lightning payment verified via NIP-57 zap receipt.', 'lawallet-lightning-address' )
+					: __( 'Lightning payment verified with LUD-21.', 'lawallet-lightning-address' )
+			);
 
 			return self::payment_response( $order, 'paid' );
 		}
@@ -301,6 +411,37 @@ class WCLL_Plugin {
 		return self::payment_response( $order, 'pending' );
 	}
 
+	private static function verify_order_settlement( WC_Order $order, $invoice ) {
+		$client     = new WCLL_LNURL_Client( WCLL_Gateway::get_gateway_settings() );
+		$verify_url = $order->get_meta( '_wcll_verify_url', true );
+
+		// Prefer LUD-21 when the invoice exposes a verify URL.
+		if ( ! empty( $verify_url ) ) {
+			$result = $client->verify_invoice( $verify_url, $invoice );
+			if ( ! is_wp_error( $result ) ) {
+				$result['method'] = 'lud21';
+			}
+			return $result;
+		}
+
+		// Fallback: confirm settlement from a NIP-57 zap receipt on the relays
+		// that were provided when the invoice was generated.
+		$relays = $order->get_meta( '_wcll_nostr_relays', true );
+		$author = (string) $order->get_meta( '_wcll_nostr_pubkey', true );
+		if ( ! is_array( $relays ) || empty( $relays ) || '' === $author ) {
+			return new WP_Error( 'wcll_no_verification', __( 'This invoice has no LUD-21 verify URL or NIP-57 relays to confirm settlement.', 'lawallet-lightning-address' ) );
+		}
+
+		$created = $order->get_date_created();
+		$since   = $created ? ( $created->getTimestamp() - HOUR_IN_SECONDS ) : 0;
+
+		$result = WCLL_Nostr_Relay::fetch_zap_receipt( $relays, $invoice, $author, $since );
+		if ( ! is_wp_error( $result ) ) {
+			$result['method'] = 'nip57';
+		}
+		return $result;
+	}
+
 	private static function cancel_expired_order( WC_Order $order, $reason = '' ) {
 		if ( $order->is_paid() || 'cancelled' === $order->get_status() ) {
 			return;
@@ -309,9 +450,9 @@ class WCLL_Plugin {
 		$order->update_meta_data( '_wcll_status', 'expired' );
 		$order->save();
 
-		$note = __( 'Lightning invoice expired before LUD-21 settlement was verified.', 'lawallet-lightning-address' );
+		$note = __( 'Lightning invoice expired before settlement was confirmed.', 'lawallet-lightning-address' );
 		if ( $reason ) {
-			/* translators: %s: error message returned by the last LUD-21 verification attempt. */
+			/* translators: %s: error message returned by the last settlement verification attempt. */
 			$note .= ' ' . sprintf( __( 'Last verification error: %s', 'lawallet-lightning-address' ), $reason );
 		}
 		$order->update_status( 'cancelled', $note );
