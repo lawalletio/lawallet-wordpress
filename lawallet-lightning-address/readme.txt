@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.2.1
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -75,10 +75,11 @@ or site data ever leaves your server.
 This request is optional. Stores priced in BTC/SAT need no conversion, and any store can avoid
 Yadio entirely by setting a fixed "manual sats-per-unit" rate in the gateway settings.
 
-Yadio is a free, public, no-account API. To the best of our knowledge it does not publish a formal
-terms of service or privacy policy document; the information it makes available is on the
-[Yadio website](https://yadio.io) and its [API documentation](https://yadio.io/api.html). Yadio's
-role as the rate provider for the LaWallet ecosystem is also disclosed in the
+Yadio is a free, public, no-account API. Because the request is made from your server, Yadio receives
+your store server's IP address (which, per its privacy policy, it logs to monitor for abuse) and the
+three-letter currency code - nothing else. This service is provided by Yadio; see the Yadio
+[terms of service](https://yadio.io/terms.html) and [privacy policy](https://yadio.io/privacy.html).
+Yadio's role as the rate provider for the LaWallet ecosystem is also disclosed in the
 [LaWallet privacy policy](https://lawallet.io/privacy).
 
 = Nostr relays (optional) =
@@ -120,6 +121,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.2.1 =
+* Document the Yadio exchange-rate service with links to its Terms of Service and Privacy Policy.
 
 = 0.2.0 =
 * Add live LUD-16, LUD-21 and NIP-57 checks beside the merchant Lightning Address field, each with a status icon.
