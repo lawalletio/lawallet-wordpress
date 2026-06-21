@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -93,12 +93,18 @@ request data is exchanged. Relays are operated by third parties chosen by your w
 = NWC proxy wallet (optional) =
 
 If you enable the NWC (Nostr Wallet Connect, NIP-47) proxy wallet, the plugin connects to the Nostr
-relays in the connection string you configure to invoice that wallet, confirm the payment, and
-forward the funds to your Lightning Address. Encrypted requests/responses (make/lookup/pay invoice)
-are exchanged with your own wallet through those relays. The relays are third parties chosen by you
-when you create the connection string; the wallet connection secret is stored on your server and is
-never sent to the browser. This feature is off by default and only used for Lightning Addresses that
-support neither LUD-21 nor NIP-57.
+relays in the wallet connection string to invoice that wallet, confirm the payment, and forward the
+funds to your Lightning Address. Encrypted requests/responses (make/lookup/pay invoice) are exchanged
+with the wallet through those relays. The relays are third parties carried in the connection string;
+the wallet connection secret is stored on your server and is never sent to the browser. This feature
+is off by default and only used for Lightning Addresses that support neither LUD-21 nor NIP-57.
+
+In Disposable mode the plugin obtains a throwaway wallet connection from an lncurl service (a single
+HTTP request returns a connection string; default https://lncurl.lol, configurable to any lncurl
+instance you trust) and requests a replacement when a wallet dies. Only the request to mint a wallet
+is sent to that service; the wallet you receive is custodial at whichever provider the lncurl service
+is backed by, so use it only for funds in transit. In Permanent mode no provisioning service is
+contacted — you supply the connection string yourself.
 
 == Installation ==
 
@@ -128,9 +134,11 @@ plugin never holds your keys or funds.
 
 Yes. If your Lightning Address supports NIP-57 zap receipts, settlement is confirmed from the signed
 receipt instead. If it supports neither LUD-21 nor NIP-57, you can enable the optional NWC (Nostr
-Wallet Connect) proxy wallet: the plugin invoices a disposable NWC wallet you control, confirms the
-payment over that connection, and forwards the funds to your Lightning Address (keeping a small
-reserve for routing fees). Orders are only ever marked paid when a payment is actually confirmed.
+Wallet Connect) proxy wallet: the plugin invoices an NWC wallet, confirms the payment over that
+connection, and forwards the funds to your Lightning Address (keeping a small reserve for routing
+fees). The proxy wallet can be a fixed connection you provide (Permanent mode) or one the plugin
+creates on demand from an lncurl service and replaces when it dies (Disposable mode). Orders are
+only ever marked paid when a payment is actually confirmed.
 
 = Which currencies are supported? =
 
@@ -138,6 +146,14 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.0 =
+* NWC proxy wallets can now be managed automatically. In the new Disposable mode the plugin creates a throwaway NWC wallet on demand from an lncurl service (default https://lncurl.lol), reuses it across orders, and provisions a replacement when it dies (optional, behind a toggle).
+* Permanent mode keeps the previous behaviour: a fixed connection string you provide that is never auto-replaced. Existing setups upgrade to Permanent mode automatically.
+* Show the proxy wallet balance and mode on the payment gateway settings page.
+* Per-order settlement and forwarding always target the exact wallet an order was invoiced on, even after the active disposable wallet has rotated.
+* Connection secrets are kept server-side in dedicated storage and are never written to the settings form, order data, or the browser.
+* Update the bundled Spanish (es_AR, es_ES) translations for the new strings.
 
 = 0.3.0 =
 * Add an optional NWC (Nostr Wallet Connect, NIP-47) proxy wallet as a third settlement method for Lightning Addresses that support neither LUD-21 verification nor NIP-57 zap receipts.

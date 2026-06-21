@@ -71,13 +71,39 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'title'       => __( 'NWC proxy wallet', 'lawallet-lightning-address' ),
 				'type'        => 'checkbox',
 				'label'       => __( 'Settle through an NWC proxy wallet when the Lightning Address cannot confirm payments', 'lawallet-lightning-address' ),
-				'description' => __( 'Required only for Lightning Addresses that support neither LUD-21 verification nor NIP-57 zap receipts. The plugin invoices a disposable NWC (NIP-47) wallet, then forwards the funds to your Lightning Address minus a small routing reserve.', 'lawallet-lightning-address' ),
+				'description' => __( 'Required only for Lightning Addresses that support neither LUD-21 verification nor NIP-57 zap receipts. The plugin invoices an NWC (NIP-47) wallet, then forwards the funds to your Lightning Address minus a small routing reserve.', 'lawallet-lightning-address' ),
 				'default'     => 'no',
 			),
+			'nwc_mode'              => array(
+				'title'       => __( 'NWC wallet mode', 'lawallet-lightning-address' ),
+				'type'        => 'select',
+				'description' => __( 'Disposable: the plugin creates a throwaway wallet on demand and replaces it when it dies. Permanent: you provide a fixed connection string that is never replaced.', 'lawallet-lightning-address' ),
+				'default'     => 'disposable',
+				'options'     => array(
+					'disposable' => __( 'Disposable (auto-created)', 'lawallet-lightning-address' ),
+					'permanent'  => __( 'Permanent (your own connection)', 'lawallet-lightning-address' ),
+				),
+				'desc_tip'    => true,
+			),
+			'nwc_lncurl_url'        => array(
+				'title'       => __( 'Disposable wallet service (lncurl)', 'lawallet-lightning-address' ),
+				'type'        => 'text',
+				'description' => __( 'Used in Disposable mode. An lncurl service that mints a wallet from a single request. Defaults to https://lncurl.lol.', 'lawallet-lightning-address' ),
+				'placeholder' => 'https://lncurl.lol',
+				'default'     => 'https://lncurl.lol',
+				'desc_tip'    => true,
+			),
+			'nwc_auto_replace'      => array(
+				'title'       => __( 'Auto-replace dead wallet', 'lawallet-lightning-address' ),
+				'type'        => 'checkbox',
+				'label'       => __( 'Provision a new wallet when the current disposable wallet becomes unavailable', 'lawallet-lightning-address' ),
+				'description' => __( 'Disposable mode only. A permanent connection is never replaced.', 'lawallet-lightning-address' ),
+				'default'     => 'yes',
+			),
 			'nwc_connection'        => array(
-				'title'       => __( 'NWC connection string', 'lawallet-lightning-address' ),
+				'title'       => __( 'Permanent NWC connection string', 'lawallet-lightning-address' ),
 				'type'        => 'password',
-				'description' => __( 'A nostr+walletconnect:// string for a disposable wallet holding only a small balance. Stored on the server and never exposed to customers.', 'lawallet-lightning-address' ),
+				'description' => __( 'Used in Permanent mode: a nostr+walletconnect:// string for a wallet you control. It is stored securely on the server (not in the settings form) and is not shown again after saving; leave blank to keep the current one. Never exposed to customers. Leave blank in Disposable mode.', 'lawallet-lightning-address' ),
 				'placeholder' => 'nostr+walletconnect://...',
 				'default'     => '',
 				'desc_tip'    => true,
@@ -185,6 +211,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		unset( $key );
 		$value = trim( (string) $value );
 		if ( '' === $value ) {
+			// Write-only field: an empty submit keeps the stored connection.
 			return '';
 		}
 
@@ -194,27 +221,33 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			return '';
 		}
 
-		return $value;
+		// Persist the secret OUTSIDE the WooCommerce settings array (autoload=no),
+		// so it is never stored in or rendered back from the autoloaded settings
+		// option / admin form. Always return '' for the settings field itself.
+		WCLL_NWC_Manager::set_permanent_connection( $value );
+		return '';
 	}
 
-	/**
-	 * Build an NWC client from the gateway settings, or null when the proxy is
-	 * disabled. Returns WP_Error when enabled but misconfigured.
-	 *
-	 * @return WCLL_NWC_Client|WP_Error|null
-	 */
-	public static function resolve_nwc_client( array $settings ) {
-		$enabled = isset( $settings['nwc_proxy_enabled'] ) && 'yes' === $settings['nwc_proxy_enabled'];
-		if ( ! $enabled ) {
-			return null;
+	public function validate_nwc_mode_field( $key, $value ) {
+		unset( $key );
+		$value = strtolower( sanitize_key( $value ) );
+		return in_array( $value, array( 'permanent', 'disposable' ), true ) ? $value : 'disposable';
+	}
+
+	public function validate_nwc_lncurl_url_field( $key, $value ) {
+		unset( $key );
+		$value = trim( (string) $value );
+		if ( '' === $value ) {
+			return WCLL_NWC_Manager::DEFAULT_LNCURL;
 		}
 
-		$uri = isset( $settings['nwc_connection'] ) ? (string) $settings['nwc_connection'] : '';
-		if ( '' === trim( $uri ) ) {
-			return new WP_Error( 'wcll_nwc_unconfigured', __( 'enable and configure the NWC proxy wallet connection string.', 'lawallet-lightning-address' ) );
+		$clean = esc_url_raw( $value );
+		if ( '' === $clean || ! preg_match( '#^https?://#i', $clean ) ) {
+			WC_Admin_Settings::add_error( __( 'The lncurl service must be a valid http(s) URL.', 'lawallet-lightning-address' ) );
+			return WCLL_NWC_Manager::DEFAULT_LNCURL;
 		}
 
-		return WCLL_NWC_Client::from_uri( $uri );
+		return $clean;
 	}
 
 	/**
@@ -303,24 +336,22 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$payment_hash      = '';
 
 		if ( ! $has_verify && ! $has_zap ) {
-			// Last resort: the address can confirm nothing on its own, so invoice a
-			// configured NWC proxy wallet (which we can verify and forward) instead.
-			$nwc = self::resolve_nwc_client( $settings );
-			if ( ! ( $nwc instanceof WCLL_NWC_Client ) ) {
-				$reason = is_wp_error( $nwc ) ? $nwc->get_error_message() : __( 'and no NWC proxy wallet is configured.', 'lawallet-lightning-address' );
-				wc_add_notice( __( 'Payment error: this Lightning Address cannot confirm payments. It returned no LUD-21 verify URL and does not support NIP-57 zap receipts,', 'lawallet-lightning-address' ) . ' ' . $reason, 'error' );
-				return array( 'result' => 'failure' );
-			}
-
-			$proxy = $nwc->make_invoice(
+			// Last resort: the address can confirm nothing on its own, so invoice an
+			// NWC proxy wallet (which we can verify and forward) instead. In
+			// disposable mode this lazily mints a wallet and self-heals a dead one.
+			$result = WCLL_NWC_Manager::make_order_invoice(
+				$settings,
 				$amount_msat,
 				sprintf( 'WooCommerce order #%s', $order->get_order_number() ),
 				$expiry_minutes * MINUTE_IN_SECONDS
 			);
-			if ( is_wp_error( $proxy ) ) {
-				wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $proxy->get_error_message(), 'error' );
+			if ( is_wp_error( $result ) ) {
+				wc_add_notice( __( 'Payment error: this Lightning Address cannot confirm payments. It returned no LUD-21 verify URL and does not support NIP-57 zap receipts.', 'lawallet-lightning-address' ) . ' ' . $result->get_error_message(), 'error' );
 				return array( 'result' => 'failure' );
 			}
+
+			$nwc   = $result['client'];
+			$proxy = $result['invoice'];
 			if ( empty( $proxy['invoice'] ) || empty( $proxy['payment_hash'] ) ) {
 				wc_add_notice( __( 'Payment error: the NWC proxy wallet returned an incomplete invoice.', 'lawallet-lightning-address' ), 'error' );
 				return array( 'result' => 'failure' );
@@ -417,26 +448,27 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			}
 
 			// Neither LUD-21 nor NIP-57. The NWC proxy wallet is the last resort.
-			$nwc = self::resolve_nwc_client( $settings );
-			if ( $nwc instanceof WCLL_NWC_Client ) {
-				$info = $nwc->get_info();
-				if ( ! is_wp_error( $info ) ) {
+			if ( WCLL_NWC_Manager::is_enabled( $settings ) ) {
+				$probe = WCLL_NWC_Manager::probe( $settings );
+				if ( $probe['ok'] ) {
 					$this->save_connection_status(
 						array(
-							'lud21_verified' => 'no',
-							'settlement'     => 'nwc',
-							'verified_at'    => gmdate( 'c' ),
-							'allows_nostr'   => 'no',
-							'nostr_pubkey'   => '',
-							'status_message' => __( 'No LUD-21 verify URL or NIP-57 zap receipts; payments will be taken through the NWC proxy wallet and forwarded to your Lightning Address.', 'lawallet-lightning-address' ),
+							'lud21_verified'   => 'no',
+							'settlement'       => 'nwc',
+							'verified_at'      => gmdate( 'c' ),
+							'allows_nostr'     => 'no',
+							'nostr_pubkey'     => '',
+							'nwc_mode'         => $probe['mode'],
+							'nwc_balance_sats' => null === $probe['balance_sats'] ? '' : (int) $probe['balance_sats'],
+							'status_message'   => $probe['message'],
 						)
 					);
-					WC_Admin_Settings::add_message( __( 'Payments will be settled through the NWC proxy wallet and forwarded to your Lightning Address.', 'lawallet-lightning-address' ) );
+					WC_Admin_Settings::add_message( $probe['message'] );
 					return;
 				}
-				$nwc_error = $info->get_error_message();
+				$nwc_error = $probe['message'];
 			} else {
-				$nwc_error = is_wp_error( $nwc ) ? $nwc->get_error_message() : __( 'Enable and configure the NWC proxy wallet to accept this address.', 'lawallet-lightning-address' );
+				$nwc_error = __( 'Enable and configure the NWC proxy wallet to accept this address.', 'lawallet-lightning-address' );
 			}
 
 			$message = trim( $result->get_error_message() . ' ' . $nwc_error );
@@ -522,6 +554,21 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		}
 		if ( ! empty( $settings['allows_nostr'] ) && 'yes' === $settings['allows_nostr'] ) {
 			echo '<p class="description">' . esc_html__( 'NIP-57 receipts are available for fast checkout detection.', 'lawallet-lightning-address' ) . '</p>';
+		}
+		if ( 'nwc' === $settlement ) {
+			$mode      = WCLL_NWC_Manager::mode( $settings );
+			$mode_text = 'disposable' === $mode
+				? __( 'Mode: disposable (auto-created wallet).', 'lawallet-lightning-address' )
+				: __( 'Mode: permanent (your own connection).', 'lawallet-lightning-address' );
+			echo '<p class="description">' . esc_html( $mode_text ) . '</p>';
+
+			$balance = WCLL_NWC_Manager::get_cached_balance( $settings );
+			if ( ! empty( $balance['ok'] ) ) {
+				/* translators: %s: NWC proxy wallet balance in sats. */
+				echo '<p class="description">' . esc_html( sprintf( __( 'Wallet balance: %s sats.', 'lawallet-lightning-address' ), number_format_i18n( (int) $balance['sats'] ) ) ) . '</p>';
+			} else {
+				echo '<p class="description">' . esc_html__( 'Wallet balance: unavailable.', 'lawallet-lightning-address' ) . '</p>';
+			}
 		}
 		echo '</td></tr></tbody></table>';
 	}

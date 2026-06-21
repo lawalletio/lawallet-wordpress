@@ -16,6 +16,7 @@ class WCLL_Plugin {
 
 		if ( class_exists( 'WC_Payment_Gateway' ) ) {
 			require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-gateway.php';
+			WCLL_NWC_Manager::maybe_migrate();
 		}
 
 		add_filter( 'woocommerce_payment_gateways', array( __CLASS__, 'add_gateway' ) );
@@ -221,6 +222,12 @@ class WCLL_Plugin {
 			return;
 		}
 
+		foreach ( WCLL_NWC_Manager::take_admin_notices() as $notice ) {
+			if ( ! empty( $notice['message'] ) ) {
+				echo '<div class="notice notice-warning is-dismissible"><p>' . esc_html( $notice['message'] ) . '</p></div>';
+			}
+		}
+
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			echo '<div class="notice notice-error"><p>' . esc_html__( 'Accept Bitcoin with your Lightning Address needs WooCommerce active for checkout payments. Lightning Address discovery can still be configured from Settings -> LaWallet.', 'lawallet-lightning-address' ) . '</p></div>';
 			return;
@@ -364,6 +371,10 @@ class WCLL_Plugin {
 		foreach ( $forward_orders as $order ) {
 			self::forward_nwc_payment( $order );
 		}
+
+		// Keep a live disposable wallet ready so the next order never lands on a
+		// wallet that lncurl has reaped.
+		WCLL_NWC_Manager::ensure_live_active( WCLL_Gateway::get_gateway_settings() );
 	}
 
 	public static function claim_order_payment( WC_Order $order, $from_cron = false ) {
@@ -493,29 +504,14 @@ class WCLL_Plugin {
 	}
 
 	/**
-	 * Rebuild the NWC client for an order: the secret/connection comes from the
-	 * (never-persisted) gateway settings, while the order's stored relays are used
-	 * for transport. Guards against the proxy wallet being swapped mid-order.
+	 * Rebuild the NWC client for an order against the EXACT wallet it was invoiced
+	 * on (resolved by stored pubkey through the manager's active/archive store), so
+	 * a rotated-in replacement never settles or receives another order's funds.
 	 *
 	 * @return WCLL_NWC_Client|WP_Error
 	 */
 	private static function build_nwc_client_for_order( WC_Order $order ) {
-		$nwc = WCLL_Gateway::resolve_nwc_client( WCLL_Gateway::get_gateway_settings() );
-		if ( ! ( $nwc instanceof WCLL_NWC_Client ) ) {
-			return is_wp_error( $nwc ) ? $nwc : new WP_Error( 'wcll_nwc_unconfigured', __( 'The NWC proxy wallet is no longer configured.', 'lawallet-lightning-address' ) );
-		}
-
-		$order_relays = $order->get_meta( '_wcll_nwc_relays', true );
-		if ( is_array( $order_relays ) && ! empty( $order_relays ) ) {
-			$nwc->with_relays( $order_relays );
-		}
-
-		$order_wallet = strtolower( (string) $order->get_meta( '_wcll_nwc_wallet_pubkey', true ) );
-		if ( '' !== $order_wallet && $order_wallet !== strtolower( $nwc->wallet_pubkey() ) ) {
-			return new WP_Error( 'wcll_nwc_wallet_mismatch', __( 'The configured NWC wallet no longer matches this order.', 'lawallet-lightning-address' ) );
-		}
-
-		return $nwc;
+		return WCLL_NWC_Manager::client_for_order( $order, WCLL_Gateway::get_gateway_settings() );
 	}
 
 	/**
@@ -543,7 +539,10 @@ class WCLL_Plugin {
 		try {
 			$attempts = (int) $order->get_meta( '_wcll_nwc_forward_attempts', true );
 			if ( $attempts >= $max_attempts ) {
-				return false;
+				// Cap already reached (e.g. a crash between increment and resolution):
+				// mark it failed with a manual-recovery note instead of silently
+				// looping on every cron run.
+				return self::forward_failed( $order, __( 'NWC proxy: reached the maximum number of forwarding attempts.', 'lawallet-lightning-address' ), $attempts, $max_attempts );
 			}
 			$attempts++;
 			$order->update_meta_data( '_wcll_nwc_forward_attempts', $attempts );

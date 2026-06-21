@@ -13,11 +13,27 @@ const nostrPubkey = getPublicKey(nostrSecretKey);
 const invoices = new Map();
 const sockets = new Map();
 
-// NIP-47 (NWC) proxy wallet — a fixed keypair distinct from the zap key.
+// NIP-47 (NWC) proxy wallets — a registry, so the mock can act as MANY wallets
+// (the lncurl endpoint mints a fresh one per call). Each request is decrypted /
+// signed with the wallet identified by the request's "p" tag.
+const nwcWallets = new Map(); // pubkey -> { secretHex, secretKey, alive, lud16 }
+
+function registerNwcWallet(secretHex, lud16) {
+  const secretKey = Uint8Array.from(Buffer.from(secretHex, 'hex'));
+  const pubkey = getPublicKey(secretKey);
+  nwcWallets.set(pubkey, {
+    secretHex,
+    secretKey,
+    alive: true,
+    balanceMsat: 0,
+    lud16: lud16 || `lncurl-${pubkey.slice(0, 8)}@mock-lnurl`
+  });
+  return pubkey;
+}
+
+// A fixed wallet (0x02) + client (0x03) kept for the static-connection tests.
 const nwcSecretHex = '02'.repeat(32);
-const nwcSecretKey = Uint8Array.from(Buffer.from(nwcSecretHex, 'hex'));
-const nwcWalletPubkey = getPublicKey(nwcSecretKey);
-// A fixed client secret baked into the advertised connection URI for tests.
+const nwcWalletPubkey = registerNwcWallet(nwcSecretHex);
 const nwcClientSecretHex = '03'.repeat(32);
 const nwcClientPubkey = getPublicKey(Uint8Array.from(Buffer.from(nwcClientSecretHex, 'hex')));
 const nwcInvoices = new Map(); // payment_hash -> record
@@ -145,10 +161,18 @@ async function handleNwcRequest(socket, event) {
     return;
   }
 
+  // The target wallet is named in the request's "p" tag; the mock serves many.
+  const pTag = (event.tags || []).find((t) => Array.isArray(t) && t[0] === 'p');
+  const walletPubkey = pTag ? pTag[1] : nwcWalletPubkey;
+  const wallet = nwcWallets.get(walletPubkey);
+  if (!wallet || !wallet.alive) {
+    return; // Unknown or killed wallet: stay silent so the client treats it as dead.
+  }
+
   const clientPubkey = event.pubkey;
   let req;
   try {
-    req = JSON.parse(await nip04.decrypt(nwcSecretHex, clientPubkey, event.content));
+    req = JSON.parse(await nip04.decrypt(wallet.secretHex, clientPubkey, event.content));
   } catch (error) {
     return; // Cannot decrypt (wrong key / NIP-44) — ignore.
   }
@@ -162,7 +186,7 @@ async function handleNwcRequest(socket, event) {
       payload = nwcResult('get_info', {
         alias: 'Mock NWC Wallet',
         color: '#22c55e',
-        pubkey: nwcWalletPubkey,
+        pubkey: walletPubkey,
         network: 'regtest',
         block_height: 1,
         block_hash: '00'.repeat(32),
@@ -172,7 +196,7 @@ async function handleNwcRequest(socket, event) {
       break;
 
     case 'get_balance':
-      payload = nwcResult('get_balance', { balance: 1000000000 });
+      payload = nwcResult('get_balance', { balance: wallet.balanceMsat });
       break;
 
     case 'make_invoice': {
@@ -187,7 +211,8 @@ async function handleNwcRequest(socket, event) {
         expires_at: now + Number(params.expiry || 3600),
         settled_at: null,
         preimage: null,
-        clientPubkey
+        clientPubkey,
+        walletPubkey
       };
       nwcInvoices.set(record.payment_hash, record);
       payload = nwcResult('make_invoice', serializeNwcInvoice(record));
@@ -212,7 +237,10 @@ async function handleNwcRequest(socket, event) {
       const dest = Array.from(invoices.values()).find((r) => r.pr === bolt11);
       const preimage = crypto.randomBytes(32).toString('hex');
       const amount = dest ? dest.amount : (params.amount ? Number(params.amount) : null);
-      forwards.push({ invoice: bolt11, amount, preimage, at: Math.floor(Date.now() / 1000) });
+      forwards.push({ invoice: bolt11, amount, preimage, from: walletPubkey, at: Math.floor(Date.now() / 1000) });
+      if (amount) {
+        wallet.balanceMsat = Math.max(0, wallet.balanceMsat - Number(amount));
+      }
       if (dest) {
         dest.settled = true;
         dest.preimage = preimage;
@@ -226,7 +254,7 @@ async function handleNwcRequest(socket, event) {
       payload = nwcError(method || 'unknown', 'NOT_IMPLEMENTED', `Method ${method} not implemented`);
   }
 
-  const content = await nip04.encrypt(nwcSecretHex, clientPubkey, JSON.stringify(payload));
+  const content = await nip04.encrypt(wallet.secretHex, clientPubkey, JSON.stringify(payload));
   const response = finalizeEvent(
     {
       kind: 23195,
@@ -234,7 +262,7 @@ async function handleNwcRequest(socket, event) {
       tags: [['p', clientPubkey], ['e', event.id]],
       content
     },
-    nwcSecretKey
+    wallet.secretKey
   );
   broadcast(response);
 }
@@ -371,8 +399,37 @@ app.all('/test/pay-latest', (req, res) => {
   res.json({ ok: true, invoice: record.pr, verify: record.verify, id: record.id });
 });
 
+// Mint a fresh disposable wallet and return its NWC connection string as plain
+// text — mirrors lncurl.lol's `POST https://lncurl.lol`.
+app.post('/lncurl', (req, res) => {
+  const secretHex = crypto.randomBytes(32).toString('hex');
+  const pubkey = registerNwcWallet(secretHex);
+  const relay = `ws://mock-lnurl:${port}/nostr`;
+  const uri = `nostr+walletconnect://${pubkey}?relay=${relay}&secret=${secretHex}&lud16=${nwcWallets.get(pubkey).lud16}`;
+  res.type('text/plain').send(uri);
+});
+
+// Simulate an lncurl wallet dying: it stops answering NWC requests. Targets the
+// given pubkey, or the most recently minted wallet.
+app.all('/test/kill-nwc', (req, res) => {
+  const target = String(req.query.pubkey || '');
+  let pubkey = target;
+  if (!pubkey) {
+    const keys = Array.from(nwcWallets.keys());
+    pubkey = keys[keys.length - 1];
+  }
+  const wallet = nwcWallets.get(pubkey);
+  if (!wallet) {
+    res.status(404).json({ ok: false, error: 'Unknown wallet' });
+    return;
+  }
+  wallet.alive = false;
+  res.json({ ok: true, killed: pubkey });
+});
+
 app.all('/test/pay-nwc', async (req, res) => {
-  const record = Array.from(nwcInvoices.values()).at(-1);
+  const target = String(req.query.payment_hash || '');
+  const record = target ? nwcInvoices.get(target) : Array.from(nwcInvoices.values()).at(-1);
   if (!record) {
     res.status(404).json({ ok: false, error: 'No NWC invoices' });
     return;
@@ -382,6 +439,12 @@ app.all('/test/pay-nwc', async (req, res) => {
   record.preimage = crypto.randomBytes(32).toString('hex');
   nwcInvoices.set(record.payment_hash, record);
 
+  // Credit the wallet that issued the invoice (its balance now backs the forward).
+  const wallet = nwcWallets.get(record.walletPubkey) || nwcWallets.get(nwcWalletPubkey);
+  if (wallet) {
+    wallet.balanceMsat += Number(record.amount || 0);
+  }
+
   // Emit a NIP-04 (kind 23196) payment_received notification so the browser
   // watcher fires; the backend still confirms via lookup_invoice.
   try {
@@ -389,7 +452,7 @@ app.all('/test/pay-nwc', async (req, res) => {
       notification_type: 'payment_received',
       notification: serializeNwcInvoice(record)
     });
-    const content = await nip04.encrypt(nwcSecretHex, record.clientPubkey, note);
+    const content = await nip04.encrypt(wallet.secretHex, record.clientPubkey, note);
     const event = finalizeEvent(
       {
         kind: 23196,
@@ -397,7 +460,7 @@ app.all('/test/pay-nwc', async (req, res) => {
         tags: [['p', record.clientPubkey]],
         content
       },
-      nwcSecretKey
+      wallet.secretKey
     );
     broadcast(event);
   } catch (error) {
@@ -425,7 +488,13 @@ app.get('/test/state', (req, res) => {
       payment_hash: record.payment_hash,
       invoice: record.invoice,
       amount: record.amount,
-      settled: Boolean(record.settled_at)
+      settled: Boolean(record.settled_at),
+      walletPubkey: record.walletPubkey
+    })),
+    nwcWallets: Array.from(nwcWallets.entries()).map(([pubkey, w]) => ({
+      pubkey,
+      alive: w.alive,
+      balanceMsat: w.balanceMsat
     })),
     forwards
   });
@@ -435,6 +504,9 @@ app.all('/test/reset', (req, res) => {
   invoices.clear();
   nwcInvoices.clear();
   forwards.length = 0;
+  // Drop minted disposable wallets; re-register only the fixed test wallet.
+  nwcWallets.clear();
+  registerNwcWallet(nwcSecretHex);
   res.json({ ok: true });
 });
 
