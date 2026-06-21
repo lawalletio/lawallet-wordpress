@@ -119,6 +119,7 @@ class WCLL_Nostr_Relay {
 			. "Connection: Upgrade\r\n"
 			. 'Sec-WebSocket-Key: ' . $key . "\r\n"
 			. "Sec-WebSocket-Version: 13\r\n\r\n";
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Writing to a network socket, not a file; WP_Filesystem cannot operate on a stream_socket_client handle.
 		fwrite( $socket, $handshake );
 
 		$response = '';
@@ -133,11 +134,13 @@ class WCLL_Nostr_Relay {
 			}
 		}
 		if ( false === strpos( $response, ' 101 ' ) ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closing a network socket, not a file; WP_Filesystem cannot operate on a stream_socket_client handle.
 			fclose( $socket );
 			return new WP_Error( 'wcll_zap_handshake', 'WebSocket handshake failed.' );
 		}
 
 		$sub_id = 'wcll' . bin2hex( random_bytes( 4 ) );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Writing to a network socket, not a file; WP_Filesystem cannot operate on a stream_socket_client handle.
 		fwrite( $socket, self::encode_frame( (string) wp_json_encode( array( 'REQ', $sub_id, $filter ) ) ) );
 
 		$settled  = false;
@@ -172,7 +175,9 @@ class WCLL_Nostr_Relay {
 		}
 
 		// Best-effort close; ignore failures on an already-closing socket.
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fwrite -- Writing to a network socket, not a file; WP_Filesystem cannot operate on a stream_socket_client handle.
 		@fwrite( $socket, self::encode_frame( (string) wp_json_encode( array( 'CLOSE', $sub_id ) ) ) );
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- Closing a network socket, not a file; WP_Filesystem cannot operate on a stream_socket_client handle.
 		fclose( $socket );
 
 		return array(
@@ -305,6 +310,7 @@ class WCLL_Nostr_Relay {
 			if ( time() >= $deadline ) {
 				return null;
 			}
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- Reading from a network socket, not a file; WP_Filesystem cannot operate on a stream_socket_client handle.
 			$chunk = fread( $socket, $remaining );
 			if ( false === $chunk || '' === $chunk ) {
 				$meta = stream_get_meta_data( $socket );
