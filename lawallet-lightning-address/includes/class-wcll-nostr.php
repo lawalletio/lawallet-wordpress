@@ -94,6 +94,96 @@ class WCLL_Nostr {
 		return self::schnorr_verify( hex2bin( $id ), $pubkey, $sig );
 	}
 
+	/**
+	 * Derive the x-only public key for a 32-byte hex secret.
+	 */
+	public static function pubkey_from_secret( $secret_hex ) {
+		return self::public_key_from_private_key( $secret_hex );
+	}
+
+	/**
+	 * Sign an event with a specific secret key (sets id + sig). Used for NWC
+	 * (NIP-47) requests, which must be signed by the connection secret rather
+	 * than an ephemeral key.
+	 */
+	public static function sign_event_with_key( array $event, $secret_hex ) {
+		return self::sign_event( $event, $secret_hex );
+	}
+
+	/**
+	 * NIP-04 encrypt: AES-256-CBC over the ECDH shared-secret X-coordinate.
+	 * Output format: base64(ciphertext)?iv=base64(iv).
+	 */
+	public static function nip04_encrypt( $plaintext, $secret_hex, $peer_pubkey_hex ) {
+		$key = self::nip04_shared_key( $secret_hex, $peer_pubkey_hex );
+		if ( is_wp_error( $key ) ) {
+			return $key;
+		}
+
+		$iv = random_bytes( 16 );
+		$ct = openssl_encrypt( (string) $plaintext, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv );
+		if ( false === $ct ) {
+			return new WP_Error( 'wcll_nip04_encrypt', __( 'Could not encrypt the wallet message.', 'lawallet-lightning-address' ) );
+		}
+
+		return base64_encode( $ct ) . '?iv=' . base64_encode( $iv );
+	}
+
+	/**
+	 * NIP-04 decrypt the base64(ct)?iv=base64(iv) payload.
+	 */
+	public static function nip04_decrypt( $payload, $secret_hex, $peer_pubkey_hex ) {
+		$parts = explode( '?iv=', (string) $payload );
+		if ( 2 !== count( $parts ) ) {
+			return new WP_Error( 'wcll_nip04_format', __( 'Unexpected wallet response format; the wallet may require NIP-44 encryption, which is not supported yet.', 'lawallet-lightning-address' ) );
+		}
+
+		$ct = base64_decode( $parts[0], true );
+		$iv = base64_decode( $parts[1], true );
+		if ( false === $ct || false === $iv || 16 !== strlen( $iv ) ) {
+			return new WP_Error( 'wcll_nip04_format', __( 'Unexpected wallet response format; the wallet may require NIP-44 encryption, which is not supported yet.', 'lawallet-lightning-address' ) );
+		}
+
+		$key = self::nip04_shared_key( $secret_hex, $peer_pubkey_hex );
+		if ( is_wp_error( $key ) ) {
+			return $key;
+		}
+
+		$plain = openssl_decrypt( $ct, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv );
+		if ( false === $plain ) {
+			return new WP_Error( 'wcll_nip04_decrypt', __( 'Could not decrypt the wallet response.', 'lawallet-lightning-address' ) );
+		}
+
+		return $plain;
+	}
+
+	private static function nip04_shared_key( $secret_hex, $peer_pubkey_hex ) {
+		if ( ! self::can_sign() || ! extension_loaded( 'openssl' ) ) {
+			return new WP_Error( 'wcll_nip04_unavailable', __( 'NWC needs the PHP GMP and OpenSSL extensions.', 'lawallet-lightning-address' ) );
+		}
+
+		$secret_hex      = strtolower( trim( (string) $secret_hex ) );
+		$peer_pubkey_hex = strtolower( trim( (string) $peer_pubkey_hex ) );
+		if ( ! preg_match( '/^[0-9a-f]{64}$/', $secret_hex ) || ! preg_match( '/^[0-9a-f]{64}$/', $peer_pubkey_hex ) ) {
+			return new WP_Error( 'wcll_nip04_keys', __( 'Invalid key for NWC encryption.', 'lawallet-lightning-address' ) );
+		}
+
+		self::init_curve();
+		// NIP-04/NWC treats the x-only pubkey as even-y (the "02" prefix convention).
+		$peer = self::lift_x( gmp_init( $peer_pubkey_hex, 16 ) );
+		if ( null === $peer ) {
+			return new WP_Error( 'wcll_nip04_pubkey', __( 'Invalid wallet public key for NWC encryption.', 'lawallet-lightning-address' ) );
+		}
+
+		$shared = self::point_mul( gmp_init( $secret_hex, 16 ), $peer );
+		if ( null === $shared ) {
+			return new WP_Error( 'wcll_nip04_ecdh', __( 'Could not derive the NWC shared key.', 'lawallet-lightning-address' ) );
+		}
+
+		// The AES-256 key is the 32-byte X coordinate of the shared point.
+		return hex2bin( self::int_to_hex( $shared[0] ) );
+	}
+
 	private static function sign_event( array $event, $private_key_hex ) {
 		$serialized = self::event_serialization( $event );
 		if ( false === $serialized ) {

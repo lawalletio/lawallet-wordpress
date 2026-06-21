@@ -47,6 +47,7 @@ class WCLL_Discovery {
 				'instanceEmptyTitle' => __( 'Connect a LaWallet instance', 'lawallet-lightning-address' ),
 				'instanceEmptyMeta'  => __( 'Server details, avatar, cover, theme and socials will appear here after connection.', 'lawallet-lightning-address' ),
 				'instanceReadyTitle' => __( 'Connected LaWallet instance', 'lawallet-lightning-address' ),
+				/* translators: 1: gateway domain the LaWallet instance serves, 2: this site's domain. */
 				'domainMismatch'     => __( 'Domain mismatch: this gateway serves "%1$s", not your site domain "%2$s". Lightning addresses may not resolve on your domain.', 'lawallet-lightning-address' ),
 			),
 		);

@@ -133,7 +133,7 @@
 			}
 
 			claimInFlight = true;
-			setStatus(reason === 'nostr' || reason === 'webln' ? 'checking' : 'waiting');
+			setStatus(reason === 'nostr' || reason === 'nwc' || reason === 'webln' ? 'checking' : 'waiting');
 
 			var body = new URLSearchParams();
 			body.set('action', 'wcll_claim_payment');
@@ -322,6 +322,54 @@
 			});
 		}
 
+		function watchNwc() {
+			if (!config.nwcWalletPubkey || !Array.isArray(config.nwcRelays) || !config.nwcRelays.length) {
+				return;
+			}
+
+			config.nwcRelays.forEach(function (relay) {
+				var socket;
+				try {
+					socket = new WebSocket(relay);
+				} catch (error) {
+					return;
+				}
+
+				socket.addEventListener('open', function () {
+					var filter = {
+						kinds: [23196, 23197],
+						authors: [config.nwcWalletPubkey],
+						since: Math.floor(Date.now() / 1000) - 600
+					};
+					if (config.nwcClientPubkey) {
+						filter['#p'] = [config.nwcClientPubkey];
+					}
+					socket.send(JSON.stringify(['REQ', 'wcll-nwc-' + config.orderId, filter]));
+				});
+
+				socket.addEventListener('message', function (message) {
+					var parsed;
+					try {
+						parsed = JSON.parse(message.data);
+					} catch (error) {
+						return;
+					}
+
+					if (!Array.isArray(parsed) || parsed[0] !== 'EVENT') {
+						return;
+					}
+
+					// Trigger-only: any matching wallet notification prompts a backend
+					// claim, which confirms settlement with lookup_invoice. The payload
+					// is encrypted and is never decrypted in the browser.
+					var event = parsed[2];
+					if (event && (event.kind === 23196 || event.kind === 23197) && event.pubkey === config.nwcWalletPubkey) {
+						claim('nwc');
+					}
+				});
+			});
+		}
+
 		if (copyButton && invoiceField) {
 			copyButton.addEventListener('click', function () {
 				if (terminal || copyButton.disabled) {
@@ -352,6 +400,7 @@
 		setupWebLN();
 		startCountdown();
 		watchNostr();
+		watchNwc();
 		claim('load');
 		pollTimer = window.setInterval(function () {
 			claim('poll');

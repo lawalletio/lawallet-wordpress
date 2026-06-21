@@ -252,33 +252,24 @@ class WCLL_Plugin {
 		wp_enqueue_script( 'wcll-qrcode', WCLL_PLUGIN_URL . 'assets/js/qrcode.min.js', array(), WCLL_VERSION, true );
 		wp_enqueue_script( 'wcll-checkout', WCLL_PLUGIN_URL . 'assets/js/checkout.js', array( 'wcll-qrcode' ), WCLL_VERSION, true );
 
-		$relays = $order->get_meta( '_wcll_nostr_relays', true );
-		if ( ! is_array( $relays ) ) {
-			$relays = array();
-		}
+		$nwc_relays = $order->get_meta( '_wcll_nwc_relays', true );
 
 		$params = array(
-			'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
-			'orderId'       => $order->get_id(),
-			'orderKey'      => $order->get_order_key(),
-			'nonce'         => wp_create_nonce( self::nonce_action( $order ) ),
-			'invoice'       => $invoice,
-			'paymentStatus' => $order->get_meta( '_wcll_status', true ),
-			'isPaid'        => $order->is_paid(),
-			'expiresAt'     => (int) $order->get_meta( '_wcll_expires_at', true ),
-			'returnUrl'     => $order->get_checkout_order_received_url(),
-			'nostrPubkey'   => (string) $order->get_meta( '_wcll_nostr_pubkey', true ),
-			'nostrRelays'   => array_values(
-				array_filter(
-					array_map(
-						function ( $relay ) {
-							return esc_url_raw( $relay, array( 'ws', 'wss' ) );
-						},
-						$relays
-					)
-				)
-			),
-			'i18n'          => array(
+			'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
+			'orderId'         => $order->get_id(),
+			'orderKey'        => $order->get_order_key(),
+			'nonce'           => wp_create_nonce( self::nonce_action( $order ) ),
+			'invoice'         => $invoice,
+			'paymentStatus'   => $order->get_meta( '_wcll_status', true ),
+			'isPaid'          => $order->is_paid(),
+			'expiresAt'       => (int) $order->get_meta( '_wcll_expires_at', true ),
+			'returnUrl'       => $order->get_checkout_order_received_url(),
+			'nostrPubkey'     => (string) $order->get_meta( '_wcll_nostr_pubkey', true ),
+			'nostrRelays'     => self::sanitize_ws_relays( $order->get_meta( '_wcll_nostr_relays', true ) ),
+			'nwcWalletPubkey' => (string) $order->get_meta( '_wcll_nwc_wallet_pubkey', true ),
+			'nwcClientPubkey' => (string) $order->get_meta( '_wcll_nwc_client_pubkey', true ),
+			'nwcRelays'       => self::sanitize_ws_relays( $nwc_relays ),
+			'i18n'            => array(
 				'waiting'  => __( 'Waiting for payment', 'lawallet-lightning-address' ),
 				'checking' => __( 'Checking settlement', 'lawallet-lightning-address' ),
 				'paid'     => __( 'Payment received', 'lawallet-lightning-address' ),
@@ -355,10 +346,33 @@ class WCLL_Plugin {
 		foreach ( $orders as $order ) {
 			self::claim_order_payment( $order, true );
 		}
+
+		// Retry NWC forwards that settled but were not forwarded yet. These orders
+		// are already paid, so the pending-settlement query above will not see them.
+		$forward_orders = wc_get_orders(
+			array(
+				'limit'          => 50,
+				'status'         => array( 'processing', 'completed', 'on-hold' ),
+				'payment_method' => 'wcll_gateway',
+				'meta_key'       => '_wcll_nwc_forward_pending', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Bounded lookup (limit 50) of paid-but-unforwarded NWC orders; WooCommerce maps it to an HPOS-aware query.
+				'meta_value'     => 'yes', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- See above.
+				'orderby'        => 'date',
+				'order'          => 'ASC',
+			)
+		);
+
+		foreach ( $forward_orders as $order ) {
+			self::forward_nwc_payment( $order );
+		}
 	}
 
 	public static function claim_order_payment( WC_Order $order, $from_cron = false ) {
 		if ( $order->is_paid() ) {
+			// A paid NWC order may still owe its forward to the merchant address.
+			if ( 'nwc' === (string) $order->get_meta( '_wcll_settlement_method', true )
+				&& 'yes' === (string) $order->get_meta( '_wcll_nwc_forward_pending', true ) ) {
+				self::forward_nwc_payment( $order );
+			}
 			return self::payment_response( $order, 'paid' );
 		}
 
@@ -387,18 +401,24 @@ class WCLL_Plugin {
 		}
 
 		if ( ! empty( $check['settled'] ) ) {
+			$method = isset( $check['method'] ) ? (string) $check['method'] : '';
 			$order->update_meta_data( '_wcll_status', 'paid' );
 			if ( ! empty( $check['preimage'] ) ) {
 				$order->update_meta_data( '_wcll_preimage', sanitize_text_field( $check['preimage'] ) );
 			}
+			if ( 'nwc' === $method ) {
+				// Mark the forward owed before completing payment, so a crash
+				// between the two is recovered by the cron forward-retry query.
+				$order->update_meta_data( '_wcll_nwc_forward_pending', 'yes' );
+			}
 			$order->save();
 
 			$order->payment_complete();
-			$order->add_order_note(
-				isset( $check['method'] ) && 'nip57' === $check['method']
-					? __( 'Lightning payment verified via NIP-57 zap receipt.', 'lawallet-lightning-address' )
-					: __( 'Lightning payment verified with LUD-21.', 'lawallet-lightning-address' )
-			);
+			$order->add_order_note( self::settlement_note( $method ) );
+
+			if ( 'nwc' === $method ) {
+				self::forward_nwc_payment( $order );
+			}
 
 			return self::payment_response( $order, 'paid' );
 		}
@@ -412,6 +432,12 @@ class WCLL_Plugin {
 	}
 
 	private static function verify_order_settlement( WC_Order $order, $invoice ) {
+		// NWC proxy orders are confirmed by looking the proxy invoice up over the
+		// wallet connection, not by LUD-21/NIP-57.
+		if ( 'nwc' === (string) $order->get_meta( '_wcll_settlement_method', true ) ) {
+			return self::verify_nwc_settlement( $order );
+		}
+
 		$client     = new WCLL_LNURL_Client( WCLL_Gateway::get_gateway_settings() );
 		$verify_url = $order->get_meta( '_wcll_verify_url', true );
 
@@ -442,6 +468,202 @@ class WCLL_Plugin {
 		return $result;
 	}
 
+	private static function verify_nwc_settlement( WC_Order $order ) {
+		$payment_hash = (string) $order->get_meta( '_wcll_payment_hash', true );
+		if ( '' === $payment_hash ) {
+			return new WP_Error( 'wcll_nwc_no_hash', __( 'This NWC order has no payment hash to verify.', 'lawallet-lightning-address' ) );
+		}
+
+		$nwc = self::build_nwc_client_for_order( $order );
+		if ( is_wp_error( $nwc ) ) {
+			return $nwc;
+		}
+
+		$lookup = $nwc->lookup_invoice( $payment_hash );
+		if ( is_wp_error( $lookup ) ) {
+			return $lookup;
+		}
+
+		return array(
+			'settled'  => ! empty( $lookup['settled'] ),
+			'preimage' => isset( $lookup['preimage'] ) ? (string) $lookup['preimage'] : '',
+			'payload'  => isset( $lookup['raw'] ) ? $lookup['raw'] : array(),
+			'method'   => 'nwc',
+		);
+	}
+
+	/**
+	 * Rebuild the NWC client for an order: the secret/connection comes from the
+	 * (never-persisted) gateway settings, while the order's stored relays are used
+	 * for transport. Guards against the proxy wallet being swapped mid-order.
+	 *
+	 * @return WCLL_NWC_Client|WP_Error
+	 */
+	private static function build_nwc_client_for_order( WC_Order $order ) {
+		$nwc = WCLL_Gateway::resolve_nwc_client( WCLL_Gateway::get_gateway_settings() );
+		if ( ! ( $nwc instanceof WCLL_NWC_Client ) ) {
+			return is_wp_error( $nwc ) ? $nwc : new WP_Error( 'wcll_nwc_unconfigured', __( 'The NWC proxy wallet is no longer configured.', 'lawallet-lightning-address' ) );
+		}
+
+		$order_relays = $order->get_meta( '_wcll_nwc_relays', true );
+		if ( is_array( $order_relays ) && ! empty( $order_relays ) ) {
+			$nwc->with_relays( $order_relays );
+		}
+
+		$order_wallet = strtolower( (string) $order->get_meta( '_wcll_nwc_wallet_pubkey', true ) );
+		if ( '' !== $order_wallet && $order_wallet !== strtolower( $nwc->wallet_pubkey() ) ) {
+			return new WP_Error( 'wcll_nwc_wallet_mismatch', __( 'The configured NWC wallet no longer matches this order.', 'lawallet-lightning-address' ) );
+		}
+
+		return $nwc;
+	}
+
+	/**
+	 * Forward a settled NWC proxy payment to the merchant Lightning Address.
+	 *
+	 * Idempotent and safe to call from both the AJAX claim and cron: a transient
+	 * inflight lock plus the `_wcll_nwc_forwarded` flag and an attempt cap prevent
+	 * a double payout, and a failure never un-pays the (already paid) order.
+	 */
+	public static function forward_nwc_payment( WC_Order $order ) {
+		$forwarded = (string) $order->get_meta( '_wcll_nwc_forwarded', true );
+		if ( 'yes' === $forwarded || 'failed' === $forwarded ) {
+			return 'yes' === $forwarded;
+		}
+
+		// Inflight lock: stop cron and the AJAX claim from forwarding concurrently.
+		$lock_key = 'wcll_nwc_fwd_' . $order->get_id();
+		if ( false !== get_transient( $lock_key ) ) {
+			return false;
+		}
+		set_transient( $lock_key, 1, 2 * MINUTE_IN_SECONDS );
+
+		$max_attempts = 10;
+
+		try {
+			$attempts = (int) $order->get_meta( '_wcll_nwc_forward_attempts', true );
+			if ( $attempts >= $max_attempts ) {
+				return false;
+			}
+			$attempts++;
+			$order->update_meta_data( '_wcll_nwc_forward_attempts', $attempts );
+			$order->save();
+
+			$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
+			$reserve     = max( (int) round( $amount_msat * 0.01 ), 10000 );
+			$forward     = $amount_msat - $reserve;
+			if ( $forward <= 0 ) {
+				return self::forward_abort( $order, __( 'NWC proxy: the order amount is too small to forward after the routing reserve. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
+			}
+
+			$settings = WCLL_Gateway::get_gateway_settings();
+			$address  = (string) $order->get_meta( '_wcll_lightning_address', true );
+
+			$nwc = self::build_nwc_client_for_order( $order );
+			if ( is_wp_error( $nwc ) ) {
+				return self::forward_failed( $order, $nwc->get_error_message(), $attempts, $max_attempts );
+			}
+
+			$lnurl       = new WCLL_LNURL_Client( $settings );
+			$pay_request = $lnurl->resolve_lightning_address( $address );
+			if ( is_wp_error( $pay_request ) ) {
+				return self::forward_failed( $order, $pay_request->get_error_message(), $attempts, $max_attempts );
+			}
+
+			// Respect the address's sendable bounds; abort cleanly if the forward
+			// (amount minus reserve) cannot fit within them.
+			$min = isset( $pay_request['minSendable'] ) ? (int) $pay_request['minSendable'] : 0;
+			$max = isset( $pay_request['maxSendable'] ) ? (int) $pay_request['maxSendable'] : 0;
+			if ( $forward < $min || ( $max > 0 && $forward > $max ) ) {
+				return self::forward_abort( $order, __( 'NWC proxy: the forward amount is outside the Lightning Address limits. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
+			}
+
+			$forward_invoice = $lnurl->request_invoice(
+				$pay_request,
+				$forward,
+				array(
+					'description' => sprintf( 'WooCommerce order #%s (NWC forward)', $order->get_order_number() ),
+					'use_nostr'   => false,
+				)
+			);
+			if ( is_wp_error( $forward_invoice ) ) {
+				return self::forward_failed( $order, $forward_invoice->get_error_message(), $attempts, $max_attempts );
+			}
+			if ( empty( $forward_invoice['pr'] ) ) {
+				return self::forward_failed( $order, __( 'The Lightning Address did not return a forward invoice.', 'lawallet-lightning-address' ), $attempts, $max_attempts );
+			}
+
+			$payment = $nwc->pay_invoice( $forward_invoice['pr'] );
+			if ( is_wp_error( $payment ) ) {
+				return self::forward_failed( $order, $payment->get_error_message(), $attempts, $max_attempts );
+			}
+
+			$order->update_meta_data( '_wcll_nwc_forwarded', 'yes' );
+			$order->update_meta_data( '_wcll_nwc_forward_preimage', sanitize_text_field( $payment['preimage'] ) );
+			$order->update_meta_data( '_wcll_nwc_forward_fees', (int) $payment['fees_paid'] );
+			$order->delete_meta_data( '_wcll_nwc_forward_pending' );
+			$order->save();
+
+			$order->add_order_note(
+				sprintf(
+					/* translators: 1: forwarded amount in sats, 2: reserve kept in sats. */
+					__( 'NWC proxy: forwarded %1$d sats to the merchant Lightning Address (kept %2$d sats reserve for routing fees).', 'lawallet-lightning-address' ),
+					(int) round( $forward / 1000 ),
+					(int) round( $reserve / 1000 )
+				)
+			);
+
+			return true;
+		} finally {
+			delete_transient( $lock_key );
+		}
+	}
+
+	/**
+	 * Record a recoverable forward failure: leave the order pending for cron to
+	 * retry, or give up with an admin note once the attempt cap is reached.
+	 */
+	private static function forward_failed( WC_Order $order, $message, $attempts, $max_attempts ) {
+		if ( $attempts >= $max_attempts ) {
+			$order->update_meta_data( '_wcll_nwc_forwarded', 'failed' );
+			$order->delete_meta_data( '_wcll_nwc_forward_pending' );
+			$order->save();
+			$order->add_order_note(
+				sprintf(
+					/* translators: %s: last forwarding error message. */
+					__( 'NWC proxy: could not forward the payment after several attempts (%s). The funds are held in the proxy wallet — forward them to your Lightning Address manually.', 'lawallet-lightning-address' ),
+					$message
+				)
+			);
+		} else {
+			// Keep _wcll_nwc_forward_pending set so cron retries later.
+			$order->save();
+		}
+
+		return false;
+	}
+
+	/**
+	 * Permanently abort forwarding (non-retryable): the amount cannot be routed.
+	 */
+	private static function forward_abort( WC_Order $order, $note ) {
+		$order->update_meta_data( '_wcll_nwc_forwarded', 'failed' );
+		$order->delete_meta_data( '_wcll_nwc_forward_pending' );
+		$order->save();
+		$order->add_order_note( $note );
+		return false;
+	}
+
+	private static function settlement_note( $method ) {
+		if ( 'nip57' === $method ) {
+			return __( 'Lightning payment verified via NIP-57 zap receipt.', 'lawallet-lightning-address' );
+		}
+		if ( 'nwc' === $method ) {
+			return __( 'Lightning payment verified through the NWC proxy wallet.', 'lawallet-lightning-address' );
+		}
+		return __( 'Lightning payment verified with LUD-21.', 'lawallet-lightning-address' );
+	}
+
 	private static function cancel_expired_order( WC_Order $order, $reason = '' ) {
 		if ( $order->is_paid() || 'cancelled' === $order->get_status() ) {
 			return;
@@ -469,5 +691,25 @@ class WCLL_Plugin {
 
 	private static function nonce_action( WC_Order $order ) {
 		return 'wcll_claim_' . $order->get_id() . '_' . $order->get_order_key();
+	}
+
+	/**
+	 * Normalize a stored relay list to browser-safe ws/wss URLs.
+	 */
+	private static function sanitize_ws_relays( $relays ) {
+		if ( ! is_array( $relays ) ) {
+			return array();
+		}
+
+		return array_values(
+			array_filter(
+				array_map(
+					static function ( $relay ) {
+						return esc_url_raw( $relay, array( 'ws', 'wss' ) );
+					},
+					$relays
+				)
+			)
+		);
 	}
 }
