@@ -75,6 +75,12 @@
 	margin: 0 0 4px;
 	font-size: 15px;
 }
+.wcll-nwc-proxy-toggle {
+	margin: 12px 0 16px;
+}
+.wcll-nwc-proxy-toggle .description {
+	margin-left: 6px;
+}
 .wcll-wallets-lead {
 	margin: 0 0 18px;
 	color: #50575e;

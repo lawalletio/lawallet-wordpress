@@ -159,8 +159,8 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			),
 			'address'  => array(
 				'label'  => __( 'Lightning Address', 'lawallet-lightning-address' ),
-				'intro'  => __( 'Your merchant Lightning Address, plus the Nostr relays used to confirm payments via NIP-57 zap receipts.', 'lawallet-lightning-address' ),
-				'fields' => array( 'lightning_address', 'nostr_relays' ),
+				'intro'  => __( 'Your merchant Lightning Address. The badges show whether it can confirm payments via LUD-21 or NIP-57.', 'lawallet-lightning-address' ),
+				'fields' => array( 'lightning_address' ),
 			),
 			'nwc'      => array(
 				'label'  => __( 'NWC proxy wallet', 'lawallet-lightning-address' ),
@@ -174,8 +174,8 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			),
 			'advanced' => array(
 				'label'  => __( 'Advanced', 'lawallet-lightning-address' ),
-				'intro'  => __( 'Developer and local-environment options. Leave these alone in production.', 'lawallet-lightning-address' ),
-				'fields' => array( 'allow_insecure_http' ),
+				'intro'  => __( 'NIP-57 relay URLs, plus developer and local-environment options.', 'lawallet-lightning-address' ),
+				'fields' => array( 'nostr_relays', 'allow_insecure_http' ),
 			),
 		);
 	}
@@ -293,6 +293,11 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			echo $this->generate_settings_html( $group, false );
 			echo '</table>';
 			if ( 'address' === $id ) {
+				$proxy_on = 'yes' === $this->get_option( 'nwc_proxy_enabled', 'no' );
+				echo '<p class="wcll-nwc-proxy-toggle"><label><input type="checkbox" id="wcll-use-nwc-proxy" data-wcll-nwc-mirror' . checked( $proxy_on, true, false ) . ' /> '
+					. esc_html__( 'Use NWC Proxy', 'lawallet-lightning-address' ) . '</label> <span class="description">'
+					. esc_html__( 'Settle through an NWC proxy wallet when the Lightning Address cannot confirm payments. Configure it on the NWC proxy wallet tab.', 'lawallet-lightning-address' )
+					. '</span></p>';
 				$this->render_compatible_wallets();
 			}
 			if ( 'nwc' === $id ) {

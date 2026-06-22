@@ -454,3 +454,31 @@
 		init();
 	}
 })(window.WCLLGatewayAdmin || {});
+
+// Keep the "Use NWC Proxy" checkbox (Lightning Address tab) in sync with the
+// real nwc_proxy_enabled checkbox (NWC tab) — one underlying setting.
+(function () {
+	function init() {
+		var mirror = document.querySelector('[data-wcll-nwc-mirror]');
+		var real = document.getElementById('woocommerce_wcll_gateway_nwc_proxy_enabled');
+		if (!mirror || !real) {
+			return;
+		}
+
+		mirror.checked = real.checked;
+
+		mirror.addEventListener('change', function () {
+			real.checked = mirror.checked;
+			real.dispatchEvent(new Event('change', { bubbles: true }));
+		});
+		real.addEventListener('change', function () {
+			mirror.checked = real.checked;
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();

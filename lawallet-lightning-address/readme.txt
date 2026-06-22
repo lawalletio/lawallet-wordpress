@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.5
+Stable tag: 0.4.6
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,10 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.6 =
+* Move the NIP-57 relay URLs setting to the Advanced tab.
+* Add a "Use NWC Proxy" toggle on the Lightning Address tab that controls the same setting as the NWC proxy wallet tab.
 
 = 0.4.5 =
 * Fix the LUD-21 status check beside the Lightning Address field: it now confirms the generated invoice actually returns a `verify` URL, instead of reporting LUD-21 as supported for any address that can create an invoice.
