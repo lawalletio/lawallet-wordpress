@@ -482,3 +482,80 @@
 		init();
 	}
 })();
+
+// Show a "Regenerate NWC connection" button when the lncurl service URL changes,
+// and mint a fresh disposable wallet from the new service on click.
+(function (config) {
+	function init() {
+		var nwc = config && config.nwc;
+		var field = document.getElementById('woocommerce_wcll_gateway_nwc_lncurl_url');
+		var row = document.querySelector('[data-wcll-nwc-regenerate-row]');
+		var btn = document.querySelector('[data-wcll-nwc-regenerate]');
+		var feedback = document.querySelector('[data-wcll-nwc-regenerate-feedback]');
+		if (!nwc || !field || !row || !btn) {
+			return;
+		}
+
+		var i18n = nwc.i18n || {};
+		var saved = field.value.trim();
+
+		function say(message, isError) {
+			if (feedback) {
+				feedback.textContent = message || '';
+				feedback.classList.toggle('is-error', !!isError);
+			}
+		}
+
+		field.addEventListener('input', function () {
+			var value = field.value.trim();
+			row.hidden = value === '' || value === saved;
+			say('');
+		});
+
+		btn.addEventListener('click', function () {
+			var url = field.value.trim();
+			if (!url) {
+				return;
+			}
+			btn.disabled = true;
+			say(i18n.regenerating || 'Regenerating…');
+
+			var body = new URLSearchParams();
+			body.set('action', 'wcll_nwc_regenerate');
+			body.set('nonce', nwc.nonce);
+			body.set('lncurl_url', url);
+
+			window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			}).then(function (response) {
+				return response.json();
+			}).then(function (res) {
+				btn.disabled = false;
+				var d = (res && res.data) || {};
+				if (res && res.success) {
+					saved = url;
+					row.hidden = true;
+					say(i18n.regenerated || 'Connection regenerated.');
+					var balanceEl = document.querySelector('[data-wcll-nwc-balance]');
+					if (balanceEl) {
+						balanceEl.textContent = (d.ok ? Number(d.sats).toLocaleString() : '0') + ' ' + (i18n.sats || 'sats');
+					}
+				} else {
+					say(d.message || i18n.unavailable, true);
+				}
+			}).catch(function () {
+				btn.disabled = false;
+				say(i18n.unavailable, true);
+			});
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})(window.WCLLGatewayAdmin || {});

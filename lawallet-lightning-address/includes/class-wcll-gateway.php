@@ -301,6 +301,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				$this->render_compatible_wallets();
 			}
 			if ( 'nwc' === $id ) {
+				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
 			}
 			echo '</div>';
@@ -726,6 +727,18 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			}
 		}
 		echo '</td></tr></tbody></table>';
+	}
+
+	/**
+	 * "Regenerate" affordance shown on the NWC tab when the lncurl service URL is
+	 * changed: provisions a fresh disposable wallet from the new service.
+	 */
+	private function render_nwc_regenerate() {
+		echo '<p class="wcll-nwc-regenerate" data-wcll-nwc-regenerate-row hidden>';
+		echo '<button type="button" class="button" data-wcll-nwc-regenerate>' . esc_html__( 'Regenerate NWC connection', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<span class="description">' . esc_html__( 'Provision a fresh disposable wallet from the new service.', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<span class="wcll-nwc-regenerate-feedback" data-wcll-nwc-regenerate-feedback role="status" aria-live="polite"></span>';
+		echo '</p>';
 	}
 
 	/**

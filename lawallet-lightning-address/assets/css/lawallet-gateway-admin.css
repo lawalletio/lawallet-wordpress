@@ -243,3 +243,13 @@
 .wcll-nwc-feedback.is-error {
 	color: #b32d2e;
 }
+.wcll-nwc-regenerate {
+	margin: 12px 0;
+}
+.wcll-nwc-regenerate-feedback {
+	margin-left: 6px;
+	color: #0a7f28;
+}
+.wcll-nwc-regenerate-feedback.is-error {
+	color: #b32d2e;
+}

@@ -36,6 +36,7 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_nwc_balance', array( __CLASS__, 'ajax_nwc_balance' ) );
 		add_action( 'wp_ajax_wcll_nwc_receive', array( __CLASS__, 'ajax_nwc_receive' ) );
 		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
+		add_action( 'wp_ajax_wcll_nwc_regenerate', array( __CLASS__, 'ajax_nwc_regenerate' ) );
 	}
 
 	public static function load_textdomain() {
@@ -96,6 +97,8 @@ class WCLL_Plugin {
 					'sent'           => __( 'Payment sent.', 'lawallet-lightning-address' ),
 					'amountRequired' => __( 'Enter an amount in sats.', 'lawallet-lightning-address' ),
 					'destRequired'   => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ),
+					'regenerating'   => __( 'Regenerating…', 'lawallet-lightning-address' ),
+					'regenerated'    => __( 'Connection regenerated.', 'lawallet-lightning-address' ),
 				),
 			),
 		);
@@ -284,6 +287,37 @@ class WCLL_Plugin {
 			array(
 				'preimage' => isset( $payment['preimage'] ) ? $payment['preimage'] : '',
 				'fees'     => isset( $payment['fees_paid'] ) ? (int) $payment['fees_paid'] : 0,
+			)
+		);
+	}
+
+	public static function ajax_nwc_regenerate() {
+		self::verify_nwc_admin();
+
+		$url = isset( $_POST['lncurl_url'] ) ? trim( esc_url_raw( wp_unslash( $_POST['lncurl_url'] ) ) ) : '';
+		if ( '' === $url || ! preg_match( '#^https?://#i', $url ) ) {
+			wp_send_json_error( array( 'message' => __( 'Enter a valid lncurl service URL.', 'lawallet-lightning-address' ) ) );
+		}
+
+		$settings = WCLL_Gateway::get_gateway_settings();
+		if ( 'disposable' !== WCLL_NWC_Manager::mode( $settings ) ) {
+			wp_send_json_error( array( 'message' => __( 'Switch to Disposable mode to regenerate the wallet.', 'lawallet-lightning-address' ) ) );
+		}
+
+		// Adopt the new service URL (persist it) and mint a fresh wallet from it.
+		$settings['nwc_lncurl_url'] = $url;
+		update_option( 'woocommerce_wcll_gateway_settings', $settings );
+
+		$client = WCLL_NWC_Manager::mint_and_store( $settings );
+		if ( is_wp_error( $client ) ) {
+			wp_send_json_error( array( 'message' => $client->get_error_message() ) );
+		}
+
+		$balance = WCLL_NWC_Manager::get_cached_balance( WCLL_Gateway::get_gateway_settings(), true );
+		wp_send_json_success(
+			array(
+				'ok'   => ! empty( $balance['ok'] ),
+				'sats' => isset( $balance['sats'] ) ? (int) $balance['sats'] : 0,
 			)
 		);
 	}
