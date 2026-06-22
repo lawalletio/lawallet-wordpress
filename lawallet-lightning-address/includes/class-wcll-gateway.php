@@ -193,6 +193,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'desc'    => __( 'The simplest way to start: download, get a Lightning Address, and receive in seconds.', 'lawallet-lightning-address' ),
 				'logo'    => 'wallet-of-satoshi.png',
 				'accent'  => '#14B8A6',
+				'url'     => 'https://www.walletofsatoshi.com/',
 			),
 			array(
 				'name'    => 'Primal',
@@ -200,6 +201,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'desc'    => __( 'A Nostr social client with a built-in Lightning wallet and address.', 'lawallet-lightning-address' ),
 				'logo'    => 'primal.svg',
 				'accent'  => '#8B2FF7',
+				'url'     => 'https://primal.net/',
 			),
 			array(
 				'name'    => 'Strike',
@@ -207,6 +209,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'desc'    => __( 'One of the most widely used Bitcoin apps, with Lightning Addresses across many regions.', 'lawallet-lightning-address' ),
 				'logo'    => 'strike.png',
 				'accent'  => '#CFD3DA',
+				'url'     => 'https://strike.me/',
 			),
 			array(
 				'name'    => 'Alby',
@@ -214,6 +217,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'desc'    => __( 'A self-custodial Lightning wallet and browser extension for the open web.', 'lawallet-lightning-address' ),
 				'logo'    => 'alby.svg',
 				'accent'  => '#FFC83A',
+				'url'     => 'https://getalby.com/',
 			),
 			array(
 				'name'    => 'Blink',
@@ -221,6 +225,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'desc'    => __( 'A popular Bitcoin wallet, great for merchants and everyday payments.', 'lawallet-lightning-address' ),
 				'logo'    => 'blink.png',
 				'accent'  => '#FF6B00',
+				'url'     => 'https://www.blink.sv/',
 			),
 			array(
 				'name'    => 'LNbits',
@@ -228,6 +233,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'desc'    => __( 'Run your own Lightning accounts and addresses on your infrastructure.', 'lawallet-lightning-address' ),
 				'logo'    => 'lnbits.svg',
 				'accent'  => '#EC4899',
+				'url'     => 'https://lnbits.com/',
 			),
 		);
 	}
@@ -783,16 +789,22 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<ul class="wcll-wallets-grid">';
 		foreach ( $wallets as $wallet ) {
 			$logo = WCLL_PLUGIN_URL . 'assets/wallets/' . $wallet['logo'];
+			/* translators: %s: wallet name. */
+			$aria = sprintf( __( 'Open the %s website (opens in a new tab)', 'lawallet-lightning-address' ), $wallet['name'] );
 			echo '<li class="wcll-wallet-card" style="--wcll-accent:' . esc_attr( $wallet['accent'] ) . '">';
+			echo '<a class="wcll-wallet-link" href="' . esc_url( $wallet['url'] ) . '" target="_blank" rel="noopener noreferrer" aria-label="' . esc_attr( $aria ) . '">';
 			echo '<span class="wcll-wallet-logo"><img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $wallet['name'] ) . '" loading="lazy" /></span>';
 			echo '<span class="wcll-wallet-info">';
-			echo '<span class="wcll-wallet-name">' . esc_html( $wallet['name'] ) . '</span>';
+			echo '<span class="wcll-wallet-name">' . esc_html( $wallet['name'] ) . ' <span class="wcll-wallet-ext dashicons dashicons-external" aria-hidden="true"></span></span>';
 			echo '<span class="wcll-wallet-tag">' . esc_html( $wallet['tagline'] ) . '</span>';
 			echo '<span class="wcll-wallet-desc">' . esc_html( $wallet['desc'] ) . '</span>';
 			echo '</span>';
+			echo '</a>';
 			echo '</li>';
 		}
 		echo '</ul>';
+		echo '<p class="wcll-wallets-foot">' . esc_html__( 'These are popular examples. See the full list of compatible wallets and services at', 'lawallet-lightning-address' )
+			. ' <a href="' . esc_url( 'https://lightningaddress.com/' ) . '" target="_blank" rel="noopener noreferrer">lightningaddress.com</a>.</p>';
 		echo '</div>';
 		echo '</div>';
 	}

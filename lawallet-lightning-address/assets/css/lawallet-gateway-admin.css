@@ -131,15 +131,39 @@
 	margin: 0;
 }
 .wcll-wallet-card {
-	display: flex;
-	align-items: flex-start;
-	gap: 12px;
 	margin: 0;
-	padding: 12px;
 	border: 1px solid #e0e0e0;
 	border-left: 4px solid var(--wcll-accent, #2271b1);
 	border-radius: 8px;
 	background: #fff;
+}
+.wcll-wallet-link {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px;
+	text-decoration: none;
+	color: inherit;
+	border-radius: 8px;
+}
+.wcll-wallet-link:hover {
+	background: #f6f7f7;
+}
+.wcll-wallet-link:focus {
+	outline: 2px solid var(--wcll-accent, #2271b1);
+	outline-offset: -2px;
+	box-shadow: none;
+}
+.wcll-wallet-ext.dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	color: #8c8f94;
+	vertical-align: text-bottom;
+}
+.wcll-wallets-foot {
+	margin: 16px 0 0;
+	color: #50575e;
 }
 .wcll-wallet-logo {
 	flex: 0 0 auto;
