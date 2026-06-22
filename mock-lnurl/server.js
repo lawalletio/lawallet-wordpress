@@ -36,8 +36,10 @@ const nwcSecretHex = '02'.repeat(32);
 const nwcWalletPubkey = registerNwcWallet(nwcSecretHex);
 const nwcClientSecretHex = '03'.repeat(32);
 const nwcClientPubkey = getPublicKey(Uint8Array.from(Buffer.from(nwcClientSecretHex, 'hex')));
-const nwcInvoices = new Map(); // payment_hash -> record
+const nwcInvoices = new Map(); // payment_hash -> incoming invoice record
+const nwcOutgoing = new Map(); // bolt11 -> outgoing payment record (forwards we paid)
 const forwards = []; // pay_invoice calls (the proxy forwarding to the merchant LA)
+let swallowNextPayResponse = false; // test: settle a pay_invoice but drop its NWC response
 
 function nwcConnectionUri() {
   const relay = encodeURIComponent(`ws://mock-lnurl:${port}/nostr`);
@@ -148,6 +150,21 @@ function serializeNwcInvoice(record) {
   };
 }
 
+function serializeNwcOutgoing(record) {
+  return {
+    type: 'outgoing',
+    invoice: record.invoice,
+    bolt11: record.invoice,
+    payment_hash: record.payment_hash,
+    amount: record.amount,
+    fees_paid: record.fees_paid || 0,
+    created_at: record.created_at,
+    settled_at: record.settled_at,
+    preimage: record.preimage,
+    state: 'settled'
+  };
+}
+
 function nwcResult(method, result) {
   return { result_type: method, error: null, result };
 }
@@ -220,12 +237,22 @@ async function handleNwcRequest(socket, event) {
     }
 
     case 'lookup_invoice': {
+      // Incoming invoices first, then outgoing payments (forwards we made) so a
+      // client can confirm a forward whose pay_invoice response was lost.
       let record = params.payment_hash ? nwcInvoices.get(params.payment_hash) : null;
       if (!record && params.invoice) {
         record = Array.from(nwcInvoices.values()).find((r) => r.invoice === params.invoice) || null;
       }
-      payload = record
-        ? nwcResult('lookup_invoice', serializeNwcInvoice(record))
+      if (record) {
+        payload = nwcResult('lookup_invoice', serializeNwcInvoice(record));
+        break;
+      }
+      let out = params.invoice ? nwcOutgoing.get(String(params.invoice)) : null;
+      if (!out && params.payment_hash) {
+        out = Array.from(nwcOutgoing.values()).find((r) => r.payment_hash === params.payment_hash) || null;
+      }
+      payload = out
+        ? nwcResult('lookup_invoice', serializeNwcOutgoing(out))
         : nwcError('lookup_invoice', 'NOT_FOUND', 'Invoice not found');
       break;
     }
@@ -237,16 +264,36 @@ async function handleNwcRequest(socket, event) {
       const dest = Array.from(invoices.values()).find((r) => r.pr === bolt11);
       const preimage = crypto.randomBytes(32).toString('hex');
       const amount = dest ? dest.amount : (params.amount ? Number(params.amount) : null);
-      forwards.push({ invoice: bolt11, amount, preimage, from: walletPubkey, at: Math.floor(Date.now() / 1000) });
+      const feesPaid = amount ? Math.max(0, Math.floor(Number(amount) * 0.005)) : 0;
+      const now = Math.floor(Date.now() / 1000);
+      forwards.push({ invoice: bolt11, amount, preimage, from: walletPubkey, at: now });
+      // Record an outgoing payment so lookup_invoice can confirm it later (idempotency).
+      nwcOutgoing.set(bolt11, {
+        invoice: bolt11,
+        payment_hash: dest && dest.id ? crypto.createHash('sha256').update(dest.id).digest('hex') : crypto.randomBytes(32).toString('hex'),
+        amount,
+        fees_paid: feesPaid,
+        preimage,
+        created_at: now,
+        settled_at: now,
+        walletPubkey
+      });
       if (amount) {
-        wallet.balanceMsat = Math.max(0, wallet.balanceMsat - Number(amount));
+        wallet.balanceMsat = Math.max(0, wallet.balanceMsat - Number(amount) - feesPaid);
       }
       if (dest) {
         dest.settled = true;
         dest.preimage = preimage;
-        dest.paidAt = Math.floor(Date.now() / 1000);
+        dest.paidAt = now;
       }
-      payload = nwcResult('pay_invoice', { preimage, fees_paid: 0 });
+      // Test affordance: simulate a settled payment whose NWC response is lost in
+      // transit. The funds move, the outgoing record exists, but the client never
+      // hears back — exactly the case that used to strand an order in "pending".
+      if (swallowNextPayResponse) {
+        swallowNextPayResponse = false;
+        return;
+      }
+      payload = nwcResult('pay_invoice', { preimage, fees_paid: feesPaid });
       break;
     }
 
@@ -477,6 +524,14 @@ app.all('/test/pay-nwc', async (req, res) => {
   res.json({ ok: true, payment_hash: record.payment_hash, invoice: record.invoice });
 });
 
+// Arm a one-shot: the next pay_invoice settles the funds and records the
+// outgoing payment but drops its NWC response, reproducing a lost-response
+// forward (the client must recover via lookup_invoice).
+app.all('/test/swallow-next-pay-response', (req, res) => {
+  swallowNextPayResponse = true;
+  res.json({ ok: true, armed: true });
+});
+
 app.get('/test/state', (req, res) => {
   res.json({
     nostrPubkey,
@@ -511,7 +566,9 @@ app.get('/test/state', (req, res) => {
 app.all('/test/reset', (req, res) => {
   invoices.clear();
   nwcInvoices.clear();
+  nwcOutgoing.clear();
   forwards.length = 0;
+  swallowNextPayResponse = false;
   // Drop minted disposable wallets; re-register only the fixed test wallet.
   nwcWallets.clear();
   registerNwcWallet(nwcSecretHex);

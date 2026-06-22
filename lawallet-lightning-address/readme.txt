@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.11
+Stable tag: 0.4.12
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,10 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.12 =
+* Fix proxy forwards that settled but were left stuck on "pending" (and could be sent a second time on retry) when the wallet's pay response was lost in transit. The forward invoice is now stored before paying and reconciled via lookup_invoice, making forwarding idempotent.
+* Show the routing fee paid alongside the reserve kept in the forward order note.
 
 = 0.4.11 =
 * Add a "Show" button to each proxy transaction that opens a detail view with the received (proxy) and sent (forward) invoice details: amounts, payment hash, preimages, and invoices.

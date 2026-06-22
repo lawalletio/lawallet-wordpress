@@ -956,68 +956,121 @@ class WCLL_Plugin {
 				return self::forward_abort( $order, __( 'NWC proxy: the order amount is too small to forward after the routing reserve. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
 			}
 
-			$settings = WCLL_Gateway::get_gateway_settings();
-			$address  = (string) $order->get_meta( '_wcll_lightning_address', true );
-
 			$nwc = self::build_nwc_client_for_order( $order );
 			if ( is_wp_error( $nwc ) ) {
 				return self::forward_failed( $order, $nwc->get_error_message(), $attempts, $max_attempts );
 			}
 
-			$lnurl       = new WCLL_LNURL_Client( $settings );
-			$pay_request = $lnurl->resolve_lightning_address( $address );
-			if ( is_wp_error( $pay_request ) ) {
-				return self::forward_failed( $order, $pay_request->get_error_message(), $attempts, $max_attempts );
+			// Reuse the forward invoice from a previous attempt when one exists.
+			// pay_invoice() can settle on the wallet yet have its NWC response lost
+			// in transit (a slow relay, a dropped connection) — which would leave
+			// the order stuck "pending" and, worse, make the next retry pay a
+			// second time. So forwarding is made idempotent against a single
+			// invoice: we persist it BEFORE paying and, before ever paying again,
+			// ask the wallet whether it is already settled.
+			$forward_bolt11 = (string) $order->get_meta( '_wcll_nwc_forward_invoice', true );
+			$reused         = ( '' !== $forward_bolt11 );
+
+			if ( $reused ) {
+				$look = $nwc->lookup_invoice( '', $forward_bolt11 );
+				if ( ! is_wp_error( $look ) && ! empty( $look['settled'] ) ) {
+					return self::forward_settled( $order, $forward, $reserve, $look['preimage'], self::lookup_fees( $look ) );
+				}
+			} else {
+				$settings    = WCLL_Gateway::get_gateway_settings();
+				$address     = (string) $order->get_meta( '_wcll_lightning_address', true );
+				$lnurl       = new WCLL_LNURL_Client( $settings );
+				$pay_request = $lnurl->resolve_lightning_address( $address );
+				if ( is_wp_error( $pay_request ) ) {
+					return self::forward_failed( $order, $pay_request->get_error_message(), $attempts, $max_attempts );
+				}
+
+				// Respect the address's sendable bounds; abort cleanly if the forward
+				// (amount minus reserve) cannot fit within them.
+				$min = isset( $pay_request['minSendable'] ) ? (int) $pay_request['minSendable'] : 0;
+				$max = isset( $pay_request['maxSendable'] ) ? (int) $pay_request['maxSendable'] : 0;
+				if ( $forward < $min || ( $max > 0 && $forward > $max ) ) {
+					return self::forward_abort( $order, __( 'NWC proxy: the forward amount is outside the Lightning Address limits. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
+				}
+
+				$forward_invoice = $lnurl->request_invoice(
+					$pay_request,
+					$forward,
+					array(
+						'comment'   => sprintf( 'Proxied from Woocommerce #%s', $order->get_order_number() ),
+						'use_nostr' => false,
+					)
+				);
+				if ( is_wp_error( $forward_invoice ) ) {
+					return self::forward_failed( $order, $forward_invoice->get_error_message(), $attempts, $max_attempts );
+				}
+				if ( empty( $forward_invoice['pr'] ) ) {
+					return self::forward_failed( $order, __( 'The Lightning Address did not return a forward invoice.', 'lawallet-lightning-address' ), $attempts, $max_attempts );
+				}
+
+				$forward_bolt11 = (string) $forward_invoice['pr'];
+				// Persist the forward invoice BEFORE paying it, so a lost response is
+				// reconciled by lookup_invoice on the next attempt rather than paid twice.
+				$order->update_meta_data( '_wcll_nwc_forward_invoice', sanitize_text_field( $forward_bolt11 ) );
+				$order->save();
 			}
 
-			// Respect the address's sendable bounds; abort cleanly if the forward
-			// (amount minus reserve) cannot fit within them.
-			$min = isset( $pay_request['minSendable'] ) ? (int) $pay_request['minSendable'] : 0;
-			$max = isset( $pay_request['maxSendable'] ) ? (int) $pay_request['maxSendable'] : 0;
-			if ( $forward < $min || ( $max > 0 && $forward > $max ) ) {
-				return self::forward_abort( $order, __( 'NWC proxy: the forward amount is outside the Lightning Address limits. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
-			}
-
-			$forward_invoice = $lnurl->request_invoice(
-				$pay_request,
-				$forward,
-				array(
-					'comment'   => sprintf( 'Proxied from Woocommerce #%s', $order->get_order_number() ),
-					'use_nostr' => false,
-				)
-			);
-			if ( is_wp_error( $forward_invoice ) ) {
-				return self::forward_failed( $order, $forward_invoice->get_error_message(), $attempts, $max_attempts );
-			}
-			if ( empty( $forward_invoice['pr'] ) ) {
-				return self::forward_failed( $order, __( 'The Lightning Address did not return a forward invoice.', 'lawallet-lightning-address' ), $attempts, $max_attempts );
-			}
-
-			$payment = $nwc->pay_invoice( $forward_invoice['pr'] );
+			$payment = $nwc->pay_invoice( $forward_bolt11 );
 			if ( is_wp_error( $payment ) ) {
+				// The payment may have settled even though the response was lost.
+				// Confirm with the wallet before treating this as a failure, so we
+				// never send the funds twice on the next retry.
+				$look = $nwc->lookup_invoice( '', $forward_bolt11 );
+				if ( ! is_wp_error( $look ) && ! empty( $look['settled'] ) ) {
+					return self::forward_settled( $order, $forward, $reserve, $look['preimage'], self::lookup_fees( $look ) );
+				}
+				// Only when the lookup definitively reports the reused invoice as
+				// unpaid do we discard it (it is stale/expired) and let the next
+				// attempt mint a fresh one. A lookup that itself errored leaves the
+				// invoice in place so the next run can re-confirm it.
+				if ( $reused && ! is_wp_error( $look ) ) {
+					$order->delete_meta_data( '_wcll_nwc_forward_invoice' );
+					$order->save();
+				}
 				return self::forward_failed( $order, $payment->get_error_message(), $attempts, $max_attempts );
 			}
 
-			$order->update_meta_data( '_wcll_nwc_forwarded', 'yes' );
-			$order->update_meta_data( '_wcll_nwc_forward_preimage', sanitize_text_field( $payment['preimage'] ) );
-			$order->update_meta_data( '_wcll_nwc_forward_fees', (int) $payment['fees_paid'] );
-			$order->update_meta_data( '_wcll_nwc_forward_invoice', sanitize_text_field( $forward_invoice['pr'] ) );
-			$order->delete_meta_data( '_wcll_nwc_forward_pending' );
-			$order->save();
-
-			$order->add_order_note(
-				sprintf(
-					/* translators: 1: forwarded amount in sats, 2: reserve kept in sats. */
-					__( 'NWC proxy: forwarded %1$d sats to the merchant Lightning Address (kept %2$d sats reserve for routing fees).', 'lawallet-lightning-address' ),
-					(int) round( $forward / 1000 ),
-					(int) round( $reserve / 1000 )
-				)
-			);
-
-			return true;
+			return self::forward_settled( $order, $forward, $reserve, $payment['preimage'], (int) $payment['fees_paid'] );
 		} finally {
 			delete_transient( $lock_key );
 		}
+	}
+
+	/**
+	 * Extract the routing fee (msat) from a normalized lookup_invoice result.
+	 */
+	private static function lookup_fees( array $look ) {
+		return isset( $look['raw']['fees_paid'] ) ? (int) $look['raw']['fees_paid'] : 0;
+	}
+
+	/**
+	 * Record a successful (or recovered) forward: flag it, store the proof, clear
+	 * the pending marker and add a merchant note. Shared by the direct-pay path
+	 * and the lookup-based recovery so both produce identical, idempotent state.
+	 */
+	private static function forward_settled( WC_Order $order, $forward, $reserve, $preimage, $fees_paid ) {
+		$order->update_meta_data( '_wcll_nwc_forwarded', 'yes' );
+		$order->update_meta_data( '_wcll_nwc_forward_preimage', sanitize_text_field( (string) $preimage ) );
+		$order->update_meta_data( '_wcll_nwc_forward_fees', (int) $fees_paid );
+		$order->delete_meta_data( '_wcll_nwc_forward_pending' );
+		$order->save();
+
+		$order->add_order_note(
+			sprintf(
+				/* translators: 1: forwarded amount in sats, 2: reserve kept in sats, 3: routing fee paid in sats. */
+				__( 'NWC proxy: forwarded %1$d sats to the merchant Lightning Address (kept %2$d sats reserve; %3$d sats routing fee).', 'lawallet-lightning-address' ),
+				(int) round( $forward / 1000 ),
+				(int) round( $reserve / 1000 ),
+				(int) round( ( (int) $fees_paid ) / 1000 )
+			)
+		);
+
+		return true;
 	}
 
 	/**
