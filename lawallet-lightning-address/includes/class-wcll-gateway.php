@@ -466,36 +466,45 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
-		$invoice = $client->request_invoice(
-			$pay_request,
-			$amount_msat,
-			array(
-				'description' => sprintf( 'WooCommerce order #%s', $order->get_order_number() ),
-				'use_nostr'   => true,
-			)
-		);
+		$proxy_enabled  = WCLL_NWC_Manager::is_enabled( $settings );
+		$expiry_minutes = isset( $settings['invoice_expiry_minutes'] ) ? max( 1, absint( $settings['invoice_expiry_minutes'] ) ) : 30;
 
-		if ( is_wp_error( $invoice ) ) {
-			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $invoice->get_error_message(), 'error' );
-			return array( 'result' => 'failure' );
-		}
-
-		// Settlement must be confirmable later, either through a LUD-21 verify URL
-		// or NIP-57 zap receipts on the relays advertised by the wallet.
-		$has_verify        = ! empty( $invoice['verify'] );
-		$has_zap           = ! empty( $invoice['nostr']['event'] );
-		$settlement_method = $has_verify ? 'lud21' : ( $has_zap ? 'nip57' : '' );
-		$expiry_minutes    = isset( $settings['invoice_expiry_minutes'] ) ? max( 1, absint( $settings['invoice_expiry_minutes'] ) ) : 30;
-
+		$invoice           = array();
+		$has_verify        = false;
+		$has_zap           = false;
+		$settlement_method = '';
 		$nwc_wallet_pubkey = '';
 		$nwc_client_pubkey = '';
 		$nwc_relays        = array();
 		$payment_hash      = '';
 
-		if ( ! $has_verify && ! $has_zap ) {
-			// Last resort: the address can confirm nothing on its own, so invoice an
-			// NWC proxy wallet (which we can verify and forward) instead. In
-			// disposable mode this lazily mints a wallet and self-heals a dead one.
+		// When the NWC proxy is enabled it settles EVERY payment. Otherwise the
+		// address must confirm settlement itself through a LUD-21 verify URL or
+		// NIP-57 zap receipts on the relays it advertises.
+		if ( ! $proxy_enabled ) {
+			$invoice = $client->request_invoice(
+				$pay_request,
+				$amount_msat,
+				array(
+					'description' => sprintf( 'WooCommerce order #%s', $order->get_order_number() ),
+					'use_nostr'   => true,
+				)
+			);
+			if ( is_wp_error( $invoice ) ) {
+				wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $invoice->get_error_message(), 'error' );
+				return array( 'result' => 'failure' );
+			}
+
+			$has_verify        = ! empty( $invoice['verify'] );
+			$has_zap           = ! empty( $invoice['nostr']['event'] );
+			$settlement_method = $has_verify ? 'lud21' : ( $has_zap ? 'nip57' : '' );
+		}
+
+		if ( $proxy_enabled || ( ! $has_verify && ! $has_zap ) ) {
+			// Invoice the NWC proxy wallet (which we verify and forward). Used for
+			// every payment when the proxy is enabled, and as the fallback for
+			// addresses that can confirm nothing on their own. In disposable mode
+			// this lazily mints a wallet and self-heals a dead one.
 			$result = WCLL_NWC_Manager::make_order_invoice(
 				$settings,
 				$amount_msat,
@@ -582,6 +591,38 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			return;
 		}
 
+		// When the NWC proxy is enabled it settles every payment, so it takes
+		// precedence over the address's own LUD-21 / NIP-57 capability.
+		if ( WCLL_NWC_Manager::is_enabled( $settings ) ) {
+			$probe = WCLL_NWC_Manager::probe( $settings );
+			if ( $probe['ok'] ) {
+				$this->save_connection_status(
+					array(
+						'lud21_verified'   => 'no',
+						'settlement'       => 'nwc',
+						'verified_at'      => gmdate( 'c' ),
+						'allows_nostr'     => 'no',
+						'nostr_pubkey'     => '',
+						'nwc_mode'         => $probe['mode'],
+						'nwc_balance_sats' => null === $probe['balance_sats'] ? '' : (int) $probe['balance_sats'],
+						'status_message'   => $probe['message'],
+					)
+				);
+				WC_Admin_Settings::add_message( $probe['message'] );
+				return;
+			}
+
+			$this->save_connection_status(
+				array(
+					'lud21_verified' => 'no',
+					'settlement'     => 'none',
+					'status_message' => $probe['message'],
+				)
+			);
+			WC_Admin_Settings::add_error( $probe['message'] );
+			return;
+		}
+
 		$client = new WCLL_LNURL_Client( $settings );
 		$result = $client->test_lud21( $address );
 
@@ -604,31 +645,8 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				return;
 			}
 
-			// Neither LUD-21 nor NIP-57. The NWC proxy wallet is the last resort.
-			if ( WCLL_NWC_Manager::is_enabled( $settings ) ) {
-				$probe = WCLL_NWC_Manager::probe( $settings );
-				if ( $probe['ok'] ) {
-					$this->save_connection_status(
-						array(
-							'lud21_verified'   => 'no',
-							'settlement'       => 'nwc',
-							'verified_at'      => gmdate( 'c' ),
-							'allows_nostr'     => 'no',
-							'nostr_pubkey'     => '',
-							'nwc_mode'         => $probe['mode'],
-							'nwc_balance_sats' => null === $probe['balance_sats'] ? '' : (int) $probe['balance_sats'],
-							'status_message'   => $probe['message'],
-						)
-					);
-					WC_Admin_Settings::add_message( $probe['message'] );
-					return;
-				}
-				$nwc_error = $probe['message'];
-			} else {
-				$nwc_error = __( 'Enable and configure the NWC proxy wallet to accept this address.', 'lawallet-lightning-address' );
-			}
-
-			$message = trim( $result->get_error_message() . ' ' . $nwc_error );
+			// Neither LUD-21 nor NIP-57, and the NWC proxy is off.
+			$message = trim( $result->get_error_message() . ' ' . __( 'Enable and configure the NWC proxy wallet to accept this address.', 'lawallet-lightning-address' ) );
 			$this->save_connection_status(
 				array(
 					'lud21_verified' => 'no',
