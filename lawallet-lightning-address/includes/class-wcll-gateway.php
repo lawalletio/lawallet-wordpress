@@ -180,6 +180,58 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		);
 	}
 
+	/**
+	 * Popular wallets that give customers a Lightning Address, shown in the
+	 * "compatible wallets" picker. Mirrors the project landing page; logos are
+	 * bundled under assets/wallets/.
+	 */
+	public static function compatible_wallets() {
+		return array(
+			array(
+				'name'    => 'Wallet of Satoshi',
+				'tagline' => __( 'Easiest', 'lawallet-lightning-address' ),
+				'desc'    => __( 'The simplest way to start: download, get a Lightning Address, and receive in seconds.', 'lawallet-lightning-address' ),
+				'logo'    => 'wallet-of-satoshi.png',
+				'accent'  => '#14B8A6',
+			),
+			array(
+				'name'    => 'Primal',
+				'tagline' => __( 'Nostr native', 'lawallet-lightning-address' ),
+				'desc'    => __( 'A Nostr social client with a built-in Lightning wallet and address.', 'lawallet-lightning-address' ),
+				'logo'    => 'primal.svg',
+				'accent'  => '#8B2FF7',
+			),
+			array(
+				'name'    => 'Strike',
+				'tagline' => __( 'Most popular', 'lawallet-lightning-address' ),
+				'desc'    => __( 'One of the most widely used Bitcoin apps, with Lightning Addresses across many regions.', 'lawallet-lightning-address' ),
+				'logo'    => 'strike.png',
+				'accent'  => '#CFD3DA',
+			),
+			array(
+				'name'    => 'Alby',
+				'tagline' => __( 'Self custody', 'lawallet-lightning-address' ),
+				'desc'    => __( 'A self-custodial Lightning wallet and browser extension for the open web.', 'lawallet-lightning-address' ),
+				'logo'    => 'alby.svg',
+				'accent'  => '#FFC83A',
+			),
+			array(
+				'name'    => 'Blink',
+				'tagline' => __( 'Good for merchants', 'lawallet-lightning-address' ),
+				'desc'    => __( 'A popular Bitcoin wallet, great for merchants and everyday payments.', 'lawallet-lightning-address' ),
+				'logo'    => 'blink.png',
+				'accent'  => '#FF6B00',
+			),
+			array(
+				'name'    => 'LNbits',
+				'tagline' => __( 'Own infrastructure', 'lawallet-lightning-address' ),
+				'desc'    => __( 'Run your own Lightning accounts and addresses on your infrastructure.', 'lawallet-lightning-address' ),
+				'logo'    => 'lnbits.svg',
+				'accent'  => '#EC4899',
+			),
+		);
+	}
+
 	public function admin_options() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flag that only toggles an onboarding notice for admins.
 		if ( isset( $_GET['wcll_setup'] ) ) {
@@ -234,12 +286,23 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce-generated settings field markup.
 			echo $this->generate_settings_html( $group, false );
 			echo '</table>';
+			if ( 'address' === $id ) {
+				echo '<p class="wcll-wallets-actions"><button type="button" class="button wcll-wallets-trigger" data-wcll-wallets-open aria-haspopup="dialog">'
+					. esc_html__( 'See compatible wallets', 'lawallet-lightning-address' )
+					. '</button> <span class="description">'
+					. esc_html__( 'Customers can pay from any wallet that gives them a Lightning Address.', 'lawallet-lightning-address' )
+					. '</span></p>';
+			}
+			if ( 'nwc' === $id ) {
+				$this->render_nwc_wallet_panel();
+			}
 			echo '</div>';
 			$is_first = false;
 		}
 		echo '</div>';
 
 		$this->render_connection_status();
+		$this->render_wallets_modal();
 	}
 
 	public function process_admin_options() {
@@ -657,5 +720,80 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			}
 		}
 		echo '</td></tr></tbody></table>';
+	}
+
+	/**
+	 * Live wallet panel shown in the NWC tab: real-time balance plus receive
+	 * (make_invoice) and withdraw (pay) controls. All signed NWC operations run
+	 * server-side over AJAX; the browser only subscribes to notifications.
+	 */
+	private function render_nwc_wallet_panel() {
+		$info = WCLL_NWC_Manager::admin_wallet_info( self::get_gateway_settings() );
+
+		echo '<div class="wcll-nwc-wallet" data-wcll-nwc-wallet>';
+		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'Proxy wallet', 'lawallet-lightning-address' ) . '</h4>';
+
+		if ( empty( $info['configured'] ) ) {
+			echo '<p class="description">' . esc_html__( 'Save the settings with the NWC proxy enabled and configured to manage the wallet here.', 'lawallet-lightning-address' ) . '</p>';
+			echo '</div>';
+			return;
+		}
+
+		echo '<div class="wcll-nwc-balance-row">';
+		echo '<span class="wcll-nwc-balance-label">' . esc_html__( 'Balance', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<span class="wcll-nwc-balance" data-wcll-nwc-balance>' . esc_html__( 'Loading balance…', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<button type="button" class="button-link wcll-nwc-refresh" data-wcll-nwc-refresh aria-label="' . esc_attr__( 'Refresh balance', 'lawallet-lightning-address' ) . '"><span class="dashicons dashicons-update" aria-hidden="true"></span></button>';
+		echo '</div>';
+
+		echo '<div class="wcll-nwc-actions">';
+		echo '<button type="button" class="button" data-wcll-nwc-tab="receive">' . esc_html__( 'Receive', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<button type="button" class="button" data-wcll-nwc-tab="withdraw">' . esc_html__( 'Withdraw', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
+
+		echo '<div class="wcll-nwc-form" data-wcll-nwc-form="receive" hidden>';
+		echo '<p><label>' . esc_html__( 'Amount (sats)', 'lawallet-lightning-address' ) . ' <input type="number" min="1" step="1" class="small-text" data-wcll-nwc-amount="receive" /></label> ';
+		echo '<button type="button" class="button button-primary" data-wcll-nwc-generate>' . esc_html__( 'Generate invoice', 'lawallet-lightning-address' ) . '</button></p>';
+		echo '<div class="wcll-nwc-invoice" data-wcll-nwc-invoice hidden>';
+		echo '<textarea readonly rows="3" class="large-text code" data-wcll-nwc-invoice-text></textarea>';
+		echo '<button type="button" class="button" data-wcll-nwc-copy>' . esc_html__( 'Copy invoice', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
+		echo '</div>';
+
+		echo '<div class="wcll-nwc-form" data-wcll-nwc-form="withdraw" hidden>';
+		echo '<p><label class="wcll-nwc-field"><span>' . esc_html__( 'To (Lightning Address or BOLT11 invoice)', 'lawallet-lightning-address' ) . '</span>';
+		echo '<input type="text" class="regular-text" data-wcll-nwc-destination placeholder="name@example.com" /></label></p>';
+		echo '<p><label class="wcll-nwc-field"><span>' . esc_html__( 'Amount (sats — required for a Lightning Address)', 'lawallet-lightning-address' ) . '</span>';
+		echo '<input type="number" min="1" step="1" class="small-text" data-wcll-nwc-amount="withdraw" /></label></p>';
+		echo '<button type="button" class="button button-primary" data-wcll-nwc-send>' . esc_html__( 'Send payment', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
+
+		echo '<p class="wcll-nwc-feedback" data-wcll-nwc-feedback role="status" aria-live="polite"></p>';
+		echo '</div>';
+	}
+
+	private function render_wallets_modal() {
+		$wallets = self::compatible_wallets();
+
+		echo '<div class="wcll-wallets-modal" data-wcll-wallets-modal hidden>';
+		echo '<div class="wcll-wallets-backdrop" data-wcll-wallets-close></div>';
+		echo '<div class="wcll-wallets-dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Compatible Lightning wallets', 'lawallet-lightning-address' ) . '">';
+		echo '<button type="button" class="wcll-wallets-close" data-wcll-wallets-close aria-label="' . esc_attr__( 'Close', 'lawallet-lightning-address' ) . '">&times;</button>';
+		echo '<h2 class="wcll-wallets-title">' . esc_html__( 'Compatible wallets', 'lawallet-lightning-address' ) . '</h2>';
+		echo '<p class="wcll-wallets-lead">' . esc_html__( 'This plugin works with every Lightning Address. Customers can pay from any of these popular wallets, or any other wallet that gives them a Lightning Address.', 'lawallet-lightning-address' ) . '</p>';
+		echo '<ul class="wcll-wallets-grid">';
+		foreach ( $wallets as $wallet ) {
+			$logo = WCLL_PLUGIN_URL . 'assets/wallets/' . $wallet['logo'];
+			echo '<li class="wcll-wallet-card" style="--wcll-accent:' . esc_attr( $wallet['accent'] ) . '">';
+			echo '<span class="wcll-wallet-logo"><img src="' . esc_url( $logo ) . '" alt="' . esc_attr( $wallet['name'] ) . '" loading="lazy" /></span>';
+			echo '<span class="wcll-wallet-info">';
+			echo '<span class="wcll-wallet-name">' . esc_html( $wallet['name'] ) . '</span>';
+			echo '<span class="wcll-wallet-tag">' . esc_html( $wallet['tagline'] ) . '</span>';
+			echo '<span class="wcll-wallet-desc">' . esc_html( $wallet['desc'] ) . '</span>';
+			echo '</span>';
+			echo '</li>';
+		}
+		echo '</ul>';
+		echo '</div>';
+		echo '</div>';
 	}
 }

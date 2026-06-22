@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,10 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.2 =
+* Add a "compatible wallets" picker on the Lightning Address tab: a modal listing popular wallets that give customers a Lightning Address, with logos.
+* Add a proxy wallet panel on the NWC tab: a live balance (updated from NWC notifications), a Receive control that generates an invoice, and a Withdraw control that pays a Lightning Address or BOLT11 invoice. All wallet operations run server-side; the connection secret is never exposed to the browser.
 
 = 0.4.1 =
 * Reorganise the payment gateway settings into tabs (Checkout, Lightning Address, NWC proxy wallet, Pricing & rates, Advanced) for a clearer setup, with the NWC fields revealing based on the selected mode.

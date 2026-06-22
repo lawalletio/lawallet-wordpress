@@ -243,3 +243,265 @@
 		init();
 	}
 })();
+
+// Compatible-wallets modal: open from the Lightning Address tab.
+(function () {
+	function init() {
+		var modal = document.querySelector('[data-wcll-wallets-modal]');
+		var openers = Array.prototype.slice.call(document.querySelectorAll('[data-wcll-wallets-open]'));
+		if (!modal || !openers.length) {
+			return;
+		}
+
+		function open() {
+			modal.hidden = false;
+			document.body.classList.add('wcll-wallets-open');
+			var close = modal.querySelector('.wcll-wallets-close');
+			if (close) {
+				close.focus();
+			}
+		}
+
+		function close() {
+			modal.hidden = true;
+			document.body.classList.remove('wcll-wallets-open');
+		}
+
+		openers.forEach(function (btn) {
+			btn.addEventListener('click', function (event) {
+				event.preventDefault();
+				open();
+			});
+		});
+
+		modal.querySelectorAll('[data-wcll-wallets-close]').forEach(function (el) {
+			el.addEventListener('click', function (event) {
+				event.preventDefault();
+				close();
+			});
+		});
+
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape' && !modal.hidden) {
+				close();
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();
+
+// NWC proxy wallet panel: live balance + receive + withdraw (all signing is
+// server-side; the browser only subscribes to NIP-47 notifications).
+(function (config) {
+	function init() {
+		var nwc = config && config.nwc;
+		var root = document.querySelector('[data-wcll-nwc-wallet]');
+		if (!root || !nwc || !nwc.configured) {
+			return;
+		}
+
+		var i18n = nwc.i18n || {};
+		var balanceEl = root.querySelector('[data-wcll-nwc-balance]');
+		var feedback = root.querySelector('[data-wcll-nwc-feedback]');
+
+		function ajax(action, data) {
+			var body = new URLSearchParams();
+			body.set('action', action);
+			body.set('nonce', nwc.nonce);
+			Object.keys(data || {}).forEach(function (key) {
+				body.set(key, data[key]);
+			});
+			return window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			}).then(function (response) {
+				return response.json();
+			});
+		}
+
+		function say(message, isError) {
+			if (feedback) {
+				feedback.textContent = message || '';
+				feedback.classList.toggle('is-error', !!isError);
+			}
+		}
+
+		function refreshBalance() {
+			if (!balanceEl) {
+				return;
+			}
+			ajax('wcll_nwc_balance', {}).then(function (res) {
+				var d = (res && res.data) || {};
+				balanceEl.textContent = (res && res.success && d.ok)
+					? (Number(d.sats).toLocaleString() + ' ' + (i18n.sats || 'sats'))
+					: (i18n.unavailable || 'Balance unavailable');
+			}).catch(function () {
+				balanceEl.textContent = i18n.unavailable || 'Balance unavailable';
+			});
+		}
+
+		root.querySelectorAll('[data-wcll-nwc-tab]').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				var which = btn.getAttribute('data-wcll-nwc-tab');
+				root.querySelectorAll('[data-wcll-nwc-form]').forEach(function (form) {
+					var match = form.getAttribute('data-wcll-nwc-form') === which;
+					form.hidden = match ? !form.hidden : true;
+				});
+				say('');
+			});
+		});
+
+		var refreshBtn = root.querySelector('[data-wcll-nwc-refresh]');
+		if (refreshBtn) {
+			refreshBtn.addEventListener('click', function () {
+				if (balanceEl) {
+					balanceEl.textContent = i18n.loading || '…';
+				}
+				refreshBalance();
+			});
+		}
+
+		var generateBtn = root.querySelector('[data-wcll-nwc-generate]');
+		if (generateBtn) {
+			generateBtn.addEventListener('click', function () {
+				var input = root.querySelector('[data-wcll-nwc-amount="receive"]');
+				var amount = input ? parseInt(input.value, 10) : 0;
+				if (!amount || amount < 1) {
+					say(i18n.amountRequired, true);
+					return;
+				}
+				generateBtn.disabled = true;
+				say(i18n.generating);
+				ajax('wcll_nwc_receive', { amount: amount }).then(function (res) {
+					generateBtn.disabled = false;
+					var d = (res && res.data) || {};
+					if (res && res.success && d.invoice) {
+						var box = root.querySelector('[data-wcll-nwc-invoice]');
+						var text = root.querySelector('[data-wcll-nwc-invoice-text]');
+						if (text) {
+							text.value = d.invoice;
+						}
+						if (box) {
+							box.hidden = false;
+						}
+						say('');
+					} else {
+						say(d.message || i18n.unavailable, true);
+					}
+				}).catch(function () {
+					generateBtn.disabled = false;
+					say(i18n.unavailable, true);
+				});
+			});
+		}
+
+		var copyBtn = root.querySelector('[data-wcll-nwc-copy]');
+		if (copyBtn) {
+			copyBtn.addEventListener('click', function () {
+				var text = root.querySelector('[data-wcll-nwc-invoice-text]');
+				if (text && navigator.clipboard) {
+					navigator.clipboard.writeText(text.value).then(function () {
+						var original = copyBtn.textContent;
+						copyBtn.textContent = i18n.copied || 'Copied';
+						window.setTimeout(function () {
+							copyBtn.textContent = original;
+						}, 1400);
+					});
+				}
+			});
+		}
+
+		var sendBtn = root.querySelector('[data-wcll-nwc-send]');
+		if (sendBtn) {
+			sendBtn.addEventListener('click', function () {
+				var destInput = root.querySelector('[data-wcll-nwc-destination]');
+				var amountInput = root.querySelector('[data-wcll-nwc-amount="withdraw"]');
+				var destination = destInput ? destInput.value.trim() : '';
+				var amount = amountInput ? parseInt(amountInput.value, 10) : 0;
+				if (!destination) {
+					say(i18n.destRequired, true);
+					return;
+				}
+				sendBtn.disabled = true;
+				say(i18n.sending);
+				ajax('wcll_nwc_withdraw', { destination: destination, amount: amount > 0 ? amount : 0 }).then(function (res) {
+					sendBtn.disabled = false;
+					var d = (res && res.data) || {};
+					if (res && res.success) {
+						say(i18n.sent);
+						if (destInput) {
+							destInput.value = '';
+						}
+						if (amountInput) {
+							amountInput.value = '';
+						}
+						refreshBalance();
+					} else {
+						say(d.message || i18n.unavailable, true);
+					}
+				}).catch(function () {
+					sendBtn.disabled = false;
+					say(i18n.unavailable, true);
+				});
+			});
+		}
+
+		// Live: subscribe to NIP-47 notifications and refresh the balance on any.
+		function watchNotifications() {
+			if (!nwc.walletPubkey || !Array.isArray(nwc.relays) || !nwc.relays.length) {
+				return;
+			}
+			nwc.relays.forEach(function (relay) {
+				var socket;
+				try {
+					socket = new WebSocket(relay);
+				} catch (e) {
+					return;
+				}
+				socket.addEventListener('open', function () {
+					var filter = {
+						kinds: [23196, 23197],
+						authors: [nwc.walletPubkey],
+						since: Math.floor(Date.now() / 1000) - 60
+					};
+					if (nwc.clientPubkey) {
+						filter['#p'] = [nwc.clientPubkey];
+					}
+					socket.send(JSON.stringify(['REQ', 'wcll-nwc-admin', filter]));
+				});
+				socket.addEventListener('message', function (message) {
+					var parsed;
+					try {
+						parsed = JSON.parse(message.data);
+					} catch (e) {
+						return;
+					}
+					if (!Array.isArray(parsed) || parsed[0] !== 'EVENT') {
+						return;
+					}
+					var ev = parsed[2];
+					if (ev && (ev.kind === 23196 || ev.kind === 23197) && ev.pubkey === nwc.walletPubkey) {
+						refreshBalance();
+					}
+				});
+			});
+		}
+
+		refreshBalance();
+		watchNotifications();
+		window.setInterval(refreshBalance, 30000);
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})(window.WCLLGatewayAdmin || {});

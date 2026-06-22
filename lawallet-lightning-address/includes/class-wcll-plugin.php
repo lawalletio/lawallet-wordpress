@@ -33,6 +33,9 @@ class WCLL_Plugin {
 		add_action( 'woocommerce_receipt_wcll_gateway', array( __CLASS__, 'render_payment_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_gateway_admin_assets' ) );
 		add_action( 'wp_ajax_wcll_check_lightning_address', array( __CLASS__, 'ajax_check_lightning_address' ) );
+		add_action( 'wp_ajax_wcll_nwc_balance', array( __CLASS__, 'ajax_nwc_balance' ) );
+		add_action( 'wp_ajax_wcll_nwc_receive', array( __CLASS__, 'ajax_nwc_receive' ) );
+		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
 	}
 
 	public static function load_textdomain() {
@@ -62,6 +65,9 @@ class WCLL_Plugin {
 		wp_enqueue_style( 'lawallet-gateway-admin', WCLL_PLUGIN_URL . 'assets/css/lawallet-gateway-admin.css', array( 'dashicons' ), WCLL_VERSION );
 		wp_enqueue_script( 'lawallet-gateway-admin', WCLL_PLUGIN_URL . 'assets/js/lawallet-gateway-admin.js', array(), WCLL_VERSION, true );
 
+		$settings    = WCLL_Gateway::get_gateway_settings();
+		$wallet_info = WCLL_NWC_Manager::admin_wallet_info( $settings );
+
 		$config = array(
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 			'nonce'   => wp_create_nonce( 'wcll_check_lightning_address' ),
@@ -72,6 +78,25 @@ class WCLL_Plugin {
 				'nip57Label' => __( 'NIP-57', 'lawallet-lightning-address' ),
 				'checking'   => __( 'Checking the Lightning Address', 'lawallet-lightning-address' ),
 				'pending'    => __( 'Enter a Lightning Address to check', 'lawallet-lightning-address' ),
+			),
+			'nwc'     => array(
+				'nonce'        => wp_create_nonce( 'wcll_nwc_admin' ),
+				'configured'   => (bool) $wallet_info['configured'],
+				'mode'         => $wallet_info['mode'],
+				'walletPubkey' => $wallet_info['wallet_pubkey'],
+				'clientPubkey' => $wallet_info['client_pubkey'],
+				'relays'       => self::sanitize_ws_relays( $wallet_info['relays'] ),
+				'i18n'         => array(
+					'loading'        => __( 'Loading balance…', 'lawallet-lightning-address' ),
+					'unavailable'    => __( 'Balance unavailable', 'lawallet-lightning-address' ),
+					'sats'           => __( 'sats', 'lawallet-lightning-address' ),
+					'sending'        => __( 'Sending…', 'lawallet-lightning-address' ),
+					'generating'     => __( 'Generating…', 'lawallet-lightning-address' ),
+					'copied'         => __( 'Copied', 'lawallet-lightning-address' ),
+					'sent'           => __( 'Payment sent.', 'lawallet-lightning-address' ),
+					'amountRequired' => __( 'Enter an amount in sats.', 'lawallet-lightning-address' ),
+					'destRequired'   => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ),
+				),
 			),
 		);
 		wp_add_inline_script( 'lawallet-gateway-admin', 'window.WCLLGatewayAdmin = ' . wp_json_encode( $config ) . ';', 'before' );
@@ -141,6 +166,108 @@ class WCLL_Plugin {
 				'lud16'   => $lud16,
 				'lud21'   => $lud21,
 				'nip57'   => $nip57,
+			)
+		);
+	}
+
+	private static function verify_nwc_admin() {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( array( 'message' => __( 'You are not allowed to manage the NWC wallet.', 'lawallet-lightning-address' ) ), 403 );
+		}
+		check_ajax_referer( 'wcll_nwc_admin', 'nonce' );
+	}
+
+	public static function ajax_nwc_balance() {
+		self::verify_nwc_admin();
+		$balance = WCLL_NWC_Manager::get_cached_balance( WCLL_Gateway::get_gateway_settings(), true );
+		wp_send_json_success(
+			array(
+				'ok'   => ! empty( $balance['ok'] ),
+				'sats' => isset( $balance['sats'] ) ? (int) $balance['sats'] : 0,
+			)
+		);
+	}
+
+	public static function ajax_nwc_receive() {
+		self::verify_nwc_admin();
+		$amount_sats = isset( $_POST['amount'] ) ? absint( wp_unslash( $_POST['amount'] ) ) : 0;
+		if ( $amount_sats < 1 ) {
+			wp_send_json_error( array( 'message' => __( 'Enter an amount in sats.', 'lawallet-lightning-address' ) ) );
+		}
+
+		$client = WCLL_NWC_Manager::get_active_client( WCLL_Gateway::get_gateway_settings() );
+		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
+			wp_send_json_error( array( 'message' => is_wp_error( $client ) ? $client->get_error_message() : __( 'The NWC wallet is not available.', 'lawallet-lightning-address' ) ) );
+		}
+
+		/* translators: %d: amount in sats. */
+		$description = sprintf( __( 'Top up %d sats', 'lawallet-lightning-address' ), $amount_sats );
+		$invoice     = $client->make_invoice( $amount_sats * 1000, $description, HOUR_IN_SECONDS );
+		if ( is_wp_error( $invoice ) ) {
+			wp_send_json_error( array( 'message' => $invoice->get_error_message() ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'invoice' => isset( $invoice['invoice'] ) ? $invoice['invoice'] : '',
+				'amount'  => $amount_sats,
+			)
+		);
+	}
+
+	public static function ajax_nwc_withdraw() {
+		self::verify_nwc_admin();
+		$destination = isset( $_POST['destination'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['destination'] ) ) ) : '';
+		$amount_sats = isset( $_POST['amount'] ) ? absint( wp_unslash( $_POST['amount'] ) ) : 0;
+
+		if ( '' === $destination ) {
+			wp_send_json_error( array( 'message' => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ) ) );
+		}
+
+		$settings = WCLL_Gateway::get_gateway_settings();
+		$client   = WCLL_NWC_Manager::get_active_client( $settings );
+		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
+			wp_send_json_error( array( 'message' => is_wp_error( $client ) ? $client->get_error_message() : __( 'The NWC wallet is not available.', 'lawallet-lightning-address' ) ) );
+		}
+
+		if ( preg_match( '/^ln[a-z0-9]{20,}$/i', $destination ) ) {
+			$payment = $client->pay_invoice( $destination, $amount_sats > 0 ? $amount_sats * 1000 : null );
+		} elseif ( preg_match( '/^[^@\s]+@[^@\s]+$/', $destination ) ) {
+			if ( $amount_sats < 1 ) {
+				wp_send_json_error( array( 'message' => __( 'Enter an amount in sats to send to a Lightning Address.', 'lawallet-lightning-address' ) ) );
+			}
+			$lnurl       = new WCLL_LNURL_Client( $settings );
+			$pay_request = $lnurl->resolve_lightning_address( strtolower( $destination ) );
+			if ( is_wp_error( $pay_request ) ) {
+				wp_send_json_error( array( 'message' => $pay_request->get_error_message() ) );
+			}
+			$invoice = $lnurl->request_invoice(
+				$pay_request,
+				$amount_sats * 1000,
+				array(
+					'description' => __( 'NWC wallet withdrawal', 'lawallet-lightning-address' ),
+					'use_nostr'   => false,
+				)
+			);
+			if ( is_wp_error( $invoice ) ) {
+				wp_send_json_error( array( 'message' => $invoice->get_error_message() ) );
+			}
+			if ( empty( $invoice['pr'] ) ) {
+				wp_send_json_error( array( 'message' => __( 'The Lightning Address did not return an invoice.', 'lawallet-lightning-address' ) ) );
+			}
+			$payment = $client->pay_invoice( $invoice['pr'] );
+		} else {
+			wp_send_json_error( array( 'message' => __( 'Enter a valid Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ) ) );
+		}
+
+		if ( is_wp_error( $payment ) ) {
+			wp_send_json_error( array( 'message' => $payment->get_error_message() ) );
+		}
+
+		wp_send_json_success(
+			array(
+				'preimage' => isset( $payment['preimage'] ) ? $payment['preimage'] : '',
+				'fees'     => isset( $payment['fees_paid'] ) ? (int) $payment['fees_paid'] : 0,
 			)
 		);
 	}

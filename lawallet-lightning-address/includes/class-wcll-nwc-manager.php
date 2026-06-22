@@ -423,6 +423,50 @@ class WCLL_NWC_Manager {
 		return $result;
 	}
 
+	/**
+	 * Public wallet descriptor for the admin wallet panel: pubkeys + relays only,
+	 * NEVER the secret. The browser uses these to subscribe to NIP-47
+	 * notifications (live balance trigger); all signed operations stay on the
+	 * server.
+	 *
+	 * @return array{configured:bool,mode:string,wallet_pubkey:string,client_pubkey:string,relays:string[]}
+	 */
+	public static function admin_wallet_info( array $settings ) {
+		$info = array(
+			'configured'    => false,
+			'mode'          => self::mode( $settings ),
+			'wallet_pubkey' => '',
+			'client_pubkey' => '',
+			'relays'        => array(),
+		);
+
+		if ( ! self::is_enabled( $settings ) ) {
+			return $info;
+		}
+
+		if ( 'permanent' === $info['mode'] ) {
+			$uri = self::permanent_connection();
+		} else {
+			$active = self::get_active_connection();
+			$uri    = ! empty( $active['uri'] ) ? (string) $active['uri'] : '';
+		}
+
+		if ( '' === trim( $uri ) ) {
+			return $info;
+		}
+
+		$parsed = WCLL_NWC_Client::parse_connection( $uri );
+		if ( is_wp_error( $parsed ) ) {
+			return $info;
+		}
+
+		$info['configured']    = true;
+		$info['wallet_pubkey'] = $parsed['wallet_pubkey'];
+		$info['client_pubkey'] = $parsed['client_pubkey'];
+		$info['relays']        = $parsed['relays'];
+		return $info;
+	}
+
 	private static function balance_client( array $settings ) {
 		if ( 'permanent' === self::mode( $settings ) ) {
 			$uri = self::permanent_connection();
