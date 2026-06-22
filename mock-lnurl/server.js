@@ -298,6 +298,7 @@ app.get('/.well-known/lnurlp/:name', (req, res) => {
     minSendable: 1000,
     maxSendable: 500000000000,
     metadata: JSON.stringify([['text/plain', `Mock Lightning Address ${req.params.name}`]]),
+    commentAllowed: 255,
     allowsNostr: true,
     nostrPubkey
   };
@@ -351,6 +352,7 @@ app.get('/lnurl/callback/:name', (req, res) => {
     settled: false,
     preimage: null,
     zapRequest,
+    comment: typeof req.query.comment === 'string' ? req.query.comment : null,
     createdAt: Math.floor(Date.now() / 1000)
   };
   invoices.set(id, record);
@@ -487,7 +489,8 @@ app.get('/test/state', (req, res) => {
       pr: record.pr,
       settled: record.settled,
       amount: record.amount,
-      hasZapRequest: Boolean(record.zapRequest)
+      hasZapRequest: Boolean(record.zapRequest),
+      comment: record.comment
     })),
     nwcInvoices: Array.from(nwcInvoices.values()).map((record) => ({
       payment_hash: record.payment_hash,

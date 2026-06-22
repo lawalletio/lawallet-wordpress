@@ -899,8 +899,8 @@ class WCLL_Plugin {
 				$pay_request,
 				$forward,
 				array(
-					'description' => sprintf( 'WooCommerce order #%s (NWC forward)', $order->get_order_number() ),
-					'use_nostr'   => false,
+					'comment'   => sprintf( 'Proxied from Woocommerce #%s', $order->get_order_number() ),
+					'use_nostr' => false,
 				)
 			);
 			if ( is_wp_error( $forward_invoice ) ) {
