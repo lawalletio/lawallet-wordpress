@@ -37,6 +37,7 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_nwc_receive', array( __CLASS__, 'ajax_nwc_receive' ) );
 		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
 		add_action( 'wp_ajax_wcll_nwc_regenerate', array( __CLASS__, 'ajax_nwc_regenerate' ) );
+		add_action( 'wp_ajax_wcll_nwc_transactions', array( __CLASS__, 'ajax_nwc_transactions' ) );
 	}
 
 	public static function load_textdomain() {
@@ -99,6 +100,9 @@ class WCLL_Plugin {
 					'destRequired'   => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ),
 					'regenerating'   => __( 'Regenerating…', 'lawallet-lightning-address' ),
 					'regenerated'    => __( 'Connection regenerated.', 'lawallet-lightning-address' ),
+					'txLoading'      => __( 'Loading…', 'lawallet-lightning-address' ),
+					/* translators: 1: current page number, 2: total number of pages. */
+					'txPage'         => __( 'Page %1$s of %2$s', 'lawallet-lightning-address' ),
 				),
 			),
 		);
@@ -320,6 +324,143 @@ class WCLL_Plugin {
 				'sats' => isset( $balance['sats'] ) ? (int) $balance['sats'] : 0,
 			)
 		);
+	}
+
+	/**
+	 * Paginated list of orders settled through the NWC proxy, newest first.
+	 *
+	 * @return array{items:array,total:int,pages:int,page:int}
+	 */
+	public static function nwc_transactions( $page = 1, $per_page = 5 ) {
+		$page     = max( 1, (int) $page );
+		$per_page = max( 1, (int) $per_page );
+		$result   = array(
+			'items' => array(),
+			'total' => 0,
+			'pages' => 0,
+			'page'  => $page,
+		);
+
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return $result;
+		}
+
+		// The _wcll_settlement_method='nwc' meta is set only by this gateway, so it
+		// uniquely identifies NWC proxy orders on its own.
+		$query = wc_get_orders(
+			array(
+				'limit'      => $per_page,
+				'paged'      => $page,
+				'paginate'   => true,
+				'meta_key'   => '_wcll_settlement_method', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Bounded, paginated admin list of NWC orders; wc_get_orders is HPOS-aware.
+				'meta_value' => 'nwc', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- See above.
+				'orderby'    => 'date',
+				'order'      => 'DESC',
+			)
+		);
+
+		foreach ( $query->orders as $order ) {
+			$result['items'][] = self::nwc_tx_row( $order );
+		}
+		$result['total'] = (int) $query->total;
+		$result['pages'] = (int) $query->max_num_pages;
+		return $result;
+	}
+
+	private static function nwc_tx_row( WC_Order $order ) {
+		$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
+		$forwarded   = (string) $order->get_meta( '_wcll_nwc_forwarded', true );
+		$pending     = 'yes' === (string) $order->get_meta( '_wcll_nwc_forward_pending', true );
+		$received    = $order->is_paid();
+
+		if ( 'yes' === $forwarded ) {
+			$forward = 'forwarded';
+		} elseif ( 'failed' === $forwarded ) {
+			$forward = 'failed';
+		} elseif ( $received && $pending ) {
+			$forward = 'pending';
+		} else {
+			$forward = 'none';
+		}
+
+		$date = $order->get_date_created();
+
+		return array(
+			'order'    => $order->get_order_number(),
+			'url'      => $order->get_edit_order_url(),
+			'date'     => $date ? wc_format_datetime( $date ) : '',
+			'amount'   => (int) round( $amount_msat / 1000 ),
+			'received' => $received,
+			'forward'  => $forward,
+			'dest'     => (string) $order->get_meta( '_wcll_lightning_address', true ),
+			'preimage' => (string) $order->get_meta( '_wcll_nwc_forward_preimage', true ),
+		);
+	}
+
+	public static function ajax_nwc_transactions() {
+		self::verify_nwc_admin();
+		$page = isset( $_POST['page'] ) ? max( 1, absint( wp_unslash( $_POST['page'] ) ) ) : 1;
+		$data = self::nwc_transactions( $page, 10 );
+
+		$rows = '';
+		foreach ( $data['items'] as $row ) {
+			$rows .= self::nwc_tx_row_html( $row );
+		}
+
+		wp_send_json_success(
+			array(
+				'rows'  => $rows,
+				'total' => $data['total'],
+				'pages' => $data['pages'],
+				'page'  => $data['page'],
+			)
+		);
+	}
+
+	/**
+	 * Render one transaction as a fully-escaped table row. Used for both the
+	 * inline list and the (AJAX-fed) modal, so the markup is defined once.
+	 */
+	public static function nwc_tx_row_html( array $row ) {
+		$labels        = array(
+			'forwarded' => __( 'Forwarded', 'lawallet-lightning-address' ),
+			'pending'   => __( 'Pending', 'lawallet-lightning-address' ),
+			'failed'    => __( 'Failed', 'lawallet-lightning-address' ),
+			'none'      => __( 'Not forwarded', 'lawallet-lightning-address' ),
+		);
+		$forward       = isset( $row['forward'] ) ? (string) $row['forward'] : 'none';
+		$forward_label = isset( $labels[ $forward ] ) ? $labels[ $forward ] : $labels['none'];
+
+		$forward_cell = '<span class="wcll-tx-status is-' . esc_attr( sanitize_html_class( $forward ) ) . '">' . esc_html( $forward_label ) . '</span>';
+		if ( 'forwarded' === $forward && ! empty( $row['dest'] ) ) {
+			/* translators: %s: merchant Lightning Address. */
+			$forward_cell .= '<br /><span class="wcll-tx-dest">' . esc_html( sprintf( __( 'to %s', 'lawallet-lightning-address' ), $row['dest'] ) ) . '</span>';
+		}
+
+		$received_cell = ! empty( $row['received'] )
+			? '<span class="wcll-tx-status is-received">' . esc_html__( 'Received', 'lawallet-lightning-address' ) . '</span>'
+			: '<span class="wcll-tx-status is-unpaid">' . esc_html__( 'Awaiting payment', 'lawallet-lightning-address' ) . '</span>';
+
+		if ( ! empty( $row['preimage'] ) ) {
+			$proof = '<code class="wcll-tx-proof" title="' . esc_attr( $row['preimage'] ) . '">' . esc_html( substr( $row['preimage'], 0, 12 ) . '…' ) . '</code>'
+				. ' <button type="button" class="button-link wcll-tx-copy" data-wcll-tx-copy="' . esc_attr( $row['preimage'] ) . '">' . esc_html__( 'Copy', 'lawallet-lightning-address' ) . '</button>';
+		} else {
+			$proof = '<span aria-hidden="true">&mdash;</span>';
+		}
+
+		$order_cell = ! empty( $row['url'] )
+			? '<a href="' . esc_url( $row['url'] ) . '">#' . esc_html( $row['order'] ) . '</a>'
+			: '#' . esc_html( $row['order'] );
+
+		$html  = '<tr>';
+		$html .= '<td>' . $order_cell . '</td>';
+		$html .= '<td>' . esc_html( $row['date'] ) . '</td>';
+		$html .= '<td>' . esc_html( number_format_i18n( (int) $row['amount'] ) ) . ' ' . esc_html__( 'sats', 'lawallet-lightning-address' ) . '</td>';
+		$html .= '<td>' . $received_cell . '</td>';
+		$html .= '<td>' . $forward_cell . '</td>';
+		$html .= '<td>' . $proof . '</td>';
+		$html .= '</tr>';
+		return $html;
 	}
 
 	public static function declare_woocommerce_features() {

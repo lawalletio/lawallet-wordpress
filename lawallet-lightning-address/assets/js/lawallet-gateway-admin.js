@@ -559,3 +559,136 @@
 		init();
 	}
 })(window.WCLLGatewayAdmin || {});
+
+// Proxy transactions: "Show all" modal with AJAX pagination, plus copy-proof.
+(function (config) {
+	function init() {
+		var nwc = config && config.nwc;
+		var i18n = (nwc && nwc.i18n) || {};
+
+		// Copy a proof preimage from any row (inline list or modal), delegated.
+		document.addEventListener('click', function (event) {
+			var btn = event.target && event.target.closest ? event.target.closest('[data-wcll-tx-copy]') : null;
+			if (!btn) {
+				return;
+			}
+			var value = btn.getAttribute('data-wcll-tx-copy');
+			if (value && navigator.clipboard) {
+				navigator.clipboard.writeText(value).then(function () {
+					var original = btn.textContent;
+					btn.textContent = i18n.copied || 'Copied';
+					window.setTimeout(function () {
+						btn.textContent = original;
+					}, 1200);
+				});
+			}
+		});
+
+		var modal = document.querySelector('[data-wcll-tx-modal]');
+		var opener = document.querySelector('[data-wcll-tx-open]');
+		if (!nwc || !modal || !opener) {
+			return;
+		}
+
+		var body = modal.querySelector('[data-wcll-tx-body]');
+		var pageinfo = modal.querySelector('[data-wcll-tx-pageinfo]');
+		var prev = modal.querySelector('[data-wcll-tx-prev]');
+		var next = modal.querySelector('[data-wcll-tx-next]');
+		var page = 1;
+		var pages = 1;
+		var loading = false;
+
+		function updatePager() {
+			if (pageinfo) {
+				pageinfo.textContent = (i18n.txPage || 'Page %1$s of %2$s').replace('%1$s', page).replace('%2$s', pages);
+			}
+			if (prev) {
+				prev.disabled = page <= 1;
+			}
+			if (next) {
+				next.disabled = page >= pages;
+			}
+		}
+
+		function load(target) {
+			if (loading) {
+				return;
+			}
+			loading = true;
+			if (pageinfo) {
+				pageinfo.textContent = i18n.txLoading || '…';
+			}
+			var b = new URLSearchParams();
+			b.set('action', 'wcll_nwc_transactions');
+			b.set('nonce', nwc.nonce);
+			b.set('page', target);
+			window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: b.toString()
+			}).then(function (response) {
+				return response.json();
+			}).then(function (res) {
+				loading = false;
+				var d = (res && res.data) || {};
+				if (res && res.success) {
+					page = d.page || target;
+					pages = d.pages || 1;
+					if (body) {
+						body.innerHTML = d.rows || '';
+					}
+					updatePager();
+				}
+			}).catch(function () {
+				loading = false;
+			});
+		}
+
+		function open() {
+			modal.hidden = false;
+			document.body.classList.add('wcll-tx-open');
+			load(1);
+		}
+		function close() {
+			modal.hidden = true;
+			document.body.classList.remove('wcll-tx-open');
+		}
+
+		opener.addEventListener('click', function (event) {
+			event.preventDefault();
+			open();
+		});
+		modal.querySelectorAll('[data-wcll-tx-close]').forEach(function (el) {
+			el.addEventListener('click', function (event) {
+				event.preventDefault();
+				close();
+			});
+		});
+		if (prev) {
+			prev.addEventListener('click', function () {
+				if (page > 1) {
+					load(page - 1);
+				}
+			});
+		}
+		if (next) {
+			next.addEventListener('click', function () {
+				if (page < pages) {
+					load(page + 1);
+				}
+			});
+		}
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape' && !modal.hidden) {
+				close();
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})(window.WCLLGatewayAdmin || {});

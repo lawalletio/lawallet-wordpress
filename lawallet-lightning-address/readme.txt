@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.7
+Stable tag: 0.4.8
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.8 =
+* Add a proxy transactions list on the NWC tab: the latest 5 payments received through the proxy with their forwarding status to your Lightning Address and a payment proof (preimage), plus a "Show all" button that opens a paginated modal.
 
 = 0.4.7 =
 * Add a "Regenerate NWC connection" button on the NWC proxy wallet tab that appears when you change the disposable wallet service (lncurl) URL, provisioning a fresh wallet from the new service.

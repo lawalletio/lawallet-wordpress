@@ -303,6 +303,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			if ( 'nwc' === $id ) {
 				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
+				$this->render_nwc_transactions();
 			}
 			echo '</div>';
 			$is_first = false;
@@ -727,6 +728,72 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			}
 		}
 		echo '</td></tr></tbody></table>';
+	}
+
+	private static function tx_table_head() {
+		$cols = array(
+			__( 'Order', 'lawallet-lightning-address' ),
+			__( 'Date', 'lawallet-lightning-address' ),
+			__( 'Amount', 'lawallet-lightning-address' ),
+			__( 'Received', 'lawallet-lightning-address' ),
+			__( 'Forwarded', 'lawallet-lightning-address' ),
+			__( 'Proof', 'lawallet-lightning-address' ),
+		);
+		$head = '<thead><tr>';
+		foreach ( $cols as $col ) {
+			$head .= '<th>' . esc_html( $col ) . '</th>';
+		}
+		return $head . '</tr></thead>';
+	}
+
+	/**
+	 * Proxy transactions on the NWC tab: the latest 5 inline, with a "Show all"
+	 * button that opens a paginated modal (rows fetched via AJAX).
+	 */
+	private function render_nwc_transactions() {
+		$tx = WCLL_Plugin::nwc_transactions( 1, 5 );
+
+		echo '<div class="wcll-nwc-tx">';
+		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'Proxy transactions', 'lawallet-lightning-address' ) . '</h4>';
+
+		if ( empty( $tx['items'] ) ) {
+			echo '<p class="description">' . esc_html__( 'No proxy transactions yet.', 'lawallet-lightning-address' ) . '</p></div>';
+			return;
+		}
+
+		echo '<table class="widefat striped wcll-nwc-tx-table">';
+		echo self::tx_table_head(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in tx_table_head().
+		echo '<tbody>';
+		foreach ( $tx['items'] as $row ) {
+			echo WCLL_Plugin::nwc_tx_row_html( $row ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Row HTML is fully escaped in nwc_tx_row_html().
+		}
+		echo '</tbody></table>';
+
+		if ( (int) $tx['total'] > count( $tx['items'] ) ) {
+			echo '<p><button type="button" class="button" data-wcll-tx-open>'
+				/* translators: %d: total number of proxy transactions. */
+				. esc_html( sprintf( __( 'Show all transactions (%d)', 'lawallet-lightning-address' ), (int) $tx['total'] ) )
+				. '</button></p>';
+		}
+
+		// Modal shell; the tbody is filled by AJAX.
+		echo '<div class="wcll-tx-modal" data-wcll-tx-modal hidden>';
+		echo '<div class="wcll-tx-backdrop" data-wcll-tx-close></div>';
+		echo '<div class="wcll-tx-dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'All proxy transactions', 'lawallet-lightning-address' ) . '">';
+		echo '<button type="button" class="wcll-tx-close" data-wcll-tx-close aria-label="' . esc_attr__( 'Close', 'lawallet-lightning-address' ) . '">&times;</button>';
+		echo '<h2 class="wcll-tx-title">' . esc_html__( 'All proxy transactions', 'lawallet-lightning-address' ) . '</h2>';
+		echo '<table class="widefat striped wcll-nwc-tx-table">';
+		echo self::tx_table_head(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in tx_table_head().
+		echo '<tbody data-wcll-tx-body></tbody>';
+		echo '</table>';
+		echo '<div class="wcll-tx-pager">';
+		echo '<button type="button" class="button" data-wcll-tx-prev>' . esc_html__( 'Previous', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<span class="wcll-tx-pageinfo" data-wcll-tx-pageinfo></span> ';
+		echo '<button type="button" class="button" data-wcll-tx-next>' . esc_html__( 'Next', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
+		echo '</div></div>';
+
+		echo '</div>';
 	}
 
 	/**
