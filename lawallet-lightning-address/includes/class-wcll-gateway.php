@@ -234,6 +234,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce-generated settings field markup.
 			echo $this->generate_settings_html( $group, false );
 			echo '</table>';
+			echo '</div>';
 			$is_first = false;
 		}
 		echo '</div>';
