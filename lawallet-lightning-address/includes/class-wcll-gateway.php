@@ -145,6 +145,41 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		);
 	}
 
+	/**
+	 * Grouping of the gateway settings into tabs for a clearer admin UI. Each
+	 * field is still part of the single settings form, so saving and validation
+	 * are unchanged — only the presentation is grouped.
+	 */
+	public static function settings_tabs() {
+		return array(
+			'checkout' => array(
+				'label'  => __( 'Checkout', 'lawallet-lightning-address' ),
+				'intro'  => __( 'Enable the gateway and control how it appears to customers at checkout.', 'lawallet-lightning-address' ),
+				'fields' => array( 'enabled', 'title', 'description', 'invoice_expiry_minutes' ),
+			),
+			'address'  => array(
+				'label'  => __( 'Lightning Address', 'lawallet-lightning-address' ),
+				'intro'  => __( 'Your merchant Lightning Address, plus the Nostr relays used to confirm payments via NIP-57 zap receipts.', 'lawallet-lightning-address' ),
+				'fields' => array( 'lightning_address', 'nostr_relays' ),
+			),
+			'nwc'      => array(
+				'label'  => __( 'NWC proxy wallet', 'lawallet-lightning-address' ),
+				'intro'  => __( 'Optional fallback for Lightning Addresses that support neither LUD-21 nor NIP-57. Payments settle on an NWC wallet and are forwarded to your Lightning Address.', 'lawallet-lightning-address' ),
+				'fields' => array( 'nwc_proxy_enabled', 'nwc_mode', 'nwc_lncurl_url', 'nwc_auto_replace', 'nwc_connection' ),
+			),
+			'pricing'  => array(
+				'label'  => __( 'Pricing & rates', 'lawallet-lightning-address' ),
+				'intro'  => __( 'How fiat order totals are converted to satoshis and shown on the payment page.', 'lawallet-lightning-address' ),
+				'fields' => array( 'manual_sats_per_unit', 'rate_display_unit', 'price_buffer_percent' ),
+			),
+			'advanced' => array(
+				'label'  => __( 'Advanced', 'lawallet-lightning-address' ),
+				'intro'  => __( 'Developer and local-environment options. Leave these alone in production.', 'lawallet-lightning-address' ),
+				'fields' => array( 'allow_insecure_http' ),
+			),
+		);
+	}
+
 	public function admin_options() {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only flag that only toggles an onboarding notice for admins.
 		if ( isset( $_GET['wcll_setup'] ) ) {
@@ -152,7 +187,57 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			echo esc_html__( 'Saving this page creates a test invoice and confirms the address supports LUD-21 verification or NIP-57 zap receipts.', 'lawallet-lightning-address' ) . '</p></div>';
 		}
 
-		parent::admin_options();
+		echo '<h2>' . esc_html( $this->get_method_title() ) . '</h2>';
+		echo wp_kses_post( wpautop( $this->get_method_description() ) );
+
+		$tabs     = self::settings_tabs();
+		$assigned = array();
+		foreach ( $tabs as $tab ) {
+			$assigned = array_merge( $assigned, $tab['fields'] );
+		}
+		// Defensive: never drop a field — anything unassigned joins the first tab.
+		$leftover = array_diff( array_keys( $this->form_fields ), $assigned );
+		if ( ! empty( $leftover ) ) {
+			$first_id                      = array_key_first( $tabs );
+			$tabs[ $first_id ]['fields']   = array_merge( $tabs[ $first_id ]['fields'], $leftover );
+		}
+
+		echo '<div class="wcll-settings">';
+		echo '<nav class="nav-tab-wrapper wcll-tabs">';
+		$is_first = true;
+		foreach ( $tabs as $id => $tab ) {
+			printf(
+				'<a href="#wcll-%1$s" class="nav-tab%2$s" data-wcll-tab="%1$s">%3$s</a>',
+				esc_attr( $id ),
+				$is_first ? ' nav-tab-active' : '',
+				esc_html( $tab['label'] )
+			);
+			$is_first = false;
+		}
+		echo '</nav>';
+
+		$is_first = true;
+		foreach ( $tabs as $id => $tab ) {
+			printf( '<div class="wcll-tab-panel%2$s" data-wcll-panel="%1$s">', esc_attr( $id ), $is_first ? ' is-active' : '' );
+			if ( ! empty( $tab['intro'] ) ) {
+				echo '<p class="description wcll-tab-intro">' . esc_html( $tab['intro'] ) . '</p>';
+			}
+
+			$group = array();
+			foreach ( $tab['fields'] as $key ) {
+				if ( isset( $this->form_fields[ $key ] ) ) {
+					$group[ $key ] = $this->form_fields[ $key ];
+				}
+			}
+
+			echo '<table class="form-table">';
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce-generated settings field markup.
+			echo $this->generate_settings_html( $group, false );
+			echo '</table>';
+			$is_first = false;
+		}
+		echo '</div>';
+
 		$this->render_connection_status();
 	}
 

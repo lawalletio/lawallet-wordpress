@@ -147,3 +147,99 @@
 		setAll('pending', i18n.pending || '');
 	}
 })(window.WCLLGatewayAdmin || {});
+
+// Tabbed settings: show the panel that matches the clicked tab.
+(function () {
+	function init() {
+		var root = document.querySelector('.wcll-settings');
+		if (!root) {
+			return;
+		}
+
+		var tabs = Array.prototype.slice.call(root.querySelectorAll('[data-wcll-tab]'));
+		var panels = Array.prototype.slice.call(root.querySelectorAll('[data-wcll-panel]'));
+		if (!tabs.length) {
+			return;
+		}
+
+		function activate(id) {
+			var matched = false;
+			tabs.forEach(function (tab) {
+				tab.classList.toggle('nav-tab-active', tab.getAttribute('data-wcll-tab') === id);
+			});
+			panels.forEach(function (panel) {
+				var on = panel.getAttribute('data-wcll-panel') === id;
+				panel.classList.toggle('is-active', on);
+				matched = matched || on;
+			});
+			if (matched) {
+				try {
+					window.history.replaceState(null, '', '#wcll-' + id);
+				} catch (e) {} // eslint-disable-line no-empty
+			}
+		}
+
+		tabs.forEach(function (tab) {
+			tab.addEventListener('click', function (event) {
+				event.preventDefault();
+				activate(tab.getAttribute('data-wcll-tab'));
+			});
+		});
+
+		var hash = (window.location.hash || '').replace('#wcll-', '');
+		if (hash && root.querySelector('[data-wcll-panel="' + hash + '"]')) {
+			activate(hash);
+		}
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();
+
+// NWC tab: reveal only the fields relevant to the selected mode / enabled state.
+(function () {
+	function init() {
+		var enabled = document.getElementById('woocommerce_wcll_gateway_nwc_proxy_enabled');
+		var mode = document.getElementById('woocommerce_wcll_gateway_nwc_mode');
+		if (!mode) {
+			return;
+		}
+
+		function rowOf(id) {
+			var el = document.getElementById(id);
+			return el ? el.closest('tr') : null;
+		}
+
+		function apply() {
+			var on = !enabled || enabled.checked;
+			var disposable = mode.value === 'disposable';
+			var rules = [
+				['woocommerce_wcll_gateway_nwc_mode', on],
+				['woocommerce_wcll_gateway_nwc_lncurl_url', on && disposable],
+				['woocommerce_wcll_gateway_nwc_auto_replace', on && disposable],
+				['woocommerce_wcll_gateway_nwc_connection', on && !disposable]
+			];
+			rules.forEach(function (rule) {
+				var row = rowOf(rule[0]);
+				if (row) {
+					row.style.display = rule[1] ? '' : 'none';
+				}
+			});
+		}
+
+		mode.addEventListener('change', apply);
+		if (enabled) {
+			enabled.addEventListener('change', apply);
+		}
+		apply();
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();

@@ -404,8 +404,13 @@ app.all('/test/pay-latest', (req, res) => {
 app.post('/lncurl', (req, res) => {
   const secretHex = crypto.randomBytes(32).toString('hex');
   const pubkey = registerNwcWallet(secretHex);
-  const relay = `ws://mock-lnurl:${port}/nostr`;
-  const uri = `nostr+walletconnect://${pubkey}?relay=${relay}&secret=${secretHex}&lud16=${nwcWallets.get(pubkey).lud16}`;
+  // Two relays so both sides of the dev split can connect: mock-lnurl:4000 is
+  // reachable from the WP container (server-side NWC), localhost:4000 from the
+  // host browser (watchNwc). A real lncurl returns one internet relay reachable
+  // by both.
+  const serverRelay = `ws://mock-lnurl:${port}/nostr`;
+  const browserRelay = `ws://localhost:${port}/nostr`;
+  const uri = `nostr+walletconnect://${pubkey}?relay=${serverRelay}&relay=${browserRelay}&secret=${secretHex}&lud16=${nwcWallets.get(pubkey).lud16}`;
   res.type('text/plain').send(uri);
 });
 

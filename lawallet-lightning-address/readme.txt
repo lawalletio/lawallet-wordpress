@@ -148,6 +148,7 @@ fallback. BTC-denominated stores need no conversion.
 == Changelog ==
 
 = 0.4.0 =
+* Reorganise the payment gateway settings into tabs (Checkout, Lightning Address, NWC proxy wallet, Pricing & rates, Advanced) for a clearer setup, with the NWC fields revealing based on the selected mode.
 * NWC proxy wallets can now be managed automatically. In the new Disposable mode the plugin creates a throwaway NWC wallet on demand from an lncurl service (default https://lncurl.lol), reuses it across orders, and provisions a replacement when it dies (optional, behind a toggle).
 * Permanent mode keeps the previous behaviour: a fixed connection string you provide that is never auto-replaced. Existing setups upgrade to Permanent mode automatically.
 * Show the proxy wallet balance and mode on the payment gateway settings page.

@@ -44,3 +44,24 @@
 		transform: rotate(360deg);
 	}
 }
+
+/* Tabbed gateway settings */
+.wcll-settings {
+	margin-top: 12px;
+}
+.wcll-settings .wcll-tabs {
+	margin: 0 0 4px;
+}
+.wcll-tab-panel {
+	display: none;
+}
+.wcll-tab-panel.is-active {
+	display: block;
+}
+.wcll-tab-panel > .form-table {
+	margin-top: 4px;
+}
+.wcll-tab-intro {
+	margin: 12px 0 0;
+	max-width: 720px;
+}
