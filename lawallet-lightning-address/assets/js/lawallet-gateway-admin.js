@@ -367,6 +367,55 @@
 			});
 		}
 
+		// Connection-string reveal. The secret is fetched on demand and wiped from
+		// the DOM when hidden, so it never sits in the page source.
+		var showConnBtn = root.querySelector('[data-wcll-nwc-show-connection]');
+		var connBox = root.querySelector('[data-wcll-nwc-connection-box]');
+		var connText = root.querySelector('[data-wcll-nwc-connection-text]');
+		if (showConnBtn && connBox && connText) {
+			showConnBtn.addEventListener('click', function () {
+				if (!connBox.hidden) {
+					connBox.hidden = true;
+					connText.value = '';
+					showConnBtn.textContent = i18n.connShow || 'Show connection string';
+					say('');
+					return;
+				}
+				showConnBtn.disabled = true;
+				say(i18n.txLoading || 'Loading…');
+				ajax('wcll_nwc_connection', {}).then(function (res) {
+					showConnBtn.disabled = false;
+					var d = (res && res.data) || {};
+					if (res && res.success && d.uri) {
+						connText.value = d.uri;
+						connBox.hidden = false;
+						showConnBtn.textContent = i18n.connHide || 'Hide connection string';
+						say('');
+					} else {
+						say(d.message || i18n.connError || 'Could not load the connection string.', true);
+					}
+				}).catch(function () {
+					showConnBtn.disabled = false;
+					say(i18n.connError || 'Could not load the connection string.', true);
+				});
+			});
+		}
+
+		var connCopyBtn = root.querySelector('[data-wcll-nwc-connection-copy]');
+		if (connCopyBtn && connText) {
+			connCopyBtn.addEventListener('click', function () {
+				if (connText.value && navigator.clipboard) {
+					navigator.clipboard.writeText(connText.value).then(function () {
+						var original = connCopyBtn.textContent;
+						connCopyBtn.textContent = i18n.copied || 'Copied';
+						window.setTimeout(function () {
+							connCopyBtn.textContent = original;
+						}, 1400);
+					});
+				}
+			});
+		}
+
 		var sendBtn = root.querySelector('[data-wcll-nwc-send]');
 		if (sendBtn) {
 			sendBtn.addEventListener('click', function () {

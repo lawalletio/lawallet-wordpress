@@ -37,6 +37,7 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_nwc_receive', array( __CLASS__, 'ajax_nwc_receive' ) );
 		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
 		add_action( 'wp_ajax_wcll_nwc_regenerate', array( __CLASS__, 'ajax_nwc_regenerate' ) );
+		add_action( 'wp_ajax_wcll_nwc_connection', array( __CLASS__, 'ajax_nwc_connection' ) );
 		add_action( 'wp_ajax_wcll_nwc_transactions', array( __CLASS__, 'ajax_nwc_transactions' ) );
 		add_action( 'wp_ajax_wcll_nwc_transaction', array( __CLASS__, 'ajax_nwc_transaction' ) );
 	}
@@ -101,6 +102,9 @@ class WCLL_Plugin {
 					'destRequired'   => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ),
 					'regenerating'   => __( 'Regenerating…', 'lawallet-lightning-address' ),
 					'regenerated'    => __( 'Connection regenerated.', 'lawallet-lightning-address' ),
+					'connShow'       => __( 'Show connection string', 'lawallet-lightning-address' ),
+					'connHide'       => __( 'Hide connection string', 'lawallet-lightning-address' ),
+					'connError'      => __( 'Could not load the connection string.', 'lawallet-lightning-address' ),
 					'txLoading'      => __( 'Loading…', 'lawallet-lightning-address' ),
 					/* translators: 1: current page number, 2: total number of pages. */
 					'txPage'         => __( 'Page %1$s of %2$s', 'lawallet-lightning-address' ),
@@ -208,6 +212,31 @@ class WCLL_Plugin {
 			array(
 				'ok'   => ! empty( $balance['ok'] ),
 				'sats' => isset( $balance['sats'] ) ? (int) $balance['sats'] : 0,
+			)
+		);
+	}
+
+	/**
+	 * Return the wallet's current NWC connection string (with secret) to the
+	 * authenticated administrator who requested it.
+	 *
+	 * SECURITY: the secret is returned ONLY here, only to a manage_woocommerce
+	 * user with a valid nonce, only on an explicit click — it is never pre-rendered
+	 * into the page, localized to the browser, logged, or stored in order data.
+	 * Caching is suppressed so no proxy retains the response.
+	 */
+	public static function ajax_nwc_connection() {
+		self::verify_nwc_admin();
+		$settings = WCLL_Gateway::get_gateway_settings();
+		$uri      = WCLL_NWC_Manager::current_connection_uri( $settings );
+		if ( '' === trim( $uri ) ) {
+			wp_send_json_error( array( 'message' => __( 'No NWC wallet is configured yet.', 'lawallet-lightning-address' ) ), 404 );
+		}
+		nocache_headers();
+		wp_send_json_success(
+			array(
+				'uri'  => $uri,
+				'mode' => WCLL_NWC_Manager::mode( $settings ),
 			)
 		);
 	}

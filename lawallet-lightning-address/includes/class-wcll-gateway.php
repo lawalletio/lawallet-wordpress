@@ -857,6 +857,18 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<button type="button" class="button-link wcll-nwc-refresh" data-wcll-nwc-refresh aria-label="' . esc_attr__( 'Refresh balance', 'lawallet-lightning-address' ) . '"><span class="dashicons dashicons-update" aria-hidden="true"></span></button>';
 		echo '</div>';
 
+		// Connection-string reveal. The string carries the wallet secret, so it is
+		// never rendered into the page: the textarea starts empty and is filled by
+		// an authenticated AJAX request only when the admin clicks "Show".
+		echo '<p class="wcll-nwc-connection">';
+		echo '<button type="button" class="button" data-wcll-nwc-show-connection>' . esc_html__( 'Show connection string', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<span class="description">' . esc_html__( 'Reveal this wallet\'s connection string to import it into another app. It contains the wallet secret — anyone who has it can spend the funds, so keep it private.', 'lawallet-lightning-address' ) . '</span>';
+		echo '</p>';
+		echo '<div class="wcll-nwc-connection-box" data-wcll-nwc-connection-box hidden>';
+		echo '<textarea readonly rows="3" class="large-text code wcll-nwc-connection-text" data-wcll-nwc-connection-text aria-label="' . esc_attr__( 'NWC connection string', 'lawallet-lightning-address' ) . '"></textarea>';
+		echo '<button type="button" class="button" data-wcll-nwc-connection-copy>' . esc_html__( 'Copy', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
+
 		echo '<div class="wcll-nwc-actions">';
 		echo '<button type="button" class="button" data-wcll-nwc-tab="receive">' . esc_html__( 'Receive', 'lawallet-lightning-address' ) . '</button> ';
 		echo '<button type="button" class="button" data-wcll-nwc-tab="withdraw">' . esc_html__( 'Withdraw', 'lawallet-lightning-address' ) . '</button>';

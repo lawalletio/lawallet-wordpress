@@ -69,6 +69,27 @@ class WCLL_NWC_Manager {
 		delete_option( self::PERMANENT_OPTION );
 	}
 
+	/**
+	 * The full nostr+walletconnect:// connection string for the wallet currently
+	 * in use — the permanent connection in permanent mode, or the active
+	 * disposable wallet otherwise. Returns '' when nothing is configured.
+	 *
+	 * SECURITY: the returned string INCLUDES THE SECRET and grants full spend
+	 * access to the wallet. It must only ever be handed to an authenticated
+	 * administrator on explicit request (capability + nonce). Never log it, store
+	 * it in order data, or embed it in rendered page output.
+	 */
+	public static function current_connection_uri( array $settings ) {
+		if ( ! self::is_enabled( $settings ) ) {
+			return '';
+		}
+		if ( 'permanent' === self::mode( $settings ) ) {
+			return (string) self::permanent_connection();
+		}
+		$active = self::get_active_connection();
+		return ! empty( $active['uri'] ) ? (string) $active['uri'] : '';
+	}
+
 	public static function auto_replace( array $settings ) {
 		// Only meaningful in disposable mode; a permanent string is never replaced.
 		return 'disposable' === self::mode( $settings )
