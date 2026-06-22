@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.4
+Stable tag: 0.4.5
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.5 =
+* Fix the LUD-21 status check beside the Lightning Address field: it now confirms the generated invoice actually returns a `verify` URL, instead of reporting LUD-21 as supported for any address that can create an invoice.
 
 = 0.4.4 =
 * Show the compatible-wallets list directly on the Lightning Address tab (above the connection status) instead of behind a button and modal.

@@ -147,9 +147,25 @@ class WCLL_Plugin {
 						'use_nostr'   => false,
 					)
 				);
-				$lud21 = is_wp_error( $invoice )
-					? array( 'ok' => false, 'message' => $invoice->get_error_message() )
-					: array( 'ok' => true, 'message' => __( 'LUD-21 settlement verification supported.', 'lawallet-lightning-address' ) );
+				// LUD-21 is only supported when the callback actually returns a
+				// `verify` URL on the generated invoice — creating an invoice alone
+				// is not enough.
+				if ( is_wp_error( $invoice ) ) {
+					$lud21 = array(
+						'ok'      => false,
+						'message' => $invoice->get_error_message(),
+					);
+				} elseif ( empty( $invoice['verify'] ) ) {
+					$lud21 = array(
+						'ok'      => false,
+						'message' => __( 'This Lightning Address does not support LUD-21 verification (no verify URL).', 'lawallet-lightning-address' ),
+					);
+				} else {
+					$lud21 = array(
+						'ok'      => true,
+						'message' => __( 'LUD-21 settlement verification supported.', 'lawallet-lightning-address' ),
+					);
+				}
 			}
 
 			$nostr_pubkey = isset( $pay_request['nostrPubkey'] ) ? (string) $pay_request['nostrPubkey'] : '';

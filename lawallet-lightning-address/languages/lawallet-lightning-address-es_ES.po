@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Accept Bitcoin with your Lightning Address 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-lightning-address\n"
-"POT-Creation-Date: 2026-06-22T15:31:12+00:00\n"
+"POT-Creation-Date: 2026-06-22T15:35:38+00:00\n"
 "PO-Revision-Date: 2026-06-12T01:00:00+00:00\n"
 "Last-Translator: LaWallet <hello@lawallet.io>\n"
 "Language-Team: Spanish\n"
@@ -714,7 +714,7 @@ msgstr "La Lightning Address es compatible con la verificación LUD-21."
 msgid "Lightning Address verified with LUD-21."
 msgstr "Lightning Address verificada con LUD-21."
 
-#: includes/class-wcll-gateway.php:660 includes/class-wcll-plugin.php:159
+#: includes/class-wcll-gateway.php:660 includes/class-wcll-plugin.php:175
 msgid "This Lightning Address does not advertise NIP-57 zap receipts."
 msgstr "Esta Lightning Address no anuncia recibos zap NIP-57."
 
@@ -820,7 +820,7 @@ msgstr "Monto (sats)"
 msgid "Generate invoice"
 msgstr "Generar factura"
 
-#: includes/class-wcll-gateway.php:759 includes/class-wcll-plugin.php:411
+#: includes/class-wcll-gateway.php:759 includes/class-wcll-plugin.php:427
 #: templates/payment-page.php:132
 msgid "Copy invoice"
 msgstr "Copiar factura"
@@ -1197,7 +1197,7 @@ msgstr "Enviando…"
 msgid "Generating…"
 msgstr "Generando…"
 
-#: includes/class-wcll-plugin.php:95 includes/class-wcll-plugin.php:412
+#: includes/class-wcll-plugin.php:95 includes/class-wcll-plugin.php:428
 msgid "Copied"
 msgstr "Copiado"
 
@@ -1205,11 +1205,11 @@ msgstr "Copiado"
 msgid "Payment sent."
 msgstr "Pago enviado."
 
-#: includes/class-wcll-plugin.php:97 includes/class-wcll-plugin.php:195
+#: includes/class-wcll-plugin.php:97 includes/class-wcll-plugin.php:211
 msgid "Enter an amount in sats."
 msgstr "Introduce un monto en sats."
 
-#: includes/class-wcll-plugin.php:98 includes/class-wcll-plugin.php:224
+#: includes/class-wcll-plugin.php:98 includes/class-wcll-plugin.php:240
 msgid "Enter a Lightning Address or BOLT11 invoice."
 msgstr "Introduce una Lightning Address o una factura BOLT11."
 
@@ -1221,53 +1221,60 @@ msgstr "No tienes permisos para verificar la Lightning Address."
 msgid "Lightning Address resolves (LUD-16)."
 msgstr "La Lightning Address se resuelve (LUD-16)."
 
-#: includes/class-wcll-plugin.php:152
+#: includes/class-wcll-plugin.php:161
+msgid ""
+"This Lightning Address does not support LUD-21 verification (no verify URL)."
+msgstr ""
+"Esta Lightning Address no admite la verificación LUD-21 (sin URL de "
+"verificación)."
+
+#: includes/class-wcll-plugin.php:166
 msgid "LUD-21 settlement verification supported."
 msgstr "Verificación de liquidación LUD-21 admitida."
 
-#: includes/class-wcll-plugin.php:157
+#: includes/class-wcll-plugin.php:173
 msgid "NIP-57 zap receipts supported."
 msgstr "Recibos zap NIP-57 admitidos."
 
-#: includes/class-wcll-plugin.php:175
+#: includes/class-wcll-plugin.php:191
 msgid "You are not allowed to manage the NWC wallet."
 msgstr "No tienes permiso para gestionar la billetera NWC."
 
-#: includes/class-wcll-plugin.php:200 includes/class-wcll-plugin.php:230
+#: includes/class-wcll-plugin.php:216 includes/class-wcll-plugin.php:246
 msgid "The NWC wallet is not available."
 msgstr "La billetera NWC no está disponible."
 
 #. translators: %d: amount in sats.
-#: includes/class-wcll-plugin.php:204
+#: includes/class-wcll-plugin.php:220
 #, php-format
 msgid "Top up %d sats"
 msgstr "Recargar %d sats"
 
-#: includes/class-wcll-plugin.php:237
+#: includes/class-wcll-plugin.php:253
 msgid "Enter an amount in sats to send to a Lightning Address."
 msgstr "Introduce un monto en sats para enviar a una Lightning Address."
 
-#: includes/class-wcll-plugin.php:248
+#: includes/class-wcll-plugin.php:264
 msgid "NWC wallet withdrawal"
 msgstr "Retiro de la billetera NWC"
 
-#: includes/class-wcll-plugin.php:256
+#: includes/class-wcll-plugin.php:272
 msgid "The Lightning Address did not return an invoice."
 msgstr "La Lightning Address no devolvió una factura."
 
-#: includes/class-wcll-plugin.php:260
+#: includes/class-wcll-plugin.php:276
 msgid "Enter a valid Lightning Address or BOLT11 invoice."
 msgstr "Introduce una Lightning Address o factura BOLT11 válida."
 
-#: includes/class-wcll-plugin.php:323
+#: includes/class-wcll-plugin.php:339
 msgid "Settings"
 msgstr "Ajustes"
 
-#: includes/class-wcll-plugin.php:334
+#: includes/class-wcll-plugin.php:350
 msgid "Every minute"
 msgstr "Cada minuto"
 
-#: includes/class-wcll-plugin.php:359
+#: includes/class-wcll-plugin.php:375
 msgid ""
 "Accept Bitcoin with your Lightning Address needs WooCommerce active for "
 "checkout payments. Lightning Address discovery can still be configured from "
@@ -1277,7 +1284,7 @@ msgstr ""
 "los pagos en el checkout. El descubrimiento de Lightning Address se puede "
 "configurar igualmente desde Ajustes -> LaWallet."
 
-#: includes/class-wcll-plugin.php:367
+#: includes/class-wcll-plugin.php:383
 msgid ""
 "Lightning payments need a merchant Lightning Address before checkout can "
 "accept payments."
@@ -1285,51 +1292,51 @@ msgstr ""
 "Los pagos Lightning necesitan una Lightning Address de comerciante antes de "
 "que el checkout pueda aceptar pagos."
 
-#: includes/class-wcll-plugin.php:368
+#: includes/class-wcll-plugin.php:384
 msgid "Set Lightning Address"
 msgstr "Configurar Lightning Address"
 
-#: includes/class-wcll-plugin.php:381
+#: includes/class-wcll-plugin.php:397
 msgid "Lightning invoice is not available for this order."
 msgstr "La factura Lightning no está disponible para este pedido."
 
-#: includes/class-wcll-plugin.php:407 templates/payment-page.php:90
+#: includes/class-wcll-plugin.php:423 templates/payment-page.php:90
 msgid "Waiting for payment"
 msgstr "Esperando el pago"
 
-#: includes/class-wcll-plugin.php:408
+#: includes/class-wcll-plugin.php:424
 msgid "Checking settlement"
 msgstr "Comprobando la liquidación"
 
-#: includes/class-wcll-plugin.php:409
+#: includes/class-wcll-plugin.php:425
 msgid "Payment received"
 msgstr "Pago recibido"
 
-#: includes/class-wcll-plugin.php:410
+#: includes/class-wcll-plugin.php:426
 msgid "Invoice expired"
 msgstr "Factura expirada"
 
-#: includes/class-wcll-plugin.php:413 templates/payment-page.php:126
+#: includes/class-wcll-plugin.php:429 templates/payment-page.php:126
 msgid "Pay with WebLN"
 msgstr "Pagar con WebLN"
 
-#: includes/class-wcll-plugin.php:414
+#: includes/class-wcll-plugin.php:430
 msgid "Opening WebLN"
 msgstr "Abriendo WebLN"
 
-#: includes/class-wcll-plugin.php:415
+#: includes/class-wcll-plugin.php:431
 msgid "Checking payment"
 msgstr "Comprobando el pago"
 
-#: includes/class-wcll-plugin.php:452
+#: includes/class-wcll-plugin.php:468
 msgid "Invalid order."
 msgstr "Pedido no válido."
 
-#: includes/class-wcll-plugin.php:456
+#: includes/class-wcll-plugin.php:472
 msgid "Invalid payment session."
 msgstr "Sesión de pago no válida."
 
-#: includes/class-wcll-plugin.php:596
+#: includes/class-wcll-plugin.php:612
 msgid ""
 "This invoice has no LUD-21 verify URL or NIP-57 relays to confirm "
 "settlement."
@@ -1337,15 +1344,15 @@ msgstr ""
 "Esta factura no tiene una URL de verificación LUD-21 ni relays NIP-57 para "
 "confirmar la liquidación."
 
-#: includes/class-wcll-plugin.php:612
+#: includes/class-wcll-plugin.php:628
 msgid "This NWC order has no payment hash to verify."
 msgstr "Este pedido NWC no tiene un hash de pago para verificar."
 
-#: includes/class-wcll-plugin.php:672
+#: includes/class-wcll-plugin.php:688
 msgid "NWC proxy: reached the maximum number of forwarding attempts."
 msgstr "Proxy NWC: se alcanzó el número máximo de intentos de reenvío."
 
-#: includes/class-wcll-plugin.php:682
+#: includes/class-wcll-plugin.php:698
 msgid ""
 "NWC proxy: the order amount is too small to forward after the routing "
 "reserve. Forward the funds to your Lightning Address manually."
@@ -1353,7 +1360,7 @@ msgstr ""
 "Proxy NWC: el monto del pedido es demasiado pequeño para reenviar tras la "
 "reserva de ruteo. Reenvía los fondos a tu Lightning Address manualmente."
 
-#: includes/class-wcll-plugin.php:704
+#: includes/class-wcll-plugin.php:720
 msgid ""
 "NWC proxy: the forward amount is outside the Lightning Address limits. "
 "Forward the funds to your Lightning Address manually."
@@ -1361,12 +1368,12 @@ msgstr ""
 "Proxy NWC: el monto a reenviar está fuera de los límites de la Lightning "
 "Address. Reenvía los fondos a tu Lightning Address manualmente."
 
-#: includes/class-wcll-plugin.php:719
+#: includes/class-wcll-plugin.php:735
 msgid "The Lightning Address did not return a forward invoice."
 msgstr "La Lightning Address no devolvió una factura de reenvío."
 
 #. translators: 1: forwarded amount in sats, 2: reserve kept in sats.
-#: includes/class-wcll-plugin.php:736
+#: includes/class-wcll-plugin.php:752
 #, php-format
 msgid ""
 "NWC proxy: forwarded %1$d sats to the merchant Lightning Address (kept %2$d "
@@ -1376,7 +1383,7 @@ msgstr ""
 "retuvieron %2$d sats de reserva para comisiones de ruteo)."
 
 #. translators: %s: last forwarding error message.
-#: includes/class-wcll-plugin.php:760
+#: includes/class-wcll-plugin.php:776
 #, php-format
 msgid ""
 "NWC proxy: could not forward the payment after several attempts (%s). The "
@@ -1387,26 +1394,26 @@ msgstr ""
 " están retenidos en la billetera proxy — reenvíalos a tu Lightning Address "
 "manualmente."
 
-#: includes/class-wcll-plugin.php:785
+#: includes/class-wcll-plugin.php:801
 msgid "Lightning payment verified via NIP-57 zap receipt."
 msgstr "Pago Lightning verificado mediante recibo zap NIP-57."
 
-#: includes/class-wcll-plugin.php:788
+#: includes/class-wcll-plugin.php:804
 msgid "Lightning payment verified through the NWC proxy wallet."
 msgstr "Pago Lightning verificado a través de la billetera proxy NWC."
 
-#: includes/class-wcll-plugin.php:790
+#: includes/class-wcll-plugin.php:806
 msgid "Lightning payment verified with LUD-21."
 msgstr "Pago Lightning verificado con LUD-21."
 
-#: includes/class-wcll-plugin.php:801
+#: includes/class-wcll-plugin.php:817
 msgid "Lightning invoice expired before settlement was confirmed."
 msgstr ""
 "La factura Lightning expiró antes de que se confirmara la liquidación."
 
 #. translators: %s: error message returned by the last settlement verification
 #. attempt.
-#: includes/class-wcll-plugin.php:804
+#: includes/class-wcll-plugin.php:820
 #, php-format
 msgid "Last verification error: %s"
 msgstr "Último error de verificación: %s"
