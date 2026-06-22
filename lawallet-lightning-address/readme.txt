@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.4.10
+Stable tag: 0.4.11
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -146,6 +146,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.4.11 =
+* Add a "Show" button to each proxy transaction that opens a detail view with the received (proxy) and sent (forward) invoice details: amounts, payment hash, preimages, and invoices.
 
 = 0.4.10 =
 * Attach a "Proxied from Woocommerce #<order>" comment (LUD-12) to forwarded NWC proxy payments, when the destination Lightning Address accepts comments.

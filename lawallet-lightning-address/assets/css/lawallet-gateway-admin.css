@@ -347,3 +347,34 @@
 .wcll-tx-pageinfo {
 	color: #50575e;
 }
+.wcll-txd-modal {
+	z-index: 100001;
+}
+.wcll-txd-body .wcll-txd-order {
+	margin: 0 28px 4px 0;
+	font-size: 18px;
+}
+.wcll-txd-section {
+	margin-top: 10px;
+}
+.wcll-txd-section h4 {
+	margin: 12px 0 6px;
+	font-size: 14px;
+}
+.wcll-txd-list {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 16px;
+	margin: 0;
+}
+.wcll-txd-list dt {
+	color: #50575e;
+	font-weight: 600;
+}
+.wcll-txd-list dd {
+	margin: 0;
+	word-break: break-all;
+}
+.wcll-txd-mono {
+	font-size: 12px;
+}

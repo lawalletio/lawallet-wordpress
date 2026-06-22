@@ -692,3 +692,86 @@
 		init();
 	}
 })(window.WCLLGatewayAdmin || {});
+
+// Transaction detail modal: "Show" opens the received + sent invoice details.
+(function (config) {
+	function init() {
+		var nwc = config && config.nwc;
+		var modal = document.querySelector('[data-wcll-txd-modal]');
+		if (!nwc || !modal) {
+			return;
+		}
+		var body = modal.querySelector('[data-wcll-txd-body]');
+		var i18n = nwc.i18n || {};
+		var loading = false;
+
+		function open() {
+			modal.hidden = false;
+			document.body.classList.add('wcll-tx-open');
+		}
+		function close() {
+			modal.hidden = true;
+			document.body.classList.remove('wcll-tx-open');
+		}
+
+		document.addEventListener('click', function (event) {
+			var btn = event.target && event.target.closest ? event.target.closest('[data-wcll-tx-show]') : null;
+			if (!btn) {
+				return;
+			}
+			event.preventDefault();
+			var orderId = btn.getAttribute('data-wcll-tx-show');
+			if (!orderId || loading) {
+				return;
+			}
+			loading = true;
+			if (body) {
+				body.textContent = i18n.txLoading || '…';
+			}
+			open();
+			var b = new URLSearchParams();
+			b.set('action', 'wcll_nwc_transaction');
+			b.set('nonce', nwc.nonce);
+			b.set('order_id', orderId);
+			window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: b.toString()
+			}).then(function (response) {
+				return response.json();
+			}).then(function (res) {
+				loading = false;
+				var d = (res && res.data) || {};
+				if (res && res.success && body) {
+					body.innerHTML = d.html || '';
+				} else if (body) {
+					body.textContent = d.message || '';
+				}
+			}).catch(function () {
+				loading = false;
+				if (body) {
+					body.textContent = '';
+				}
+			});
+		});
+
+		modal.querySelectorAll('[data-wcll-txd-close]').forEach(function (el) {
+			el.addEventListener('click', function (event) {
+				event.preventDefault();
+				close();
+			});
+		});
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape' && !modal.hidden) {
+				close();
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})(window.WCLLGatewayAdmin || {});

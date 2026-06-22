@@ -755,7 +755,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			__( 'Amount', 'lawallet-lightning-address' ),
 			__( 'Received', 'lawallet-lightning-address' ),
 			__( 'Forwarded', 'lawallet-lightning-address' ),
-			__( 'Proof', 'lawallet-lightning-address' ),
+			__( 'Details', 'lawallet-lightning-address' ),
 		);
 		$head = '<thead><tr>';
 		foreach ( $cols as $col ) {
@@ -809,6 +809,14 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<span class="wcll-tx-pageinfo" data-wcll-tx-pageinfo></span> ';
 		echo '<button type="button" class="button" data-wcll-tx-next>' . esc_html__( 'Next', 'lawallet-lightning-address' ) . '</button>';
 		echo '</div>';
+		echo '</div></div>';
+
+		// Single-transaction detail modal (received + sent); body filled by AJAX.
+		echo '<div class="wcll-txd-modal wcll-tx-modal" data-wcll-txd-modal hidden>';
+		echo '<div class="wcll-tx-backdrop" data-wcll-txd-close></div>';
+		echo '<div class="wcll-tx-dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Transaction details', 'lawallet-lightning-address' ) . '">';
+		echo '<button type="button" class="wcll-tx-close" data-wcll-txd-close aria-label="' . esc_attr__( 'Close', 'lawallet-lightning-address' ) . '">&times;</button>';
+		echo '<div class="wcll-txd-body" data-wcll-txd-body></div>';
 		echo '</div></div>';
 
 		echo '</div>';

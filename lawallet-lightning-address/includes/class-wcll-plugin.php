@@ -38,6 +38,7 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
 		add_action( 'wp_ajax_wcll_nwc_regenerate', array( __CLASS__, 'ajax_nwc_regenerate' ) );
 		add_action( 'wp_ajax_wcll_nwc_transactions', array( __CLASS__, 'ajax_nwc_transactions' ) );
+		add_action( 'wp_ajax_wcll_nwc_transaction', array( __CLASS__, 'ajax_nwc_transaction' ) );
 	}
 
 	public static function load_textdomain() {
@@ -386,6 +387,7 @@ class WCLL_Plugin {
 		$date = $order->get_date_created();
 
 		return array(
+			'order_id' => $order->get_id(),
 			'order'    => $order->get_order_number(),
 			'url'      => $order->get_edit_order_url(),
 			'date'     => $date ? wc_format_datetime( $date ) : '',
@@ -393,7 +395,6 @@ class WCLL_Plugin {
 			'received' => $received,
 			'forward'  => $forward,
 			'dest'     => (string) $order->get_meta( '_wcll_lightning_address', true ),
-			'preimage' => (string) $order->get_meta( '_wcll_nwc_forward_preimage', true ),
 		);
 	}
 
@@ -441,12 +442,7 @@ class WCLL_Plugin {
 			? '<span class="wcll-tx-status is-received">' . esc_html__( 'Received', 'lawallet-lightning-address' ) . '</span>'
 			: '<span class="wcll-tx-status is-unpaid">' . esc_html__( 'Awaiting payment', 'lawallet-lightning-address' ) . '</span>';
 
-		if ( ! empty( $row['preimage'] ) ) {
-			$proof = '<code class="wcll-tx-proof" title="' . esc_attr( $row['preimage'] ) . '">' . esc_html( substr( $row['preimage'], 0, 12 ) . '…' ) . '</code>'
-				. ' <button type="button" class="button-link wcll-tx-copy" data-wcll-tx-copy="' . esc_attr( $row['preimage'] ) . '">' . esc_html__( 'Copy', 'lawallet-lightning-address' ) . '</button>';
-		} else {
-			$proof = '<span aria-hidden="true">&mdash;</span>';
-		}
+		$show_cell = '<button type="button" class="button button-small wcll-tx-show" data-wcll-tx-show="' . esc_attr( (int) $row['order_id'] ) . '">' . esc_html__( 'Show', 'lawallet-lightning-address' ) . '</button>';
 
 		$order_cell = ! empty( $row['url'] )
 			? '<a href="' . esc_url( $row['url'] ) . '">#' . esc_html( $row['order'] ) . '</a>'
@@ -458,8 +454,95 @@ class WCLL_Plugin {
 		$html .= '<td>' . esc_html( number_format_i18n( (int) $row['amount'] ) ) . ' ' . esc_html__( 'sats', 'lawallet-lightning-address' ) . '</td>';
 		$html .= '<td>' . $received_cell . '</td>';
 		$html .= '<td>' . $forward_cell . '</td>';
-		$html .= '<td>' . $proof . '</td>';
+		$html .= '<td>' . $show_cell . '</td>';
 		$html .= '</tr>';
+		return $html;
+	}
+
+	public static function ajax_nwc_transaction() {
+		self::verify_nwc_admin();
+		$order_id = isset( $_POST['order_id'] ) ? absint( wp_unslash( $_POST['order_id'] ) ) : 0;
+		$order    = $order_id ? wc_get_order( $order_id ) : null;
+		if ( ! $order || 'nwc' !== (string) $order->get_meta( '_wcll_settlement_method', true ) ) {
+			wp_send_json_error( array( 'message' => __( 'Transaction not found.', 'lawallet-lightning-address' ) ) );
+		}
+		wp_send_json_success( array( 'html' => self::nwc_transaction_detail_html( $order ) ) );
+	}
+
+	private static function txd_field( $label, $value_html ) {
+		return '<dt>' . esc_html( $label ) . '</dt><dd>' . $value_html . '</dd>';
+	}
+
+	private static function txd_sats( $msat ) {
+		return esc_html( number_format_i18n( (int) round( (int) $msat / 1000 ) ) ) . ' ' . esc_html__( 'sats', 'lawallet-lightning-address' );
+	}
+
+	private static function txd_mono( $value ) {
+		if ( '' === $value ) {
+			return '<span aria-hidden="true">&mdash;</span>';
+		}
+		$short = strlen( $value ) > 28 ? substr( $value, 0, 18 ) . '…' : $value;
+		return '<code class="wcll-txd-mono" title="' . esc_attr( $value ) . '">' . esc_html( $short ) . '</code> '
+			. '<button type="button" class="button-link wcll-tx-copy" data-wcll-tx-copy="' . esc_attr( $value ) . '">' . esc_html__( 'Copy', 'lawallet-lightning-address' ) . '</button>';
+	}
+
+	/**
+	 * Fully-escaped detail view for one NWC transaction: the received (proxy)
+	 * invoice and the sent (forward) invoice.
+	 */
+	public static function nwc_transaction_detail_html( WC_Order $order ) {
+		$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
+		$reserve     = max( (int) round( $amount_msat * 0.01 ), 10000 );
+		$forward     = max( 0, $amount_msat - $reserve );
+		$received    = $order->is_paid();
+		$forwarded   = (string) $order->get_meta( '_wcll_nwc_forwarded', true );
+		$fwd_pending = 'yes' === (string) $order->get_meta( '_wcll_nwc_forward_pending', true );
+
+		if ( 'yes' === $forwarded ) {
+			$fwd_state = 'forwarded';
+			$fwd_label = __( 'Forwarded', 'lawallet-lightning-address' );
+		} elseif ( 'failed' === $forwarded ) {
+			$fwd_state = 'failed';
+			$fwd_label = __( 'Failed', 'lawallet-lightning-address' );
+		} elseif ( $received && $fwd_pending ) {
+			$fwd_state = 'pending';
+			$fwd_label = __( 'Pending', 'lawallet-lightning-address' );
+		} else {
+			$fwd_state = 'none';
+			$fwd_label = __( 'Not forwarded', 'lawallet-lightning-address' );
+		}
+
+		$date = $order->get_date_created();
+
+		$html  = '<div class="wcll-txd">';
+		/* translators: 1: order number, 2: order date. */
+		$html .= '<h3 class="wcll-txd-order">' . esc_html( sprintf( __( 'Order #%1$s — %2$s', 'lawallet-lightning-address' ), $order->get_order_number(), $date ? wc_format_datetime( $date ) : '' ) ) . '</h3>';
+
+		$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Received (proxy wallet)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
+		$html .= self::txd_field(
+			__( 'Status', 'lawallet-lightning-address' ),
+			$received
+				? '<span class="wcll-tx-status is-received">' . esc_html__( 'Received', 'lawallet-lightning-address' ) . '</span>'
+				: '<span class="wcll-tx-status is-unpaid">' . esc_html__( 'Awaiting payment', 'lawallet-lightning-address' ) . '</span>'
+		);
+		$html .= self::txd_field( __( 'Amount', 'lawallet-lightning-address' ), self::txd_sats( $amount_msat ) );
+		$html .= self::txd_field( __( 'Payment hash', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_payment_hash', true ) ) );
+		$html .= self::txd_field( __( 'Preimage', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_preimage', true ) ) );
+		$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_invoice', true ) ) );
+		$html .= '</dl></div>';
+
+		$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Sent (forward)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
+		$html .= self::txd_field( __( 'Status', 'lawallet-lightning-address' ), '<span class="wcll-tx-status is-' . esc_attr( $fwd_state ) . '">' . esc_html( $fwd_label ) . '</span>' );
+		$html .= self::txd_field( __( 'To', 'lawallet-lightning-address' ), esc_html( (string) $order->get_meta( '_wcll_lightning_address', true ) ) );
+		$html .= self::txd_field( __( 'Amount', 'lawallet-lightning-address' ), self::txd_sats( $forward ) );
+		$html .= self::txd_field( __( 'Reserve kept', 'lawallet-lightning-address' ), self::txd_sats( $reserve ) );
+		/* translators: %s: routing fee in millisatoshis. */
+		$html .= self::txd_field( __( 'Routing fee', 'lawallet-lightning-address' ), esc_html( sprintf( __( '%s msat', 'lawallet-lightning-address' ), number_format_i18n( (int) $order->get_meta( '_wcll_nwc_forward_fees', true ) ) ) ) );
+		$html .= self::txd_field( __( 'Preimage', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_preimage', true ) ) );
+		$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_invoice', true ) ) );
+		$html .= '</dl></div>';
+
+		$html .= '</div>';
 		return $html;
 	}
 
@@ -918,6 +1001,7 @@ class WCLL_Plugin {
 			$order->update_meta_data( '_wcll_nwc_forwarded', 'yes' );
 			$order->update_meta_data( '_wcll_nwc_forward_preimage', sanitize_text_field( $payment['preimage'] ) );
 			$order->update_meta_data( '_wcll_nwc_forward_fees', (int) $payment['fees_paid'] );
+			$order->update_meta_data( '_wcll_nwc_forward_invoice', sanitize_text_field( $forward_invoice['pr'] ) );
 			$order->delete_meta_data( '_wcll_nwc_forward_pending' );
 			$order->save();
 
