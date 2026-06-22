@@ -293,11 +293,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			echo $this->generate_settings_html( $group, false );
 			echo '</table>';
 			if ( 'address' === $id ) {
-				echo '<p class="wcll-wallets-actions"><button type="button" class="button wcll-wallets-trigger" data-wcll-wallets-open aria-haspopup="dialog">'
-					. esc_html__( 'See compatible wallets', 'lawallet-lightning-address' )
-					. '</button> <span class="description">'
-					. esc_html__( 'Customers can pay from any wallet that gives them a Lightning Address.', 'lawallet-lightning-address' )
-					. '</span></p>';
+				$this->render_compatible_wallets();
 			}
 			if ( 'nwc' === $id ) {
 				$this->render_nwc_wallet_panel();
@@ -308,7 +304,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '</div>';
 
 		$this->render_connection_status();
-		$this->render_wallets_modal();
 	}
 
 	public function process_admin_options() {
@@ -777,14 +772,11 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '</div>';
 	}
 
-	private function render_wallets_modal() {
+	private function render_compatible_wallets() {
 		$wallets = self::compatible_wallets();
 
-		echo '<div class="wcll-wallets-modal" data-wcll-wallets-modal hidden>';
-		echo '<div class="wcll-wallets-backdrop" data-wcll-wallets-close></div>';
-		echo '<div class="wcll-wallets-dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Compatible Lightning wallets', 'lawallet-lightning-address' ) . '">';
-		echo '<button type="button" class="wcll-wallets-close" data-wcll-wallets-close aria-label="' . esc_attr__( 'Close', 'lawallet-lightning-address' ) . '">&times;</button>';
-		echo '<h2 class="wcll-wallets-title">' . esc_html__( 'Compatible wallets', 'lawallet-lightning-address' ) . '</h2>';
+		echo '<div class="wcll-wallets">';
+		echo '<h3 class="wcll-wallets-title">' . esc_html__( 'Compatible wallets', 'lawallet-lightning-address' ) . '</h3>';
 		echo '<p class="wcll-wallets-lead">' . esc_html__( 'This plugin works with every Lightning Address. Customers can pay from any of these popular wallets, or any other wallet that gives them a Lightning Address.', 'lawallet-lightning-address' ) . '</p>';
 		echo '<ul class="wcll-wallets-grid">';
 		foreach ( $wallets as $wallet ) {
@@ -805,7 +797,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '</ul>';
 		echo '<p class="wcll-wallets-foot">' . esc_html__( 'These are popular examples. See the full list of compatible wallets and services at', 'lawallet-lightning-address' )
 			. ' <a href="' . esc_url( 'https://lightningaddress.com/' ) . '" target="_blank" rel="noopener noreferrer">lightningaddress.com</a>.</p>';
-		echo '</div>';
 		echo '</div>';
 	}
 }

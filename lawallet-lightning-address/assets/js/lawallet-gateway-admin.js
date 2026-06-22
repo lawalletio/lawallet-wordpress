@@ -244,57 +244,6 @@
 	}
 })();
 
-// Compatible-wallets modal: open from the Lightning Address tab.
-(function () {
-	function init() {
-		var modal = document.querySelector('[data-wcll-wallets-modal]');
-		var openers = Array.prototype.slice.call(document.querySelectorAll('[data-wcll-wallets-open]'));
-		if (!modal || !openers.length) {
-			return;
-		}
-
-		function open() {
-			modal.hidden = false;
-			document.body.classList.add('wcll-wallets-open');
-			var close = modal.querySelector('.wcll-wallets-close');
-			if (close) {
-				close.focus();
-			}
-		}
-
-		function close() {
-			modal.hidden = true;
-			document.body.classList.remove('wcll-wallets-open');
-		}
-
-		openers.forEach(function (btn) {
-			btn.addEventListener('click', function (event) {
-				event.preventDefault();
-				open();
-			});
-		});
-
-		modal.querySelectorAll('[data-wcll-wallets-close]').forEach(function (el) {
-			el.addEventListener('click', function (event) {
-				event.preventDefault();
-				close();
-			});
-		});
-
-		document.addEventListener('keydown', function (event) {
-			if (event.key === 'Escape' && !modal.hidden) {
-				close();
-			}
-		});
-	}
-
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', init);
-	} else {
-		init();
-	}
-})();
-
 // NWC proxy wallet panel: live balance + receive + withdraw (all signing is
 // server-side; the browser only subscribes to NIP-47 notifications).
 (function (config) {
