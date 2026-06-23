@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -14,13 +14,13 @@ Connect payments with most popular Lightning wallets without registration or cre
 
 **Accept Bitcoin with your Lightning Address** combines two Lightning features in one plugin:
 
-1. **WooCommerce Lightning payments.** A checkout gateway with two settlement methods you choose
+1. **WooCommerce Lightning payments.** A checkout gateway with three receiver modes you choose
    between: pay directly to your merchant Lightning Address (LNURL-pay, verified server-side with
-   LUD-21 or NIP-57 zap receipts), or receive into a Nostr Wallet Connect (NWC, NIP-47) wallet you
-   control. It optionally detects payment faster in the browser via NIP-57 zap receipts and WebLN,
-   and converts fiat order totals to sats using Yadio exchange rates. In NWC mode, funds stay in the
-   wallet unless you enable an optional toggle to forward each settled payment on to your Lightning
-   Address.
+   LUD-21 or NIP-57 zap receipts); pay through a managed NWC proxy wallet that forwards to your
+   Lightning Address (for addresses that confirm neither LUD-21 nor NIP-57); or receive straight into
+   your own Nostr Wallet Connect (NWC, NIP-47) wallet. It optionally detects payment faster in the
+   browser via NIP-57 zap receipts and WebLN, and converts fiat order totals to sats using Yadio
+   exchange rates.
 2. **Lightning Address / NIP-05 discovery.** Keeps your root domain on WordPress while a separate
    [LaWallet](https://lawallet.io) instance serves wallet discovery: the plugin registers rewrite
    rules for the relevant `/.well-known/` routes and redirects them (HTTP 307) to the LaWallet
@@ -93,15 +93,16 @@ request data is exchanged. Relays are operated by third parties chosen by your w
 
 = NWC wallet (optional) =
 
-If you choose NWC (Nostr Wallet Connect, NIP-47) as the settlement method, the plugin connects to the
-Nostr relays in the wallet connection string to invoice that wallet and confirm the payment. Payments
-stay in the NWC wallet unless you enable the optional "Forward to Lightning Address" toggle, in which
-case each settled payment is also forwarded to your Lightning Address minus a small routing reserve.
-Encrypted requests/responses (make/lookup/pay invoice) are exchanged with the wallet through those
-relays. The relays are third parties carried in the connection string; the wallet connection secret is
-stored on your server and is never sent to the browser.
+If you choose an NWC (Nostr Wallet Connect, NIP-47) receiver mode, the plugin connects to the Nostr
+relays in the wallet connection string to invoice that wallet and confirm the payment. In "NWC" mode
+the payment stays in your own wallet (you paste its connection string in the Receiver section). In
+"Lightning Address via NWC Proxy" mode a managed proxy wallet receives the payment and the plugin
+forwards it to your Lightning Address minus a small routing reserve. Encrypted requests/responses
+(make/lookup/pay invoice) are exchanged with the wallet through those relays. The relays are third
+parties carried in the connection string; the wallet connection secret is stored on your server and is
+never sent to the browser.
 
-In Disposable mode the plugin obtains a throwaway wallet connection from an lncurl service (a single
+For the proxy wallet, in Disposable mode the plugin obtains a throwaway wallet connection from an lncurl service (a single
 HTTP request returns a connection string; default https://lncurl.lol, configurable to any lncurl
 instance you trust) and requests a replacement when a wallet dies. Only the request to mint a wallet
 is sent to that service; the wallet you receive is custodial at whichever provider the lncurl service
@@ -129,18 +130,19 @@ Only for payments. Lightning Address / NIP-05 discovery works without WooCommerc
 
 No. In Lightning Address mode the payment goes directly to your own address (confirmed via LUD-21 or
 NIP-57); the plugin only requests invoices and verifies settlement. In NWC mode the payment lands in
-a wallet you control and stays there, unless you enable forwarding to your Lightning Address — the
-plugin never holds your keys or funds.
+your own wallet and stays there. In NWC Proxy mode it lands in a managed wallet and is forwarded on to
+your Lightning Address. Either way the plugin never holds your keys or funds.
 
 = My wallet does not support LUD-21, can I still use this? =
 
 Yes. If your Lightning Address supports NIP-57 zap receipts, settlement is confirmed from the signed
-receipt instead. If it supports neither LUD-21 nor NIP-57, choose the NWC (Nostr Wallet Connect)
-settlement method: the plugin invoices an NWC wallet you control and confirms the payment over that
-connection, optionally forwarding each payment on to your Lightning Address (keeping a small reserve
-for routing fees). The NWC wallet can be a fixed connection you provide (Permanent mode) or one the
-plugin creates on demand from an lncurl service and replaces when it dies (Disposable mode). Orders
-are only ever marked paid when a payment is actually confirmed.
+receipt instead. If it supports neither LUD-21 nor NIP-57, choose the "Lightning Address via NWC
+Proxy" receiver mode: the plugin invoices a managed NWC wallet, confirms the payment over that
+connection, and forwards it on to your Lightning Address (keeping a small reserve for routing fees).
+The proxy wallet can be a fixed connection you provide (Permanent mode) or one the plugin creates on
+demand from an lncurl service and replaces when it dies (Disposable mode). Alternatively, choose "NWC"
+mode to receive straight into your own NWC wallet. Orders are only ever marked paid when a payment is
+actually confirmed.
 
 = Which currencies are supported? =
 
@@ -148,6 +150,13 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.6.0 =
+* New Receiver section with a single mode selector: **Lightning Address**, **Lightning Address via NWC Proxy**, or **NWC**. The page adapts to the chosen mode.
+* NWC mode lets you receive into your own NWC wallet by pasting a connection string, with a live balance shown in the Receiver section.
+* Lightning Address via NWC Proxy keeps the managed proxy wallet (Disposable or Permanent) on its own NWC Wallet tab, and forwards each payment to your Lightning Address.
+* When a Lightning Address can confirm neither LUD-21 nor NIP-57, an alert prompts you to switch to NWC Proxy mode.
+* Existing installs migrate automatically (the old proxy becomes NWC Proxy mode).
 
 = 0.5.0 =
 * Choose your settlement method explicitly: **Lightning Address** (paid directly, confirmed via LUD-21 or NIP-57) or **NWC wallet** (paid into a Nostr Wallet Connect wallet you control).

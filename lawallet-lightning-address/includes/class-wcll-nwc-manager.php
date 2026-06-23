@@ -24,31 +24,57 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 class WCLL_NWC_Manager {
-	const ACTIVE_OPTION     = 'wcll_nwc_active_connection';
-	const ARCHIVE_OPTION    = 'wcll_nwc_connection_archive';
-	const PERMANENT_OPTION  = 'wcll_nwc_permanent_connection';
-	const NOTICES_OPTION    = 'wcll_nwc_admin_notices';
-	const MINT_WINDOW       = 'wcll_nwc_mint_window';
-	const MINT_LOCK         = 'wcll_nwc_mint_lock';
-	const BALANCE_CACHE     = 'wcll_nwc_balance_cache';
-	const ARCHIVE_MAX       = 20;
-	const MINT_MAX_PER_HOUR = 12;
-	const BALANCE_TTL       = 120;
-	const DEFAULT_LNCURL    = 'https://lncurl.lol';
+	const ACTIVE_OPTION          = 'wcll_nwc_active_connection';
+	const ARCHIVE_OPTION         = 'wcll_nwc_connection_archive';
+	const PERMANENT_OPTION       = 'wcll_nwc_permanent_connection';
+	const RECEIVER_OPTION        = 'wcll_nwc_receiver_connection';
+	const NOTICES_OPTION         = 'wcll_nwc_admin_notices';
+	const MINT_WINDOW            = 'wcll_nwc_mint_window';
+	const MINT_LOCK              = 'wcll_nwc_mint_lock';
+	const BALANCE_CACHE          = 'wcll_nwc_balance_cache';
+	const RECEIVER_BALANCE_CACHE = 'wcll_nwc_receiver_balance_cache';
+	const ARCHIVE_MAX            = 20;
+	const MINT_MAX_PER_HOUR      = 12;
+	const BALANCE_TTL            = 120;
+	const DEFAULT_LNCURL         = 'https://lncurl.lol';
 
-	public static function is_enabled( array $settings ) {
+	/**
+	 * The selected settlement method: 'lightning_address', 'nwc_proxy' (receive on
+	 * a managed proxy wallet, then forward to the Lightning Address) or 'nwc'
+	 * (receive into the merchant's own NWC wallet, terminal).
+	 */
+	public static function settlement_method( array $settings ) {
 		$method = isset( $settings['settlement_method'] ) ? (string) $settings['settlement_method'] : 'lightning_address';
-		return 'nwc' === $method;
+		return in_array( $method, array( 'lightning_address', 'nwc_proxy', 'nwc' ), true ) ? $method : 'lightning_address';
+	}
+
+	/** Proxy mode: a managed wallet receives, then forwards to the Lightning Address. */
+	public static function is_proxy( array $settings ) {
+		return 'nwc_proxy' === self::settlement_method( $settings );
+	}
+
+	/** Terminal NWC mode: the merchant's own wallet receives and keeps the funds. */
+	public static function is_terminal( array $settings ) {
+		return 'nwc' === self::settlement_method( $settings );
+	}
+
+	/** Either NWC-based mode (proxy or terminal). */
+	public static function uses_nwc( array $settings ) {
+		return self::is_proxy( $settings ) || self::is_terminal( $settings );
 	}
 
 	/**
-	 * Whether settled NWC payments should be forwarded on to the merchant
-	 * Lightning Address. Only meaningful in NWC mode; off by default, in which
-	 * case the wallet is the terminal destination and funds stay in it.
+	 * "Enabled" historically meant "the managed proxy wallet is in use". It now maps
+	 * to proxy mode, so all the managed-wallet machinery (disposable provisioning,
+	 * active/archive connections, the wallet panel, liveness cron) gates on it.
 	 */
+	public static function is_enabled( array $settings ) {
+		return self::is_proxy( $settings );
+	}
+
+	/** Settled NWC payments are forwarded to the Lightning Address only in proxy mode. */
 	public static function forward_enabled( array $settings ) {
-		return self::is_enabled( $settings )
-			&& isset( $settings['nwc_forward_enabled'] ) && 'yes' === $settings['nwc_forward_enabled'];
+		return self::is_proxy( $settings );
 	}
 
 	public static function mode( array $settings ) {
@@ -78,6 +104,184 @@ class WCLL_NWC_Manager {
 
 	public static function clear_permanent_connection() {
 		delete_option( self::PERMANENT_OPTION );
+	}
+
+	/**
+	 * The merchant's own NWC connection string for terminal "NWC" mode. Stored in
+	 * its own dedicated autoload=no option, separate from the proxy wallet, so the
+	 * two modes never share or overwrite each other's wallet. Same secret-handling
+	 * rules as the permanent connection (never autoloaded, logged, or sent to the
+	 * browser).
+	 */
+	public static function receiver_connection() {
+		return (string) get_option( self::RECEIVER_OPTION, '' );
+	}
+
+	public static function set_receiver_connection( $uri ) {
+		update_option( self::RECEIVER_OPTION, (string) $uri, false );
+		delete_transient( self::RECEIVER_BALANCE_CACHE );
+	}
+
+	public static function clear_receiver_connection() {
+		delete_option( self::RECEIVER_OPTION );
+		delete_transient( self::RECEIVER_BALANCE_CACHE );
+	}
+
+	/**
+	 * Client for the terminal NWC wallet (the merchant's own wallet). Null outside
+	 * terminal mode; WP_Error if the connection string is missing/invalid.
+	 *
+	 * @return WCLL_NWC_Client|WP_Error|null
+	 */
+	public static function receiver_client( array $settings ) {
+		if ( ! self::is_terminal( $settings ) ) {
+			return null;
+		}
+		$uri = self::receiver_connection();
+		if ( '' === trim( $uri ) ) {
+			return new WP_Error( 'wcll_nwc_unconfigured', __( 'Set your NWC connection string.', 'lawallet-lightning-address' ) );
+		}
+		return WCLL_NWC_Client::from_uri( $uri );
+	}
+
+	/**
+	 * make_invoice on the terminal wallet for a new order. No disposable self-heal:
+	 * it is the merchant's own wallet, not a managed throwaway.
+	 *
+	 * @return array{client:WCLL_NWC_Client,invoice:array}|WP_Error
+	 */
+	public static function make_receiver_invoice( array $settings, $amount_msat, $description, $expiry_seconds ) {
+		$client = self::receiver_client( $settings );
+		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
+			return is_wp_error( $client ) ? $client : new WP_Error( 'wcll_nwc_unavailable', __( 'The NWC wallet is not available.', 'lawallet-lightning-address' ) );
+		}
+		$invoice = $client->make_invoice( $amount_msat, $description, $expiry_seconds );
+		if ( is_wp_error( $invoice ) ) {
+			return $invoice;
+		}
+		return array(
+			'client'  => $client,
+			'invoice' => $invoice,
+		);
+	}
+
+	/**
+	 * Cached balance of the terminal wallet for the Receiver panel.
+	 *
+	 * @return array{ok:bool,sats:int,checked_at:int}
+	 */
+	public static function receiver_balance( array $settings, $force = false ) {
+		if ( ! self::is_terminal( $settings ) ) {
+			return array(
+				'ok'         => false,
+				'sats'       => 0,
+				'checked_at' => 0,
+			);
+		}
+		if ( ! $force ) {
+			$cache = get_transient( self::RECEIVER_BALANCE_CACHE );
+			if ( is_array( $cache ) ) {
+				return $cache;
+			}
+		}
+		$client = self::receiver_client( $settings );
+		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
+			$result = array(
+				'ok'         => false,
+				'sats'       => 0,
+				'checked_at' => time(),
+			);
+			set_transient( self::RECEIVER_BALANCE_CACHE, $result, self::BALANCE_TTL );
+			return $result;
+		}
+		$balance = $client->get_balance();
+		if ( is_wp_error( $balance ) ) {
+			$result = array(
+				'ok'         => false,
+				'sats'       => 0,
+				'checked_at' => time(),
+			);
+		} else {
+			$msat   = isset( $balance['balance'] ) ? (int) $balance['balance'] : 0;
+			$result = array(
+				'ok'         => true,
+				'sats'       => (int) floor( $msat / 1000 ),
+				'checked_at' => time(),
+			);
+		}
+		set_transient( self::RECEIVER_BALANCE_CACHE, $result, self::BALANCE_TTL );
+		return $result;
+	}
+
+	/**
+	 * Probe the terminal wallet on settings save.
+	 *
+	 * @return array{ok:bool,balance_sats:?int,message:string}
+	 */
+	public static function receiver_probe( array $settings ) {
+		$client = self::receiver_client( $settings );
+		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
+			return array(
+				'ok'           => false,
+				'balance_sats' => null,
+				'message'      => is_wp_error( $client ) ? $client->get_error_message() : __( 'Set your NWC connection string.', 'lawallet-lightning-address' ),
+			);
+		}
+		$balance = $client->get_balance();
+		if ( is_wp_error( $balance ) ) {
+			return array(
+				'ok'           => false,
+				'balance_sats' => null,
+				'message'      => $balance->get_error_message(),
+			);
+		}
+		$sats = (int) floor( ( isset( $balance['balance'] ) ? (int) $balance['balance'] : 0 ) / 1000 );
+		set_transient(
+			self::RECEIVER_BALANCE_CACHE,
+			array(
+				'ok'         => true,
+				'sats'       => $sats,
+				'checked_at' => time(),
+			),
+			self::BALANCE_TTL
+		);
+		/* translators: %d: terminal wallet balance in sats. */
+		return array(
+			'ok'           => true,
+			'balance_sats' => $sats,
+			'message'      => sprintf( __( 'NWC wallet ready (balance %d sats); payments are settled there and stay in the wallet.', 'lawallet-lightning-address' ), $sats ),
+		);
+	}
+
+	/**
+	 * Public descriptor for the terminal wallet (pubkeys + relays, NEVER the
+	 * secret). Mirrors admin_wallet_info() for the Receiver panel.
+	 *
+	 * @return array{configured:bool,wallet_pubkey:string,client_pubkey:string,relays:string[]}
+	 */
+	public static function receiver_admin_info( array $settings ) {
+		$info = array(
+			'configured'    => false,
+			'wallet_pubkey' => '',
+			'client_pubkey' => '',
+			'relays'        => array(),
+		);
+		if ( ! self::is_terminal( $settings ) ) {
+			return $info;
+		}
+		$uri = self::receiver_connection();
+		if ( '' === trim( $uri ) ) {
+			return $info;
+		}
+		$parsed = WCLL_NWC_Client::parse_connection( $uri );
+		if ( is_wp_error( $parsed ) ) {
+			return $info;
+		}
+		$info['configured']    = true;
+		$info['wallet_pubkey'] = $parsed['wallet_pubkey'];
+		$info['client_pubkey'] = $parsed['client_pubkey'];
+		$info['relays']        = $parsed['relays'];
+		return $info;
 	}
 
 	/**
@@ -207,6 +411,15 @@ class WCLL_NWC_Manager {
 
 	private static function connection_uri_for_pubkey( array $settings, $pubkey ) {
 		$pubkey = strtolower( $pubkey );
+
+		// Terminal mode's own wallet first, then the proxy's permanent/active/archive.
+		$receiver = self::receiver_connection();
+		if ( '' !== trim( $receiver ) ) {
+			$parsed = WCLL_NWC_Client::parse_connection( $receiver );
+			if ( ! is_wp_error( $parsed ) && strtolower( $parsed['wallet_pubkey'] ) === $pubkey ) {
+				return $receiver;
+			}
+		}
 
 		$perm = self::permanent_connection();
 		if ( '' !== trim( $perm ) ) {
@@ -642,6 +855,24 @@ class WCLL_NWC_Manager {
 			$settings['settlement_method']   = $was_proxy ? 'nwc' : 'lightning_address';
 			$settings['nwc_forward_enabled'] = $was_proxy ? 'yes' : 'no';
 			$changed                         = true;
+		}
+
+		// Second migration (v0.6.0): split the 2-value method + forward toggle into
+		// the 3-mode selector. The presence of nwc_forward_enabled marks an install
+		// that predates the split; removing it makes this run exactly once.
+		if ( isset( $settings['nwc_forward_enabled'] ) ) {
+			if ( 'nwc' === ( isset( $settings['settlement_method'] ) ? $settings['settlement_method'] : '' ) ) {
+				$settings['settlement_method'] = 'yes' === $settings['nwc_forward_enabled'] ? 'nwc_proxy' : 'nwc';
+			}
+			unset( $settings['nwc_forward_enabled'] );
+			$changed = true;
+
+			// A pre-split terminal wallet was the proxy's permanent connection; move
+			// it to the dedicated terminal store so it keeps working. (No-op in
+			// practice: the split shipped before any terminal install existed.)
+			if ( 'nwc' === $settings['settlement_method'] && '' === self::receiver_connection() && '' !== self::permanent_connection() ) {
+				self::set_receiver_connection( self::permanent_connection() );
+			}
 		}
 
 		if ( $changed ) {

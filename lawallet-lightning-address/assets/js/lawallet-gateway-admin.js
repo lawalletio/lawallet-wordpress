@@ -53,6 +53,24 @@
 		}
 	}
 
+	// "Switch to NWC Proxy" alert: shown only in Lightning Address mode when the
+	// address resolves (LUD-16) but confirms neither LUD-21 nor NIP-57.
+	var modeSel = document.getElementById('woocommerce_wcll_gateway_settlement_method');
+	var alertEl = document.querySelector('[data-wcll-receiver-alert]');
+	var needsProxy = false;
+
+	function updateAlert() {
+		if (!alertEl) {
+			return;
+		}
+		var laMode = !modeSel || modeSel.value === 'lightning_address';
+		alertEl.hidden = !(laMode && needsProxy);
+	}
+
+	if (modeSel) {
+		modeSel.addEventListener('change', updateAlert);
+	}
+
 	function setBadge(key, state, message) {
 		var badge = badges[key];
 		if (!badge) {
@@ -109,13 +127,21 @@
 					applyResult('lud16', data.lud16);
 					applyResult('lud21', data.lud21);
 					applyResult('nip57', data.nip57);
+					needsProxy = !!(data.lud16 && data.lud16.ok)
+						&& !(data.lud21 && data.lud21.ok)
+						&& !(data.nip57 && data.nip57.ok);
+					updateAlert();
 				} else {
 					setAll('error', data.message || '');
+					needsProxy = false;
+					updateAlert();
 				}
 			})
 			.catch(function () {
 				if (currentRequest === requestId) {
 					setAll('error', '');
+					needsProxy = false;
+					updateAlert();
 				}
 			});
 	}
@@ -130,6 +156,8 @@
 		var value = input.value.trim();
 		if (!isValid(value)) {
 			setAll('pending', i18n.pending || '');
+			needsProxy = false;
+			updateAlert();
 			return;
 		}
 		setAll('loading', i18n.checking || '');
@@ -199,8 +227,9 @@
 	}
 })();
 
-// Reveal the NWC wallet fields only when the settlement method is "NWC", and
-// within that only the fields relevant to the selected wallet mode.
+// Receiver mode drives the whole admin UI: which Receiver-tab fields show, the
+// terminal-NWC balance panel, the compatible-wallets list, and whether the
+// proxy-only "NWC Wallet" tab is available at all.
 (function () {
 	function init() {
 		var method = document.getElementById('woocommerce_wcll_gateway_settlement_method');
@@ -213,23 +242,48 @@
 			var el = document.getElementById(id);
 			return el ? el.closest('tr') : null;
 		}
+		function show(el, on) {
+			if (el) {
+				el.style.display = on ? '' : 'none';
+			}
+		}
+
+		var wallets = document.querySelector('.wcll-wallets');
+		var receiverPanel = document.querySelector('[data-wcll-receiver-panel]');
+		var nwcTab = document.querySelector('[data-wcll-tab="nwc"]');
+		var nwcPanel = document.querySelector('[data-wcll-panel="nwc"]');
 
 		function apply() {
-			var nwc = method.value === 'nwc';
+			var m = method.value;
+			var isProxy = m === 'nwc_proxy';
+			var isTerminal = m === 'nwc';
+			var usesAddress = m === 'lightning_address' || isProxy;
 			var disposable = !mode || mode.value === 'disposable';
-			var rules = [
-				['woocommerce_wcll_gateway_nwc_forward_enabled', nwc],
-				['woocommerce_wcll_gateway_nwc_mode', nwc],
-				['woocommerce_wcll_gateway_nwc_lncurl_url', nwc && disposable],
-				['woocommerce_wcll_gateway_nwc_auto_replace', nwc && disposable],
-				['woocommerce_wcll_gateway_nwc_connection', nwc && !disposable]
-			];
-			rules.forEach(function (rule) {
-				var row = rowOf(rule[0]);
-				if (row) {
-					row.style.display = rule[1] ? '' : 'none';
+
+			// Receiver tab fields.
+			show(rowOf('woocommerce_wcll_gateway_lightning_address'), usesAddress);
+			show(rowOf('woocommerce_wcll_gateway_nwc_receiver_connection'), isTerminal);
+			if (receiverPanel) {
+				receiverPanel.hidden = !isTerminal;
+			}
+			if (wallets) {
+				wallets.style.display = usesAddress ? '' : 'none';
+			}
+
+			// Proxy-only "NWC Wallet" tab: hide its nav (and panel) outside proxy mode.
+			show(nwcTab, isProxy);
+			if (!isProxy && nwcPanel) {
+				nwcPanel.classList.remove('is-active');
+				if (nwcTab) {
+					nwcTab.classList.remove('nav-tab-active');
 				}
-			});
+			}
+
+			// Proxy wallet sub-fields (only meaningful while the NWC tab is shown).
+			show(rowOf('woocommerce_wcll_gateway_nwc_lncurl_url'), isProxy && disposable);
+			show(rowOf('woocommerce_wcll_gateway_nwc_auto_replace'), isProxy && disposable);
+			show(rowOf('woocommerce_wcll_gateway_nwc_connection'), isProxy && !disposable);
+			show(rowOf('woocommerce_wcll_gateway_nwc_mode'), isProxy);
 		}
 
 		method.addEventListener('change', apply);
@@ -245,6 +299,52 @@
 		init();
 	}
 })();
+
+// Terminal-NWC live balance in the Receiver tab.
+(function (config) {
+	function init() {
+		var nwc = config && config.nwc;
+		var balanceEl = document.querySelector('[data-wcll-receiver-balance]');
+		if (!nwc || !balanceEl) {
+			return;
+		}
+		var i18n = nwc.i18n || {};
+
+		function refresh() {
+			balanceEl.textContent = i18n.loading || '…';
+			var body = new URLSearchParams();
+			body.set('action', 'wcll_nwc_receiver_balance');
+			body.set('nonce', nwc.nonce);
+			window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: body.toString()
+			}).then(function (r) {
+				return r.json();
+			}).then(function (res) {
+				var d = (res && res.data) || {};
+				balanceEl.textContent = (res && res.success && d.ok)
+					? (Number(d.sats).toLocaleString() + ' ' + (i18n.sats || 'sats'))
+					: (i18n.unavailable || 'Balance unavailable');
+			}).catch(function () {
+				balanceEl.textContent = i18n.unavailable || 'Balance unavailable';
+			});
+		}
+
+		var refreshBtn = document.querySelector('[data-wcll-receiver-refresh]');
+		if (refreshBtn) {
+			refreshBtn.addEventListener('click', refresh);
+		}
+		refresh();
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})(window.WCLLGatewayAdmin || {});
 
 // NWC proxy wallet panel: live balance + receive + withdraw (all signing is
 // server-side; the browser only subscribes to NIP-47 notifications).

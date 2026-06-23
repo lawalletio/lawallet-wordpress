@@ -163,6 +163,16 @@
 	}
 }
 
+/* Receiver tab: "switch to proxy" alert + dynamic panels */
+.wcll-receiver-alert {
+	margin: 12px 0;
+	max-width: 640px;
+}
+.wcll-receiver-alert[hidden],
+.wcll-nwc-wallet[hidden] {
+	display: none;
+}
+
 /* NWC proxy wallet panel */
 .wcll-nwc-wallet {
 	margin-top: 16px;

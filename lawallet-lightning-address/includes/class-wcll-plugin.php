@@ -34,6 +34,7 @@ class WCLL_Plugin {
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_gateway_admin_assets' ) );
 		add_action( 'wp_ajax_wcll_check_lightning_address', array( __CLASS__, 'ajax_check_lightning_address' ) );
 		add_action( 'wp_ajax_wcll_nwc_balance', array( __CLASS__, 'ajax_nwc_balance' ) );
+		add_action( 'wp_ajax_wcll_nwc_receiver_balance', array( __CLASS__, 'ajax_nwc_receiver_balance' ) );
 		add_action( 'wp_ajax_wcll_nwc_receive', array( __CLASS__, 'ajax_nwc_receive' ) );
 		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
 		add_action( 'wp_ajax_wcll_nwc_regenerate', array( __CLASS__, 'ajax_nwc_regenerate' ) );
@@ -216,6 +217,17 @@ class WCLL_Plugin {
 		);
 	}
 
+	public static function ajax_nwc_receiver_balance() {
+		self::verify_nwc_admin();
+		$balance = WCLL_NWC_Manager::receiver_balance( WCLL_Gateway::get_gateway_settings(), true );
+		wp_send_json_success(
+			array(
+				'ok'   => ! empty( $balance['ok'] ),
+				'sats' => isset( $balance['sats'] ) ? (int) $balance['sats'] : 0,
+			)
+		);
+	}
+
 	/**
 	 * Return the wallet's current NWC connection string (with secret) to the
 	 * authenticated administrator who requested it.
@@ -375,15 +387,36 @@ class WCLL_Plugin {
 			return $result;
 		}
 
-		// The _wcll_settlement_method='nwc' meta is set only by this gateway, so it
-		// uniquely identifies NWC proxy orders on its own.
+		// This is the proxy panel, so list only proxy (forwarding) orders: NWC
+		// settlement AND forwarding on. Terminal NWC orders ('_wcll_nwc_forward' =
+		// 'no') keep funds in the merchant's own wallet and belong on the normal
+		// Orders screen, not here. Legacy proxy orders (pre-flag) have no
+		// '_wcll_nwc_forward' meta, so NOT EXISTS keeps them visible.
 		$query = wc_get_orders(
 			array(
 				'limit'      => $per_page,
 				'paged'      => $page,
 				'paginate'   => true,
-				'meta_key'   => '_wcll_settlement_method', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Bounded, paginated admin list of NWC orders; wc_get_orders is HPOS-aware.
-				'meta_value' => 'nwc', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- See above.
+				// phpcs:disable WordPress.DB.SlowDBQuery -- Bounded, paginated admin list; wc_get_orders is HPOS-aware.
+				'meta_query' => array(
+					'relation' => 'AND',
+					array(
+						'key'   => '_wcll_settlement_method',
+						'value' => 'nwc',
+					),
+					array(
+						'relation' => 'OR',
+						array(
+							'key'   => '_wcll_nwc_forward',
+							'value' => 'yes',
+						),
+						array(
+							'key'     => '_wcll_nwc_forward',
+							'compare' => 'NOT EXISTS',
+						),
+					),
+				),
+				// phpcs:enable WordPress.DB.SlowDBQuery
 				'orderby'    => 'date',
 				'order'      => 'DESC',
 			)
@@ -492,7 +525,10 @@ class WCLL_Plugin {
 		self::verify_nwc_admin();
 		$order_id = isset( $_POST['order_id'] ) ? absint( wp_unslash( $_POST['order_id'] ) ) : 0;
 		$order    = $order_id ? wc_get_order( $order_id ) : null;
-		if ( ! $order || 'nwc' !== (string) $order->get_meta( '_wcll_settlement_method', true ) ) {
+		// Proxy panel: only forwarding orders are listed/viewable here.
+		if ( ! $order
+			|| 'nwc' !== (string) $order->get_meta( '_wcll_settlement_method', true )
+			|| ! self::order_forwards( $order ) ) {
 			wp_send_json_error( array( 'message' => __( 'Transaction not found.', 'lawallet-lightning-address' ) ) );
 		}
 		wp_send_json_success( array( 'html' => self::nwc_transaction_detail_html( $order ) ) );
@@ -560,16 +596,20 @@ class WCLL_Plugin {
 		$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_invoice', true ) ) );
 		$html .= '</dl></div>';
 
-		$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Sent (forward)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
-		$html .= self::txd_field( __( 'Status', 'lawallet-lightning-address' ), '<span class="wcll-tx-status is-' . esc_attr( $fwd_state ) . '">' . esc_html( $fwd_label ) . '</span>' );
-		$html .= self::txd_field( __( 'To', 'lawallet-lightning-address' ), esc_html( (string) $order->get_meta( '_wcll_lightning_address', true ) ) );
-		$html .= self::txd_field( __( 'Amount', 'lawallet-lightning-address' ), self::txd_sats( $forward ) );
-		$html .= self::txd_field( __( 'Reserve kept', 'lawallet-lightning-address' ), self::txd_sats( $reserve ) );
-		/* translators: %s: routing fee in millisatoshis. */
-		$html .= self::txd_field( __( 'Routing fee', 'lawallet-lightning-address' ), esc_html( sprintf( __( '%s msat', 'lawallet-lightning-address' ), number_format_i18n( (int) $order->get_meta( '_wcll_nwc_forward_fees', true ) ) ) ) );
-		$html .= self::txd_field( __( 'Preimage', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_preimage', true ) ) );
-		$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_invoice', true ) ) );
-		$html .= '</dl></div>';
+		// The forward section only applies to proxy orders; terminal NWC orders keep
+		// the funds and have nothing to forward.
+		if ( self::order_forwards( $order ) ) {
+			$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Sent (forward)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
+			$html .= self::txd_field( __( 'Status', 'lawallet-lightning-address' ), '<span class="wcll-tx-status is-' . esc_attr( $fwd_state ) . '">' . esc_html( $fwd_label ) . '</span>' );
+			$html .= self::txd_field( __( 'To', 'lawallet-lightning-address' ), esc_html( (string) $order->get_meta( '_wcll_lightning_address', true ) ) );
+			$html .= self::txd_field( __( 'Amount', 'lawallet-lightning-address' ), self::txd_sats( $forward ) );
+			$html .= self::txd_field( __( 'Reserve kept', 'lawallet-lightning-address' ), self::txd_sats( $reserve ) );
+			/* translators: %s: routing fee in millisatoshis. */
+			$html .= self::txd_field( __( 'Routing fee', 'lawallet-lightning-address' ), esc_html( sprintf( __( '%s msat', 'lawallet-lightning-address' ), number_format_i18n( (int) $order->get_meta( '_wcll_nwc_forward_fees', true ) ) ) ) );
+			$html .= self::txd_field( __( 'Preimage', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_preimage', true ) ) );
+			$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_invoice', true ) ) );
+			$html .= '</dl></div>';
+		}
 
 		$html .= '</div>';
 		return $html;
