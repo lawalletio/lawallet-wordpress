@@ -547,7 +547,7 @@ class WCLL_Plugin {
 		/* translators: 1: order number, 2: order date. */
 		$html .= '<h3 class="wcll-txd-order">' . esc_html( sprintf( __( 'Order #%1$s — %2$s', 'lawallet-lightning-address' ), $order->get_order_number(), $date ? wc_format_datetime( $date ) : '' ) ) . '</h3>';
 
-		$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Received (proxy wallet)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
+		$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Received (NWC wallet)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
 		$html .= self::txd_field(
 			__( 'Status', 'lawallet-lightning-address' ),
 			$received
@@ -847,7 +847,8 @@ class WCLL_Plugin {
 			if ( ! empty( $check['preimage'] ) ) {
 				$order->update_meta_data( '_wcll_preimage', sanitize_text_field( $check['preimage'] ) );
 			}
-			if ( 'nwc' === $method ) {
+			$forwards = ( 'nwc' === $method ) && self::order_forwards( $order );
+			if ( $forwards ) {
 				// Mark the forward owed before completing payment, so a crash
 				// between the two is recovered by the cron forward-retry query.
 				$order->update_meta_data( '_wcll_nwc_forward_pending', 'yes' );
@@ -857,7 +858,7 @@ class WCLL_Plugin {
 			$order->payment_complete();
 			$order->add_order_note( self::settlement_note( $method ) );
 
-			if ( 'nwc' === $method ) {
+			if ( $forwards ) {
 				self::forward_nwc_payment( $order );
 			}
 
@@ -870,6 +871,23 @@ class WCLL_Plugin {
 		}
 
 		return self::payment_response( $order, 'pending' );
+	}
+
+	/**
+	 * Whether a settled NWC order should be forwarded to a Lightning Address.
+	 * Reads the per-order flag snapshotted at checkout; for orders created before
+	 * the flag existed (pre-0.5.0) it falls back to "forward when an address was
+	 * stored", preserving the old always-forward behaviour for in-flight orders.
+	 */
+	private static function order_forwards( WC_Order $order ) {
+		$flag = (string) $order->get_meta( '_wcll_nwc_forward', true );
+		if ( 'yes' === $flag ) {
+			return true;
+		}
+		if ( 'no' === $flag ) {
+			return false;
+		}
+		return '' !== trim( (string) $order->get_meta( '_wcll_lightning_address', true ) );
 	}
 
 	private static function verify_order_settlement( WC_Order $order, $invoice ) {
@@ -1142,7 +1160,7 @@ class WCLL_Plugin {
 			return __( 'Lightning payment verified via NIP-57 zap receipt.', 'lawallet-lightning-address' );
 		}
 		if ( 'nwc' === $method ) {
-			return __( 'Lightning payment verified through the NWC proxy wallet.', 'lawallet-lightning-address' );
+			return __( 'Lightning payment verified in the NWC wallet.', 'lawallet-lightning-address' );
 		}
 		return __( 'Lightning payment verified with LUD-21.', 'lawallet-lightning-address' );
 	}

@@ -199,12 +199,13 @@
 	}
 })();
 
-// NWC tab: reveal only the fields relevant to the selected mode / enabled state.
+// Reveal the NWC wallet fields only when the settlement method is "NWC", and
+// within that only the fields relevant to the selected wallet mode.
 (function () {
 	function init() {
-		var enabled = document.getElementById('woocommerce_wcll_gateway_nwc_proxy_enabled');
+		var method = document.getElementById('woocommerce_wcll_gateway_settlement_method');
 		var mode = document.getElementById('woocommerce_wcll_gateway_nwc_mode');
-		if (!mode) {
+		if (!method) {
 			return;
 		}
 
@@ -214,13 +215,14 @@
 		}
 
 		function apply() {
-			var on = !enabled || enabled.checked;
-			var disposable = mode.value === 'disposable';
+			var nwc = method.value === 'nwc';
+			var disposable = !mode || mode.value === 'disposable';
 			var rules = [
-				['woocommerce_wcll_gateway_nwc_mode', on],
-				['woocommerce_wcll_gateway_nwc_lncurl_url', on && disposable],
-				['woocommerce_wcll_gateway_nwc_auto_replace', on && disposable],
-				['woocommerce_wcll_gateway_nwc_connection', on && !disposable]
+				['woocommerce_wcll_gateway_nwc_forward_enabled', nwc],
+				['woocommerce_wcll_gateway_nwc_mode', nwc],
+				['woocommerce_wcll_gateway_nwc_lncurl_url', nwc && disposable],
+				['woocommerce_wcll_gateway_nwc_auto_replace', nwc && disposable],
+				['woocommerce_wcll_gateway_nwc_connection', nwc && !disposable]
 			];
 			rules.forEach(function (rule) {
 				var row = rowOf(rule[0]);
@@ -230,9 +232,9 @@
 			});
 		}
 
-		mode.addEventListener('change', apply);
-		if (enabled) {
-			enabled.addEventListener('change', apply);
+		method.addEventListener('change', apply);
+		if (mode) {
+			mode.addEventListener('change', apply);
 		}
 		apply();
 	}
@@ -503,34 +505,6 @@
 		init();
 	}
 })(window.WCLLGatewayAdmin || {});
-
-// Keep the "Use NWC Proxy" checkbox (Lightning Address tab) in sync with the
-// real nwc_proxy_enabled checkbox (NWC tab) — one underlying setting.
-(function () {
-	function init() {
-		var mirror = document.querySelector('[data-wcll-nwc-mirror]');
-		var real = document.getElementById('woocommerce_wcll_gateway_nwc_proxy_enabled');
-		if (!mirror || !real) {
-			return;
-		}
-
-		mirror.checked = real.checked;
-
-		mirror.addEventListener('change', function () {
-			real.checked = mirror.checked;
-			real.dispatchEvent(new Event('change', { bubbles: true }));
-		});
-		real.addEventListener('change', function () {
-			mirror.checked = real.checked;
-		});
-	}
-
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', init);
-	} else {
-		init();
-	}
-})();
 
 // Show a "Regenerate NWC connection" button when the lncurl service URL changes,
 // and mint a fresh disposable wallet from the new service on click.

@@ -37,7 +37,18 @@ class WCLL_NWC_Manager {
 	const DEFAULT_LNCURL    = 'https://lncurl.lol';
 
 	public static function is_enabled( array $settings ) {
-		return isset( $settings['nwc_proxy_enabled'] ) && 'yes' === $settings['nwc_proxy_enabled'];
+		$method = isset( $settings['settlement_method'] ) ? (string) $settings['settlement_method'] : 'lightning_address';
+		return 'nwc' === $method;
+	}
+
+	/**
+	 * Whether settled NWC payments should be forwarded on to the merchant
+	 * Lightning Address. Only meaningful in NWC mode; off by default, in which
+	 * case the wallet is the terminal destination and funds stay in it.
+	 */
+	public static function forward_enabled( array $settings ) {
+		return self::is_enabled( $settings )
+			&& isset( $settings['nwc_forward_enabled'] ) && 'yes' === $settings['nwc_forward_enabled'];
 	}
 
 	public static function mode( array $settings ) {
@@ -136,7 +147,7 @@ class WCLL_NWC_Manager {
 	public static function make_order_invoice( array $settings, $amount_msat, $description, $expiry_seconds ) {
 		$client = self::get_active_client( $settings );
 		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
-			return is_wp_error( $client ) ? $client : new WP_Error( 'wcll_nwc_unavailable', __( 'The NWC proxy wallet is not available.', 'lawallet-lightning-address' ) );
+			return is_wp_error( $client ) ? $client : new WP_Error( 'wcll_nwc_unavailable', __( 'The NWC wallet is not available.', 'lawallet-lightning-address' ) );
 		}
 
 		$invoice = $client->make_invoice( $amount_msat, $description, $expiry_seconds );
@@ -342,7 +353,7 @@ class WCLL_NWC_Manager {
 				'ok'           => false,
 				'mode'         => $mode,
 				'balance_sats' => null,
-				'message'      => is_wp_error( $client ) ? $client->get_error_message() : __( 'The NWC proxy wallet is not configured.', 'lawallet-lightning-address' ),
+				'message'      => is_wp_error( $client ) ? $client->get_error_message() : __( 'The NWC wallet is not configured.', 'lawallet-lightning-address' ),
 			);
 		}
 
@@ -379,11 +390,16 @@ class WCLL_NWC_Manager {
 			self::BALANCE_TTL
 		);
 
-		$message = 'disposable' === $mode
-			/* translators: %d: disposable wallet balance in sats. */
-			? sprintf( __( 'Disposable NWC proxy wallet ready (balance %d sats); payments are settled there and forwarded to your Lightning Address.', 'lawallet-lightning-address' ), $sats )
-			/* translators: %d: NWC wallet balance in sats. */
-			: sprintf( __( 'NWC proxy wallet ready (balance %d sats); payments are settled there and forwarded to your Lightning Address.', 'lawallet-lightning-address' ), $sats );
+		$kind = 'disposable' === $mode
+			? __( 'Disposable NWC wallet', 'lawallet-lightning-address' )
+			: __( 'NWC wallet', 'lawallet-lightning-address' );
+		if ( self::forward_enabled( $settings ) ) {
+			/* translators: 1: wallet kind (disposable/permanent), 2: balance in sats. */
+			$message = sprintf( __( '%1$s ready (balance %2$d sats); payments are settled there and forwarded to your Lightning Address.', 'lawallet-lightning-address' ), $kind, $sats );
+		} else {
+			/* translators: 1: wallet kind (disposable/permanent), 2: balance in sats. */
+			$message = sprintf( __( '%1$s ready (balance %2$d sats); payments are settled there and stay in the wallet.', 'lawallet-lightning-address' ), $kind, $sats );
+		}
 
 		return array(
 			'ok'           => true,
@@ -616,6 +632,16 @@ class WCLL_NWC_Manager {
 			$settings['nwc_mode']         = '' !== self::permanent_connection() ? 'permanent' : 'disposable';
 			$settings['nwc_auto_replace'] = isset( $settings['nwc_auto_replace'] ) ? $settings['nwc_auto_replace'] : 'no';
 			$changed                      = true;
+		}
+
+		// First run after the explicit settlement selector (v0.5.0): map the old
+		// nwc_proxy_enabled checkbox onto the new method. The old proxy always
+		// forwarded to the Lightning Address, so preserve that as forward-enabled.
+		if ( ! isset( $settings['settlement_method'] ) ) {
+			$was_proxy                       = isset( $settings['nwc_proxy_enabled'] ) && 'yes' === $settings['nwc_proxy_enabled'];
+			$settings['settlement_method']   = $was_proxy ? 'nwc' : 'lightning_address';
+			$settings['nwc_forward_enabled'] = $was_proxy ? 'yes' : 'no';
+			$changed                         = true;
 		}
 
 		if ( $changed ) {
