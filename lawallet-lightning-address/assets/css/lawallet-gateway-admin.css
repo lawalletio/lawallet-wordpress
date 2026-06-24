@@ -44,3 +44,358 @@
 		transform: rotate(360deg);
 	}
 }
+
+/* Tabbed gateway settings */
+.wcll-settings {
+	margin-top: 12px;
+}
+.wcll-settings .wcll-tabs {
+	margin: 0 0 4px;
+}
+.wcll-tab-panel {
+	display: none;
+}
+.wcll-tab-panel.is-active {
+	display: block;
+}
+.wcll-tab-panel > .form-table {
+	margin-top: 4px;
+}
+.wcll-tab-intro {
+	margin: 12px 0 0;
+	max-width: 720px;
+}
+
+/* Compatible-wallets list (inline, on the Lightning Address tab) */
+.wcll-wallets {
+	margin: 16px 0 4px;
+	max-width: 760px;
+}
+.wcll-wallets-title {
+	margin: 0 0 4px;
+	font-size: 15px;
+}
+.wcll-wallets-lead {
+	margin: 0 0 18px;
+	color: #50575e;
+	max-width: 60ch;
+}
+.wcll-wallets-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	margin: 0;
+}
+.wcll-wallet-card {
+	margin: 0;
+	border: 1px solid #e0e0e0;
+	border-left: 4px solid var(--wcll-accent, #2271b1);
+	border-radius: 8px;
+	background: #fff;
+}
+.wcll-wallet-link {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 12px;
+	text-decoration: none;
+	color: inherit;
+	border-radius: 8px;
+}
+.wcll-wallet-link:hover {
+	background: #f6f7f7;
+}
+.wcll-wallet-link:focus {
+	outline: 2px solid var(--wcll-accent, #2271b1);
+	outline-offset: -2px;
+	box-shadow: none;
+}
+.wcll-wallet-ext.dashicons {
+	font-size: 14px;
+	width: 14px;
+	height: 14px;
+	color: #8c8f94;
+	vertical-align: text-bottom;
+}
+.wcll-wallets-foot {
+	margin: 16px 0 0;
+	color: #50575e;
+}
+.wcll-wallet-logo {
+	flex: 0 0 auto;
+	width: 40px;
+	height: 40px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+.wcll-wallet-logo img {
+	max-width: 40px;
+	max-height: 40px;
+	width: auto;
+	height: auto;
+	border-radius: 8px;
+}
+.wcll-wallet-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.wcll-wallet-name {
+	font-weight: 600;
+	color: #1d2327;
+}
+.wcll-wallet-tag {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--wcll-accent, #2271b1);
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+}
+.wcll-wallet-desc {
+	font-size: 13px;
+	color: #50575e;
+	margin-top: 2px;
+}
+@media (max-width: 600px) {
+	.wcll-wallets-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Receiver tab: "switch to proxy" alert + dynamic panels */
+.wcll-receiver-alert {
+	margin: 12px 0;
+	max-width: 640px;
+}
+.wcll-receiver-alert[hidden],
+.wcll-nwc-wallet[hidden] {
+	display: none;
+}
+
+/* NWC proxy wallet panel */
+.wcll-nwc-wallet {
+	margin-top: 16px;
+	padding: 16px 18px;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	background: #fff;
+	max-width: 640px;
+}
+.wcll-nwc-wallet-title {
+	margin: 0 0 10px;
+	font-size: 14px;
+}
+.wcll-nwc-balance-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+.wcll-nwc-balance-label {
+	color: #50575e;
+}
+.wcll-nwc-balance {
+	font-size: 20px;
+	font-weight: 700;
+	color: #1d2327;
+}
+.wcll-nwc-refresh {
+	display: inline-flex;
+	align-items: center;
+	color: #2271b1;
+	cursor: pointer;
+	text-decoration: none;
+}
+.wcll-nwc-refresh .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+}
+.wcll-nwc-actions {
+	margin-bottom: 10px;
+}
+.wcll-nwc-form {
+	padding: 12px;
+	margin-bottom: 10px;
+	border: 1px solid #f0f0f1;
+	border-radius: 6px;
+	background: #f6f7f7;
+}
+.wcll-nwc-form[hidden] {
+	display: none;
+}
+.wcll-nwc-field {
+	display: block;
+}
+.wcll-nwc-field span {
+	display: block;
+	margin-bottom: 4px;
+	font-weight: 600;
+}
+.wcll-nwc-invoice {
+	margin-top: 10px;
+}
+.wcll-nwc-invoice[hidden] {
+	display: none;
+}
+.wcll-nwc-feedback {
+	margin: 6px 0 0;
+	min-height: 1em;
+	color: #0a7f28;
+}
+.wcll-nwc-feedback.is-error {
+	color: #b32d2e;
+}
+.wcll-nwc-regenerate {
+	margin: 12px 0;
+}
+.wcll-nwc-connection {
+	margin: 12px 0 8px;
+}
+.wcll-nwc-connection .description {
+	margin-left: 6px;
+}
+.wcll-nwc-connection-box {
+	margin: 0 0 12px;
+}
+.wcll-nwc-connection-box[hidden] {
+	display: none;
+}
+.wcll-nwc-connection-text {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+	margin-bottom: 6px;
+}
+.wcll-nwc-regenerate-feedback {
+	margin-left: 6px;
+	color: #0a7f28;
+}
+.wcll-nwc-regenerate-feedback.is-error {
+	color: #b32d2e;
+}
+
+/* Proxy transactions */
+.wcll-nwc-tx {
+	margin-top: 20px;
+}
+.wcll-nwc-tx-table {
+	margin-top: 8px;
+}
+.wcll-nwc-tx-table td,
+.wcll-nwc-tx-table th {
+	vertical-align: top;
+}
+.wcll-tx-status {
+	font-weight: 600;
+}
+.wcll-tx-status.is-forwarded,
+.wcll-tx-status.is-received {
+	color: #0a7f28;
+}
+.wcll-tx-status.is-failed {
+	color: #b32d2e;
+}
+.wcll-tx-status.is-pending,
+.wcll-tx-status.is-unpaid {
+	color: #946800;
+}
+.wcll-tx-status.is-none {
+	color: #646970;
+}
+.wcll-tx-dest {
+	font-size: 12px;
+	color: #646970;
+}
+.wcll-tx-proof {
+	font-size: 12px;
+}
+.wcll-tx-copy {
+	font-size: 12px;
+}
+.wcll-tx-modal[hidden] {
+	display: none;
+}
+.wcll-tx-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 100000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+}
+.wcll-tx-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.55);
+}
+.wcll-tx-dialog {
+	position: relative;
+	background: #fff;
+	border-radius: 10px;
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+	max-width: 900px;
+	width: 100%;
+	max-height: 85vh;
+	overflow: auto;
+	padding: 24px 28px 28px;
+}
+.wcll-tx-close {
+	position: absolute;
+	top: 10px;
+	right: 12px;
+	border: 0;
+	background: transparent;
+	font-size: 26px;
+	line-height: 1;
+	color: #646970;
+	cursor: pointer;
+}
+.wcll-tx-close:hover {
+	color: #1d2327;
+}
+.wcll-tx-title {
+	margin: 0 28px 12px 0;
+	font-size: 20px;
+}
+.wcll-tx-pager {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-top: 14px;
+}
+.wcll-tx-pageinfo {
+	color: #50575e;
+}
+.wcll-txd-modal {
+	z-index: 100001;
+}
+.wcll-txd-body .wcll-txd-order {
+	margin: 0 28px 4px 0;
+	font-size: 18px;
+}
+.wcll-txd-section {
+	margin-top: 10px;
+}
+.wcll-txd-section h4 {
+	margin: 12px 0 6px;
+	font-size: 14px;
+}
+.wcll-txd-list {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 16px;
+	margin: 0;
+}
+.wcll-txd-list dt {
+	color: #50575e;
+	font-weight: 600;
+}
+.wcll-txd-list dd {
+	margin: 0;
+	word-break: break-all;
+}
+.wcll-txd-mono {
+	font-size: 12px;
+}

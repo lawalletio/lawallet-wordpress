@@ -83,6 +83,13 @@ class WCLL_LNURL_Client {
 			'amount' => $amount_msat,
 		);
 
+		// LUD-12 comment, sent only when the service advertises commentAllowed.
+		$comment_allowed = isset( $pay_request['commentAllowed'] ) ? (int) $pay_request['commentAllowed'] : 0;
+		if ( $comment_allowed > 0 && ! empty( $context['comment'] ) ) {
+			$comment = (string) $context['comment'];
+			$params['comment'] = function_exists( 'mb_substr' ) ? mb_substr( $comment, 0, $comment_allowed ) : substr( $comment, 0, $comment_allowed );
+		}
+
 		$nostr = array();
 		if ( ! isset( $context['use_nostr'] ) || $context['use_nostr'] ) {
 			$nostr = $this->maybe_build_zap_request( $pay_request, $amount_msat, $context );

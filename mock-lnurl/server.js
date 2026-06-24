@@ -3,6 +3,7 @@ import http from 'node:http';
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { finalizeEvent, getPublicKey } from 'nostr-tools/pure';
+import { nip04 } from 'nostr-tools';
 
 const app = express();
 const port = Number(process.env.MOCK_LNURL_PORT || 4000);
@@ -11,6 +12,39 @@ const nostrSecretKey = Uint8Array.from(Buffer.from('01'.repeat(32), 'hex'));
 const nostrPubkey = getPublicKey(nostrSecretKey);
 const invoices = new Map();
 const sockets = new Map();
+
+// NIP-47 (NWC) proxy wallets — a registry, so the mock can act as MANY wallets
+// (the lncurl endpoint mints a fresh one per call). Each request is decrypted /
+// signed with the wallet identified by the request's "p" tag.
+const nwcWallets = new Map(); // pubkey -> { secretHex, secretKey, alive, lud16 }
+
+function registerNwcWallet(secretHex, lud16) {
+  const secretKey = Uint8Array.from(Buffer.from(secretHex, 'hex'));
+  const pubkey = getPublicKey(secretKey);
+  nwcWallets.set(pubkey, {
+    secretHex,
+    secretKey,
+    alive: true,
+    balanceMsat: 0,
+    lud16: lud16 || `lncurl-${pubkey.slice(0, 8)}@mock-lnurl`
+  });
+  return pubkey;
+}
+
+// A fixed wallet (0x02) + client (0x03) kept for the static-connection tests.
+const nwcSecretHex = '02'.repeat(32);
+const nwcWalletPubkey = registerNwcWallet(nwcSecretHex);
+const nwcClientSecretHex = '03'.repeat(32);
+const nwcClientPubkey = getPublicKey(Uint8Array.from(Buffer.from(nwcClientSecretHex, 'hex')));
+const nwcInvoices = new Map(); // payment_hash -> incoming invoice record
+const nwcOutgoing = new Map(); // bolt11 -> outgoing payment record (forwards we paid)
+const forwards = []; // pay_invoice calls (the proxy forwarding to the merchant LA)
+let swallowNextPayResponse = false; // test: settle a pay_invoice but drop its NWC response
+
+function nwcConnectionUri() {
+  const relay = encodeURIComponent(`ws://mock-lnurl:${port}/nostr`);
+  return `nostr+walletconnect://${nwcWalletPubkey}?relay=${relay}&secret=${nwcClientSecretHex}`;
+}
 
 app.use(express.json());
 
@@ -60,11 +94,21 @@ function matchesFilter(event, filter) {
   if (filter.since && event.created_at < Number(filter.since)) {
     return false;
   }
+  // Single-letter tag filters such as #e / #p.
+  for (const [key, values] of Object.entries(filter)) {
+    if (!key.startsWith('#') || !Array.isArray(values)) {
+      continue;
+    }
+    const tagName = key.slice(1);
+    const eventValues = (event.tags || []).filter((t) => t[0] === tagName).map((t) => t[1]);
+    if (!values.some((v) => eventValues.includes(v))) {
+      return false;
+    }
+  }
   return true;
 }
 
-function broadcastReceipt(record) {
-  const event = receiptFor(record);
+function broadcast(event) {
   for (const [socket, subscriptions] of sockets.entries()) {
     if (socket.readyState !== socket.OPEN) {
       continue;
@@ -75,6 +119,199 @@ function broadcastReceipt(record) {
       }
     }
   }
+}
+
+function broadcastReceipt(record) {
+  broadcast(receiptFor(record));
+}
+
+// ----- NIP-47 (NWC) proxy wallet -----
+
+function makeNwcBolt11(amountMsat) {
+  const sats = Math.max(1, Math.ceil(Number(amountMsat) / 1000));
+  const suffix = crypto.randomBytes(12).toString('hex');
+  return `lnbc${sats}n1pnwc${Date.now().toString(36)}${suffix}`;
+}
+
+function serializeNwcInvoice(record) {
+  return {
+    type: 'incoming',
+    invoice: record.invoice,
+    bolt11: record.invoice,
+    description: record.description,
+    payment_hash: record.payment_hash,
+    amount: record.amount,
+    fees_paid: 0,
+    created_at: record.created_at,
+    expires_at: record.expires_at,
+    settled_at: record.settled_at,
+    preimage: record.preimage,
+    state: record.settled_at ? 'settled' : 'pending'
+  };
+}
+
+function serializeNwcOutgoing(record) {
+  return {
+    type: 'outgoing',
+    invoice: record.invoice,
+    bolt11: record.invoice,
+    payment_hash: record.payment_hash,
+    amount: record.amount,
+    fees_paid: record.fees_paid || 0,
+    created_at: record.created_at,
+    settled_at: record.settled_at,
+    preimage: record.preimage,
+    state: 'settled'
+  };
+}
+
+function nwcResult(method, result) {
+  return { result_type: method, error: null, result };
+}
+
+function nwcError(method, code, message) {
+  return { result_type: method, error: { code, message }, result: null };
+}
+
+async function handleNwcRequest(socket, event) {
+  if (!event || event.kind !== 23194 || typeof event.content !== 'string') {
+    return;
+  }
+
+  // The target wallet is named in the request's "p" tag; the mock serves many.
+  const pTag = (event.tags || []).find((t) => Array.isArray(t) && t[0] === 'p');
+  const walletPubkey = pTag ? pTag[1] : nwcWalletPubkey;
+  const wallet = nwcWallets.get(walletPubkey);
+  if (!wallet || !wallet.alive) {
+    return; // Unknown or killed wallet: stay silent so the client treats it as dead.
+  }
+
+  const clientPubkey = event.pubkey;
+  let req;
+  try {
+    req = JSON.parse(await nip04.decrypt(wallet.secretHex, clientPubkey, event.content));
+  } catch (error) {
+    return; // Cannot decrypt (wrong key / NIP-44) — ignore.
+  }
+
+  const method = req.method;
+  const params = req.params || {};
+  let payload;
+
+  switch (method) {
+    case 'get_info':
+      payload = nwcResult('get_info', {
+        alias: 'Mock NWC Wallet',
+        color: '#22c55e',
+        pubkey: walletPubkey,
+        network: 'regtest',
+        block_height: 1,
+        block_hash: '00'.repeat(32),
+        methods: ['get_info', 'get_balance', 'make_invoice', 'lookup_invoice', 'pay_invoice'],
+        notifications: ['payment_received']
+      });
+      break;
+
+    case 'get_balance':
+      payload = nwcResult('get_balance', { balance: wallet.balanceMsat });
+      break;
+
+    case 'make_invoice': {
+      const amount = Number(params.amount || 0);
+      const now = Math.floor(Date.now() / 1000);
+      const record = {
+        invoice: makeNwcBolt11(amount),
+        payment_hash: crypto.randomBytes(32).toString('hex'),
+        description: params.description || '',
+        amount,
+        created_at: now,
+        expires_at: now + Number(params.expiry || 3600),
+        settled_at: null,
+        preimage: null,
+        clientPubkey,
+        walletPubkey
+      };
+      nwcInvoices.set(record.payment_hash, record);
+      payload = nwcResult('make_invoice', serializeNwcInvoice(record));
+      break;
+    }
+
+    case 'lookup_invoice': {
+      // Incoming invoices first, then outgoing payments (forwards we made) so a
+      // client can confirm a forward whose pay_invoice response was lost.
+      let record = params.payment_hash ? nwcInvoices.get(params.payment_hash) : null;
+      if (!record && params.invoice) {
+        record = Array.from(nwcInvoices.values()).find((r) => r.invoice === params.invoice) || null;
+      }
+      if (record) {
+        payload = nwcResult('lookup_invoice', serializeNwcInvoice(record));
+        break;
+      }
+      let out = params.invoice ? nwcOutgoing.get(String(params.invoice)) : null;
+      if (!out && params.payment_hash) {
+        out = Array.from(nwcOutgoing.values()).find((r) => r.payment_hash === params.payment_hash) || null;
+      }
+      payload = out
+        ? nwcResult('lookup_invoice', serializeNwcOutgoing(out))
+        : nwcError('lookup_invoice', 'NOT_FOUND', 'Invoice not found');
+      break;
+    }
+
+    case 'pay_invoice': {
+      const bolt11 = String(params.invoice || '');
+      // In tests the forward destination is this same mock (the merchant LA), so
+      // settle the matching lnurl invoice and record the forward + its amount.
+      const dest = Array.from(invoices.values()).find((r) => r.pr === bolt11);
+      const preimage = crypto.randomBytes(32).toString('hex');
+      const amount = dest ? dest.amount : (params.amount ? Number(params.amount) : null);
+      const feesPaid = amount ? Math.max(0, Math.floor(Number(amount) * 0.005)) : 0;
+      const now = Math.floor(Date.now() / 1000);
+      forwards.push({ invoice: bolt11, amount, preimage, from: walletPubkey, at: now });
+      // Record an outgoing payment so lookup_invoice can confirm it later (idempotency).
+      nwcOutgoing.set(bolt11, {
+        invoice: bolt11,
+        payment_hash: dest && dest.id ? crypto.createHash('sha256').update(dest.id).digest('hex') : crypto.randomBytes(32).toString('hex'),
+        amount,
+        fees_paid: feesPaid,
+        preimage,
+        created_at: now,
+        settled_at: now,
+        walletPubkey
+      });
+      if (amount) {
+        wallet.balanceMsat = Math.max(0, wallet.balanceMsat - Number(amount) - feesPaid);
+      }
+      if (dest) {
+        dest.settled = true;
+        dest.preimage = preimage;
+        dest.paidAt = now;
+      }
+      // Test affordance: simulate a settled payment whose NWC response is lost in
+      // transit. The funds move, the outgoing record exists, but the client never
+      // hears back — exactly the case that used to strand an order in "pending".
+      if (swallowNextPayResponse) {
+        swallowNextPayResponse = false;
+        return;
+      }
+      payload = nwcResult('pay_invoice', { preimage, fees_paid: feesPaid });
+      break;
+    }
+
+    default:
+      payload = nwcError(method || 'unknown', 'NOT_IMPLEMENTED', `Method ${method} not implemented`);
+  }
+
+  const content = await nip04.encrypt(wallet.secretHex, clientPubkey, JSON.stringify(payload));
+  const response = finalizeEvent(
+    {
+      kind: 23195,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['p', clientPubkey], ['e', event.id]],
+      content
+    },
+    wallet.secretKey
+  );
+  broadcast(response);
 }
 
 app.get('/healthz', (req, res) => {
@@ -102,15 +339,24 @@ app.get('/api/settings', (req, res) => {
 });
 
 app.get('/.well-known/lnurlp/:name', (req, res) => {
-  res.json({
+  const body = {
     tag: 'payRequest',
     callback: `http://mock-lnurl:${port}/lnurl/callback/${encodeURIComponent(req.params.name)}`,
     minSendable: 1000,
     maxSendable: 500000000000,
     metadata: JSON.stringify([['text/plain', `Mock Lightning Address ${req.params.name}`]]),
+    commentAllowed: 255,
     allowsNostr: true,
     nostrPubkey
-  });
+  };
+  // "noverify" simulates an address with NEITHER LUD-21 NOR NIP-57, which forces
+  // the NWC proxy settlement path. (The "nolud21" address still advertises
+  // NIP-57, so it is insufficient to exercise NWC.)
+  if (req.params.name === 'noverify') {
+    delete body.allowsNostr;
+    delete body.nostrPubkey;
+  }
+  res.json(body);
 });
 
 app.get('/.well-known/nostr.json', (req, res) => {
@@ -153,6 +399,7 @@ app.get('/lnurl/callback/:name', (req, res) => {
     settled: false,
     preimage: null,
     zapRequest,
+    comment: typeof req.query.comment === 'string' ? req.query.comment : null,
     createdAt: Math.floor(Date.now() / 1000)
   };
   invoices.set(id, record);
@@ -163,9 +410,9 @@ app.get('/lnurl/callback/:name', (req, res) => {
     pr,
     verify: record.verify
   };
-  // Test affordance: the "nolud21" address simulates a wallet without LUD-21,
-  // so settlement must be confirmed via NIP-57 zap receipts instead.
-  if (req.params.name === 'nolud21') {
+  // Test affordance: "nolud21" (NIP-57 only) and "noverify" (neither LUD-21 nor
+  // NIP-57) both omit the LUD-21 verify URL.
+  if (req.params.name === 'nolud21' || req.params.name === 'noverify') {
     delete responseBody.verify;
   }
   res.json(responseBody);
@@ -201,22 +448,130 @@ app.all('/test/pay-latest', (req, res) => {
   res.json({ ok: true, invoice: record.pr, verify: record.verify, id: record.id });
 });
 
+// Mint a fresh disposable wallet and return its NWC connection string as plain
+// text — mirrors lncurl.lol's `POST https://lncurl.lol`.
+app.post('/lncurl', (req, res) => {
+  const secretHex = crypto.randomBytes(32).toString('hex');
+  const pubkey = registerNwcWallet(secretHex);
+  // Two relays so both sides of the dev split can connect: mock-lnurl:4000 is
+  // reachable from the WP container (server-side NWC), localhost:4000 from the
+  // host browser (watchNwc). A real lncurl returns one internet relay reachable
+  // by both.
+  const serverRelay = `ws://mock-lnurl:${port}/nostr`;
+  const browserRelay = `ws://localhost:${port}/nostr`;
+  const uri = `nostr+walletconnect://${pubkey}?relay=${serverRelay}&relay=${browserRelay}&secret=${secretHex}&lud16=${nwcWallets.get(pubkey).lud16}`;
+  res.type('text/plain').send(uri);
+});
+
+// Simulate an lncurl wallet dying: it stops answering NWC requests. Targets the
+// given pubkey, or the most recently minted wallet.
+app.all('/test/kill-nwc', (req, res) => {
+  const target = String(req.query.pubkey || '');
+  let pubkey = target;
+  if (!pubkey) {
+    const keys = Array.from(nwcWallets.keys());
+    pubkey = keys[keys.length - 1];
+  }
+  const wallet = nwcWallets.get(pubkey);
+  if (!wallet) {
+    res.status(404).json({ ok: false, error: 'Unknown wallet' });
+    return;
+  }
+  wallet.alive = false;
+  res.json({ ok: true, killed: pubkey });
+});
+
+app.all('/test/pay-nwc', async (req, res) => {
+  const target = String(req.query.payment_hash || '');
+  const record = target ? nwcInvoices.get(target) : Array.from(nwcInvoices.values()).at(-1);
+  if (!record) {
+    res.status(404).json({ ok: false, error: 'No NWC invoices' });
+    return;
+  }
+
+  record.settled_at = Math.floor(Date.now() / 1000);
+  record.preimage = crypto.randomBytes(32).toString('hex');
+  nwcInvoices.set(record.payment_hash, record);
+
+  // Credit the wallet that issued the invoice (its balance now backs the forward).
+  const wallet = nwcWallets.get(record.walletPubkey) || nwcWallets.get(nwcWalletPubkey);
+  if (wallet) {
+    wallet.balanceMsat += Number(record.amount || 0);
+  }
+
+  // Emit a NIP-04 (kind 23196) payment_received notification so the browser
+  // watcher fires; the backend still confirms via lookup_invoice.
+  try {
+    const note = JSON.stringify({
+      notification_type: 'payment_received',
+      notification: serializeNwcInvoice(record)
+    });
+    const content = await nip04.encrypt(wallet.secretHex, record.clientPubkey, note);
+    const event = finalizeEvent(
+      {
+        kind: 23196,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', record.clientPubkey]],
+        content
+      },
+      wallet.secretKey
+    );
+    broadcast(event);
+  } catch (error) {
+    // Notification is best-effort; lookup_invoice remains the source of truth.
+  }
+
+  res.json({ ok: true, payment_hash: record.payment_hash, invoice: record.invoice });
+});
+
+// Arm a one-shot: the next pay_invoice settles the funds and records the
+// outgoing payment but drops its NWC response, reproducing a lost-response
+// forward (the client must recover via lookup_invoice).
+app.all('/test/swallow-next-pay-response', (req, res) => {
+  swallowNextPayResponse = true;
+  res.json({ ok: true, armed: true });
+});
+
 app.get('/test/state', (req, res) => {
   res.json({
     nostrPubkey,
+    nwcWalletPubkey,
+    nwcClientPubkey,
+    nwcUri: nwcConnectionUri(),
     invoiceCount: invoices.size,
     invoices: Array.from(invoices.values()).map((record) => ({
       id: record.id,
       pr: record.pr,
       settled: record.settled,
       amount: record.amount,
-      hasZapRequest: Boolean(record.zapRequest)
-    }))
+      hasZapRequest: Boolean(record.zapRequest),
+      comment: record.comment
+    })),
+    nwcInvoices: Array.from(nwcInvoices.values()).map((record) => ({
+      payment_hash: record.payment_hash,
+      invoice: record.invoice,
+      amount: record.amount,
+      settled: Boolean(record.settled_at),
+      walletPubkey: record.walletPubkey
+    })),
+    nwcWallets: Array.from(nwcWallets.entries()).map(([pubkey, w]) => ({
+      pubkey,
+      alive: w.alive,
+      balanceMsat: w.balanceMsat
+    })),
+    forwards
   });
 });
 
 app.all('/test/reset', (req, res) => {
   invoices.clear();
+  nwcInvoices.clear();
+  nwcOutgoing.clear();
+  forwards.length = 0;
+  swallowNextPayResponse = false;
+  // Drop minted disposable wallets; re-register only the fixed test wallet.
+  nwcWallets.clear();
+  registerNwcWallet(nwcSecretHex);
   res.json({ ok: true });
 });
 
@@ -234,7 +589,23 @@ wss.on('connection', (socket) => {
       return;
     }
 
-    if (!Array.isArray(message) || message[0] !== 'REQ') {
+    if (!Array.isArray(message)) {
+      return;
+    }
+
+    // NWC client requests arrive as a published EVENT (kind 23194).
+    if (message[0] === 'EVENT' && message[1] && typeof message[1] === 'object') {
+      handleNwcRequest(socket, message[1]).catch(() => {});
+      return;
+    }
+
+    if (message[0] === 'CLOSE') {
+      const remaining = (sockets.get(socket) || []).filter((sub) => sub.id !== String(message[1]));
+      sockets.set(socket, remaining);
+      return;
+    }
+
+    if (message[0] !== 'REQ') {
       return;
     }
 
