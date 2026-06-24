@@ -759,6 +759,27 @@
 			});
 		}
 
+		// Pressing Enter in a wallet input runs its action (Generate/Send) instead of
+		// submitting the surrounding WooCommerce settings form.
+		function enterRuns(input, buttonSelector) {
+			if (!input) {
+				return;
+			}
+			input.addEventListener('keydown', function (event) {
+				if (event.key !== 'Enter') {
+					return;
+				}
+				event.preventDefault();
+				var btn = root.querySelector(buttonSelector);
+				if (btn && !btn.disabled) {
+					btn.click();
+				}
+			});
+		}
+		enterRuns(root.querySelector('[data-wcll-nwc-amount="receive"]'), '[data-wcll-nwc-generate]');
+		enterRuns(root.querySelector('[data-wcll-nwc-destination]'), '[data-wcll-nwc-send]');
+		enterRuns(root.querySelector('[data-wcll-nwc-amount="withdraw"]'), '[data-wcll-nwc-send]');
+
 		// Live: subscribe to NIP-47 notifications and refresh the balance on any.
 		function watchNotifications() {
 			if (!nwc.walletPubkey || !Array.isArray(nwc.relays) || !nwc.relays.length) {
