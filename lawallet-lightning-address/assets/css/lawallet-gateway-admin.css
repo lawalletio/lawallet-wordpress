@@ -237,6 +237,10 @@
 .wcll-nwc-create {
 	margin: 0 0 12px;
 }
+.wcll-nwc-disposable-info {
+	margin: 12px 0;
+	max-width: 640px;
+}
 .wcll-nwc-create[hidden] {
 	display: none;
 }

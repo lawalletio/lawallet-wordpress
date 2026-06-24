@@ -283,6 +283,7 @@
 			show(rowOf('woocommerce_wcll_gateway_nwc_lncurl_url'), isProxy && disposable);
 			show(rowOf('woocommerce_wcll_gateway_nwc_connection'), isProxy && !disposable);
 			show(rowOf('woocommerce_wcll_gateway_nwc_mode'), isProxy);
+			show(document.querySelector('[data-wcll-nwc-disposable-info]'), isProxy && disposable);
 		}
 
 		method.addEventListener('change', apply);

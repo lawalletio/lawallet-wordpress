@@ -304,6 +304,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			}
 			if ( 'nwc' === $id ) {
 				$this->render_nwc_create();
+				$this->render_nwc_disposable_info();
 				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
 				$this->render_nwc_transactions();
@@ -1002,6 +1003,16 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<span class="description">' . esc_html__( 'Provision a fresh disposable wallet and archive the current one.', 'lawallet-lightning-address' ) . '</span> ';
 		echo '<span class="wcll-nwc-create-feedback" data-wcll-nwc-create-feedback role="status" aria-live="polite"></span>';
 		echo '</p>';
+	}
+
+	/**
+	 * Explainer for the lncurl disposable-wallet economics. JS reveals it only when
+	 * the proxy wallet is in disposable mode (it starts hidden via inline display).
+	 */
+	private function render_nwc_disposable_info() {
+		echo '<div class="notice notice-info inline wcll-nwc-disposable-info" data-wcll-nwc-disposable-info style="display:none"><p>';
+		echo esc_html__( 'Disposable wallets are provisioned from an lncurl service. The first hour is free; after that the wallet costs about 1 sat per hour and is reclaimed once it runs out. When spending — including forwarding a payment to your Lightning Address — keep a reserve of 1% of the amount or 10 sats, whichever is greater, for routing fees (forwarded payments set this aside automatically).', 'lawallet-lightning-address' );
+		echo '</p></div>';
 	}
 
 	private function render_nwc_regenerate() {

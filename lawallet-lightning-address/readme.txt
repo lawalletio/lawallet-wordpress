@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.9
+Stable tag: 0.6.10
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -150,6 +150,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.6.10 =
+* Added an explainer in the NWC Wallet tab (disposable mode) describing how lncurl wallets work: free for the first hour, ~1 sat/hour after, and a 1%/10-sat routing reserve.
 
 = 0.6.9 =
 * The NWC Wallet "Withdraw" flow now confirms the send and refreshes the balance as soon as the wallet's NIP-47 payment_sent notification arrives, falling back to the pay response — so a slow or lost response is still reflected.
