@@ -176,6 +176,59 @@
 	}
 })(window.WCLLGatewayAdmin || {});
 
+// Receiver mode segmented control: a styled toggle group drives the hidden
+// settlement_method input, dispatching `change` so the field-reveal/alert logic
+// (which listens on that input) keeps working.
+(function () {
+	function init() {
+		var group = document.querySelector('[data-wcll-toggle-group]');
+		var input = document.querySelector('[data-wcll-toggle-input]');
+		if (!group || !input) {
+			return;
+		}
+		var buttons = Array.prototype.slice.call(group.querySelectorAll('[data-wcll-toggle]'));
+
+		function select(value, focus) {
+			input.value = value;
+			buttons.forEach(function (btn) {
+				var on = btn.getAttribute('data-wcll-toggle') === value;
+				btn.classList.toggle('is-active', on);
+				btn.setAttribute('aria-checked', on ? 'true' : 'false');
+				if (on && focus) {
+					btn.focus();
+				}
+			});
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+		}
+
+		buttons.forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				select(btn.getAttribute('data-wcll-toggle'), false);
+			});
+		});
+
+		group.addEventListener('keydown', function (event) {
+			var idx = buttons.indexOf(document.activeElement);
+			if (idx === -1) {
+				return;
+			}
+			if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+				event.preventDefault();
+				select(buttons[(idx + 1) % buttons.length].getAttribute('data-wcll-toggle'), true);
+			} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				select(buttons[(idx - 1 + buttons.length) % buttons.length].getAttribute('data-wcll-toggle'), true);
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();
+
 // Tabbed settings: show the panel that matches the clicked tab.
 (function () {
 	function init() {

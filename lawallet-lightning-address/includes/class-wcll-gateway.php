@@ -33,7 +33,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			),
 			'settlement_method'     => array(
 				'title'       => __( 'Receiver mode', 'lawallet-lightning-address' ),
-				'type'        => 'select',
+				'type'        => 'settlement_toggle',
 				'description' => __( 'How payments are received. Lightning Address: paid directly to your address (LUD-21 / NIP-57). Lightning Address via NWC Proxy: paid into a managed NWC wallet, then forwarded to your address. NWC: paid into your own NWC wallet and kept there.', 'lawallet-lightning-address' ),
 				'default'     => 'lightning_address',
 				'options'     => array(
@@ -41,7 +41,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 					'nwc_proxy'         => __( 'Lightning Address via NWC Proxy', 'lawallet-lightning-address' ),
 					'nwc'               => __( 'NWC', 'lawallet-lightning-address' ),
 				),
-				'desc_tip'    => true,
 			),
 			'lightning_address'     => array(
 				'title'       => __( 'Lightning Address', 'lawallet-lightning-address' ),
@@ -149,6 +148,58 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'default'     => 'no',
 			),
 		);
+	}
+
+	/**
+	 * Custom settings field: a segmented toggle group (instead of a plain select)
+	 * for the Receiver mode. A hidden input carries the value through the normal
+	 * WooCommerce form save; JS toggles it and dispatches a `change` event so the
+	 * existing field-reveal logic keeps working.
+	 */
+	public function generate_settlement_toggle_html( $key, $data ) {
+		$field_key = $this->get_field_key( $key );
+		$data      = wp_parse_args(
+			$data,
+			array(
+				'title'       => '',
+				'description' => '',
+				'options'     => array(),
+				'default'     => '',
+			)
+		);
+		$value = $this->get_option( $key );
+		if ( '' === $value ) {
+			$value = (string) $data['default'];
+		}
+
+		ob_start();
+		?>
+		<tr valign="top">
+			<th scope="row" class="titledesc"><?php echo esc_html( $data['title'] ); ?></th>
+			<td class="forminp">
+				<div class="wcll-toggle-group" role="radiogroup" data-wcll-toggle-group aria-label="<?php echo esc_attr( $data['title'] ); ?>">
+					<?php foreach ( $data['options'] as $opt_value => $opt_label ) : ?>
+						<?php $is_active = ( (string) $opt_value === (string) $value ); ?>
+						<button type="button" class="wcll-toggle<?php echo $is_active ? ' is-active' : ''; ?>" role="radio" aria-checked="<?php echo $is_active ? 'true' : 'false'; ?>" data-wcll-toggle="<?php echo esc_attr( $opt_value ); ?>"><?php echo esc_html( $opt_label ); ?></button>
+					<?php endforeach; ?>
+				</div>
+				<input type="hidden" id="<?php echo esc_attr( $field_key ); ?>" name="<?php echo esc_attr( $field_key ); ?>" value="<?php echo esc_attr( $value ); ?>" data-wcll-toggle-input />
+				<?php if ( ! empty( $data['description'] ) ) : ?>
+					<p class="description"><?php echo esc_html( $data['description'] ); ?></p>
+				<?php endif; ?>
+			</td>
+		</tr>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Validator for the Receiver mode toggle (custom field type).
+	 */
+	public function validate_settlement_toggle_field( $key, $value ) {
+		unset( $key );
+		$value = is_string( $value ) ? sanitize_text_field( $value ) : '';
+		return in_array( $value, array( 'lightning_address', 'nwc_proxy', 'nwc' ), true ) ? $value : 'lightning_address';
 	}
 
 	/**

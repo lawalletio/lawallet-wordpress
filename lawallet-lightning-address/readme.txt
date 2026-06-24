@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.11
+Stable tag: 0.6.12
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -150,6 +150,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.6.12 =
+* Redesigned the Receiver mode selector as a segmented toggle button group (keyboard-accessible) instead of a dropdown.
 
 = 0.6.11 =
 * Renamed the "NWC Wallet" tab to "NWC Proxy".
