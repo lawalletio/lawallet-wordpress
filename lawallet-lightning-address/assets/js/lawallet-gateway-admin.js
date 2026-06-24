@@ -508,6 +508,88 @@
 			});
 		}
 
+		// Receive-invoice payment detection: poll lookup_invoice for the generated
+		// top-up invoice, re-checking immediately on any wallet notification. On
+		// settlement, announce it and close the invoice section.
+		var receiveBox = root.querySelector('[data-wcll-nwc-invoice]');
+		var receiveForm = root.querySelector('[data-wcll-nwc-form="receive"]');
+		var receiveText = root.querySelector('[data-wcll-nwc-invoice-text]');
+		var pendingHash = null;
+		var pendingPubkey = '';
+		var receivePoll = null;
+		var receiveTicks = 0;
+		var receiveInFlight = false;
+		var receiveErrors = 0;
+
+		function stopReceiveWatch() {
+			pendingHash = null;
+			pendingPubkey = '';
+			receiveTicks = 0;
+			receiveErrors = 0;
+			if (receivePoll) {
+				window.clearInterval(receivePoll);
+				receivePoll = null;
+			}
+		}
+
+		function receiveCheckFailed() {
+			receiveErrors += 1;
+			if (receiveErrors >= 3) {
+				stopReceiveWatch();
+				say(i18n.unavailable || 'Could not check the payment.', true);
+			}
+		}
+
+		function checkReceiveInvoice() {
+			if (!pendingHash || receiveInFlight) {
+				return;
+			}
+			receiveInFlight = true;
+			ajax('wcll_nwc_invoice_status', { payment_hash: pendingHash, wallet_pubkey: pendingPubkey }).then(function (res) {
+				receiveInFlight = false;
+				var d = (res && res.data) || {};
+				if (res && res.success) {
+					receiveErrors = 0;
+					if (d.settled) {
+						stopReceiveWatch();
+						if (receiveText) {
+							receiveText.value = '';
+						}
+						if (receiveBox) {
+							receiveBox.hidden = true;
+						}
+						if (receiveForm) {
+							receiveForm.hidden = true;
+						}
+						say(i18n.received || 'Payment received.');
+						refreshBalance();
+					}
+				} else {
+					receiveCheckFailed();
+				}
+			}).catch(function () {
+				receiveInFlight = false;
+				receiveCheckFailed();
+			});
+		}
+
+		function startReceiveWatch(hash, pubkey) {
+			stopReceiveWatch();
+			if (!hash) {
+				return;
+			}
+			pendingHash = hash;
+			pendingPubkey = pubkey || '';
+			receivePoll = window.setInterval(function () {
+				receiveTicks += 1;
+				if (receiveTicks > 240) { // ~20 min at 5s; the invoice has expired by then.
+					stopReceiveWatch();
+					return;
+				}
+				checkReceiveInvoice();
+			}, 5000);
+		}
+
 		var generateBtn = root.querySelector('[data-wcll-nwc-generate]');
 		if (generateBtn) {
 			generateBtn.addEventListener('click', function () {
@@ -523,15 +605,14 @@
 					generateBtn.disabled = false;
 					var d = (res && res.data) || {};
 					if (res && res.success && d.invoice) {
-						var box = root.querySelector('[data-wcll-nwc-invoice]');
-						var text = root.querySelector('[data-wcll-nwc-invoice-text]');
-						if (text) {
-							text.value = d.invoice;
+						if (receiveText) {
+							receiveText.value = d.invoice;
 						}
-						if (box) {
-							box.hidden = false;
+						if (receiveBox) {
+							receiveBox.hidden = false;
 						}
-						say('');
+						say(i18n.waitingPayment || 'Waiting for payment…');
+						startReceiveWatch(d.payment_hash || null, d.wallet_pubkey || '');
 					} else {
 						say(d.message || i18n.unavailable, true);
 					}
@@ -678,6 +759,7 @@
 					var ev = parsed[2];
 					if (ev && (ev.kind === 23196 || ev.kind === 23197) && ev.pubkey === nwc.walletPubkey) {
 						refreshBalance();
+						checkReceiveInvoice();
 					}
 				});
 			});

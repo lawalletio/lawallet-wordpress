@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Accept Bitcoin with your Lightning Address 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-"
 "lightning-address\n"
-"POT-Creation-Date: 2026-06-24T17:12:25+00:00\n"
+"POT-Creation-Date: 2026-06-24T17:28:43+00:00\n"
 "PO-Revision-Date: 2026-06-12T01:00:00+00:00\n"
 "Last-Translator: LaWallet <hello@lawallet.io>\n"
 "Language-Team: Spanish\n"
@@ -725,7 +725,7 @@ msgstr "La Lightning Address es compatible con la verificación LUD-21."
 msgid "Lightning Address verified with LUD-21."
 msgstr "Lightning Address verificada con LUD-21."
 
-#: includes/class-wcll-gateway.php:838 includes/class-wcll-plugin.php:193
+#: includes/class-wcll-gateway.php:838 includes/class-wcll-plugin.php:196
 msgid "This Lightning Address does not advertise NIP-57 zap receipts."
 msgstr "Esta Lightning Address no anuncia recibos zap NIP-57."
 
@@ -758,7 +758,7 @@ msgid "NIP-57 zap receipts"
 msgstr "Recibos zap NIP-57"
 
 #: includes/class-wcll-gateway.php:873 includes/class-wcll-gateway.php:1039
-#: includes/class-wcll-gateway.php:1048 includes/class-wcll-nwc-manager.php:608
+#: includes/class-wcll-gateway.php:1048 includes/class-wcll-nwc-manager.php:627
 msgid "NWC wallet"
 msgstr "Billetera NWC"
 
@@ -814,18 +814,18 @@ msgstr "Pedido"
 msgid "Date"
 msgstr "Fecha"
 
-#: includes/class-wcll-gateway.php:919 includes/class-wcll-plugin.php:622
-#: includes/class-wcll-plugin.php:634 templates/payment-page.php:105
+#: includes/class-wcll-gateway.php:919 includes/class-wcll-plugin.php:656
+#: includes/class-wcll-plugin.php:668 templates/payment-page.php:105
 msgid "Amount"
 msgstr "Importe"
 
-#: includes/class-wcll-gateway.php:920 includes/class-wcll-plugin.php:533
-#: includes/class-wcll-plugin.php:619
+#: includes/class-wcll-gateway.php:920 includes/class-wcll-plugin.php:567
+#: includes/class-wcll-plugin.php:653
 msgid "Received"
 msgstr "Recibido"
 
-#: includes/class-wcll-gateway.php:921 includes/class-wcll-plugin.php:518
-#: includes/class-wcll-plugin.php:597
+#: includes/class-wcll-gateway.php:921 includes/class-wcll-plugin.php:552
+#: includes/class-wcll-plugin.php:631
 msgid "Forwarded"
 msgstr "Reenviado"
 
@@ -902,7 +902,7 @@ msgid "Balance"
 msgstr "Saldo"
 
 #: includes/class-wcll-gateway.php:1022 includes/class-wcll-gateway.php:1054
-#: includes/class-wcll-plugin.php:96
+#: includes/class-wcll-plugin.php:97
 msgid "Loading balance…"
 msgstr "Cargando saldo…"
 
@@ -918,7 +918,7 @@ msgstr ""
 "Establece el método de liquidación en billetera NWC, guarda, y los controles "
 "de la billetera aparecerán aquí."
 
-#: includes/class-wcll-gateway.php:1049 includes/class-wcll-plugin.php:107
+#: includes/class-wcll-gateway.php:1049 includes/class-wcll-plugin.php:110
 msgid "Show connection string"
 msgstr "Mostrar cadena de conexión"
 
@@ -942,7 +942,7 @@ msgstr ""
 "Esta cadena de conexión contiene el secreto de la billetera: cualquiera que "
 "lo tenga puede gastar los fondos, así que mantenla en privado."
 
-#: includes/class-wcll-gateway.php:1078 includes/class-wcll-plugin.php:580
+#: includes/class-wcll-gateway.php:1078 includes/class-wcll-plugin.php:614
 msgid "Copy"
 msgstr "Copiar"
 
@@ -962,7 +962,7 @@ msgstr "Monto (sats)"
 msgid "Generate invoice"
 msgstr "Generar factura"
 
-#: includes/class-wcll-gateway.php:1091 includes/class-wcll-plugin.php:783
+#: includes/class-wcll-gateway.php:1091 includes/class-wcll-plugin.php:817
 #: templates/payment-page.php:132
 msgid "Copy invoice"
 msgstr "Copiar factura"
@@ -1007,11 +1007,11 @@ msgstr ""
 "Estos son ejemplos populares. Consulta la lista completa de billeteras y "
 "servicios compatibles en"
 
-#: includes/class-wcll-lnurl-client.php:17 includes/class-wcll-plugin.php:132
+#: includes/class-wcll-lnurl-client.php:17 includes/class-wcll-plugin.php:135
 msgid "Enter a Lightning Address like name@example.com."
 msgstr "Introduce una Lightning Address como nombre@ejemplo.com."
 
-#: includes/class-wcll-lnurl-client.php:50 includes/class-wcll-plugin.php:158
+#: includes/class-wcll-lnurl-client.php:50 includes/class-wcll-plugin.php:161
 msgid "The Lightning Address minimum amount is higher than its maximum amount."
 msgstr ""
 "El importe mínimo de la Lightning Address es mayor que su importe máximo."
@@ -1204,8 +1204,8 @@ msgid "Set your NWC connection string."
 msgstr "Configura tu cadena de conexión NWC."
 
 #: includes/class-wcll-nwc-manager.php:156
-#: includes/class-wcll-nwc-manager.php:354 includes/class-wcll-plugin.php:270
-#: includes/class-wcll-plugin.php:300
+#: includes/class-wcll-nwc-manager.php:354 includes/class-wcll-plugin.php:273
+#: includes/class-wcll-plugin.php:312 includes/class-wcll-plugin.php:334
 msgid "The NWC wallet is not available."
 msgstr "La billetera NWC no está disponible."
 
@@ -1234,37 +1234,45 @@ msgstr ""
 "La billetera NWC de este pedido ya no está disponible; reenvía los fondos a "
 "tu Lightning Address manualmente."
 
-#: includes/class-wcll-nwc-manager.php:453
+#: includes/class-wcll-nwc-manager.php:422
+msgid "Missing wallet."
+msgstr "Falta la billetera."
+
+#: includes/class-wcll-nwc-manager.php:426
+msgid "The NWC wallet is no longer available."
+msgstr "La billetera NWC ya no está disponible."
+
+#: includes/class-wcll-nwc-manager.php:472
 msgid "Disposable wallet minting is only available in disposable mode."
 msgstr ""
 "La creación de billeteras descartables solo está disponible en modo "
 "descartable."
 
-#: includes/class-wcll-nwc-manager.php:462
+#: includes/class-wcll-nwc-manager.php:481
 msgid "A wallet is currently being provisioned; please retry in a moment."
 msgstr ""
 "Se está provisionando una billetera en este momento; vuelve a intentarlo en "
 "un momento."
 
-#: includes/class-wcll-nwc-manager.php:466
+#: includes/class-wcll-nwc-manager.php:485
 msgid ""
 "Too many NWC wallets were provisioned recently; aborting to avoid a loop."
 msgstr ""
 "Se provisionaron demasiadas billeteras NWC recientemente; se cancela para "
 "evitar un bucle."
 
-#: includes/class-wcll-nwc-manager.php:478
+#: includes/class-wcll-nwc-manager.php:497
 msgid "The lncurl service returned an invalid connection string."
 msgstr "El servicio lncurl devolvió una cadena de conexión inválida."
 
-#: includes/class-wcll-nwc-manager.php:509
+#: includes/class-wcll-nwc-manager.php:528
 msgid "The NWC wallet is unavailable and auto-replace is off."
 msgstr ""
 "La billetera NWC no está disponible y el reemplazo automático está "
 "desactivado."
 
 #. translators: %s: reason the previous wallet was replaced.
-#: includes/class-wcll-nwc-manager.php:522
+#: includes/class-wcll-nwc-manager.php:541
 #, php-format
 msgid ""
 "NWC proxy: the disposable wallet became unavailable (%s) and was replaced "
@@ -1273,20 +1281,20 @@ msgstr ""
 "Proxy NWC: la billetera descartable dejó de estar disponible (%s) y se "
 "reemplazó por una nueva para los próximos pedidos."
 
-#: includes/class-wcll-nwc-manager.php:523
+#: includes/class-wcll-nwc-manager.php:542
 msgid "unreachable"
 msgstr "inaccesible"
 
-#: includes/class-wcll-nwc-manager.php:569
+#: includes/class-wcll-nwc-manager.php:588
 msgid "The NWC wallet is not configured."
 msgstr "La billetera NWC no está configurada."
 
-#: includes/class-wcll-nwc-manager.php:607
+#: includes/class-wcll-nwc-manager.php:626
 msgid "Disposable NWC wallet"
 msgstr "Billetera NWC desechable"
 
 #. translators: 1: wallet kind (disposable/permanent), 2: balance in sats.
-#: includes/class-wcll-nwc-manager.php:611
+#: includes/class-wcll-nwc-manager.php:630
 #, php-format
 msgid ""
 "%1$s ready (balance %2$d sats); payments are settled there and forwarded to "
@@ -1296,7 +1304,7 @@ msgstr ""
 "Lightning Address."
 
 #. translators: 1: wallet kind (disposable/permanent), 2: balance in sats.
-#: includes/class-wcll-nwc-manager.php:614
+#: includes/class-wcll-nwc-manager.php:633
 #, php-format
 msgid ""
 "%1$s ready (balance %2$d sats); payments are settled there and stay in the "
@@ -1305,180 +1313,192 @@ msgstr ""
 "%1$s lista (saldo %2$d sats); los pagos se liquidan allí y permanecen en la "
 "billetera."
 
-#: includes/class-wcll-nwc-manager.php:732
+#: includes/class-wcll-nwc-manager.php:751
 msgid "Set a valid lncurl service URL."
 msgstr "Configura una URL de servicio lncurl válida."
 
-#: includes/class-wcll-nwc-manager.php:744
+#: includes/class-wcll-nwc-manager.php:763
 msgid "Could not reach the lncurl service to provision a wallet."
 msgstr ""
 "No se pudo contactar el servicio lncurl para provisionar una billetera."
 
-#: includes/class-wcll-nwc-manager.php:750
+#: includes/class-wcll-nwc-manager.php:769
 msgid "The lncurl service did not return a wallet."
 msgstr "El servicio lncurl no devolvió una billetera."
 
-#: includes/class-wcll-nwc-manager.php:756
+#: includes/class-wcll-nwc-manager.php:775
 msgid "The lncurl service returned an unexpected response."
 msgstr "El servicio lncurl devolvió una respuesta inesperada."
 
-#: includes/class-wcll-plugin.php:82
+#: includes/class-wcll-plugin.php:83
 msgid "LUD-16"
 msgstr "LUD-16"
 
-#: includes/class-wcll-plugin.php:83
+#: includes/class-wcll-plugin.php:84
 msgid "LUD-21"
 msgstr "LUD-21"
 
-#: includes/class-wcll-plugin.php:84
+#: includes/class-wcll-plugin.php:85
 msgid "NIP-57"
 msgstr "NIP-57"
 
-#: includes/class-wcll-plugin.php:85
+#: includes/class-wcll-plugin.php:86
 msgid "Checking the Lightning Address"
 msgstr "Comprobando la Lightning Address"
 
-#: includes/class-wcll-plugin.php:86
+#: includes/class-wcll-plugin.php:87
 msgid "Enter a Lightning Address to check"
 msgstr "Introduce una Lightning Address para comprobar"
 
-#: includes/class-wcll-plugin.php:97
+#: includes/class-wcll-plugin.php:98
 msgid "Balance unavailable"
 msgstr "Saldo no disponible"
 
-#: includes/class-wcll-plugin.php:98 includes/class-wcll-plugin.php:545
-#: includes/class-wcll-plugin.php:571
+#: includes/class-wcll-plugin.php:99 includes/class-wcll-plugin.php:579
+#: includes/class-wcll-plugin.php:605
 msgid "sats"
 msgstr "sats"
 
-#: includes/class-wcll-plugin.php:99
+#: includes/class-wcll-plugin.php:100
 msgid "Sending…"
 msgstr "Enviando…"
 
-#: includes/class-wcll-plugin.php:100
+#: includes/class-wcll-plugin.php:101
 msgid "Generating…"
 msgstr "Generando…"
 
-#: includes/class-wcll-plugin.php:101 includes/class-wcll-plugin.php:784
+#: includes/class-wcll-plugin.php:102 includes/class-wcll-plugin.php:818
 msgid "Copied"
 msgstr "Copiado"
 
-#: includes/class-wcll-plugin.php:102
+#: includes/class-wcll-plugin.php:103
 msgid "Payment sent."
 msgstr "Pago enviado."
 
-#: includes/class-wcll-plugin.php:103 includes/class-wcll-plugin.php:265
+#: includes/class-wcll-plugin.php:104
+msgid "Payment received."
+msgstr "Pago recibido."
+
+#: includes/class-wcll-plugin.php:105
+msgid "Waiting for payment…"
+msgstr "Esperando el pago…"
+
+#: includes/class-wcll-plugin.php:106 includes/class-wcll-plugin.php:268
 msgid "Enter an amount in sats."
 msgstr "Introduce un monto en sats."
 
-#: includes/class-wcll-plugin.php:104 includes/class-wcll-plugin.php:294
+#: includes/class-wcll-plugin.php:107 includes/class-wcll-plugin.php:328
 msgid "Enter a Lightning Address or BOLT11 invoice."
 msgstr "Introduce una Lightning Address o una factura BOLT11."
 
-#: includes/class-wcll-plugin.php:105
+#: includes/class-wcll-plugin.php:108
 msgid "Regenerating…"
 msgstr "Regenerando…"
 
-#: includes/class-wcll-plugin.php:106
+#: includes/class-wcll-plugin.php:109
 msgid "Connection regenerated."
 msgstr "Conexión regenerada."
 
-#: includes/class-wcll-plugin.php:108
+#: includes/class-wcll-plugin.php:111
 msgid "Hide connection string"
 msgstr "Ocultar cadena de conexión"
 
-#: includes/class-wcll-plugin.php:109
+#: includes/class-wcll-plugin.php:112
 msgid "Could not load the connection string."
 msgstr "No se pudo cargar la cadena de conexión."
 
-#: includes/class-wcll-plugin.php:110
+#: includes/class-wcll-plugin.php:113
 msgid "Create a new disposable wallet? The current one will be archived."
 msgstr "¿Crear una nueva billetera desechable? La actual se archivará."
 
-#: includes/class-wcll-plugin.php:111
+#: includes/class-wcll-plugin.php:114
 msgid "Creating…"
 msgstr "Creando…"
 
-#: includes/class-wcll-plugin.php:112
+#: includes/class-wcll-plugin.php:115
 msgid "New disposable wallet created."
 msgstr "Nueva billetera desechable creada."
 
-#: includes/class-wcll-plugin.php:113
+#: includes/class-wcll-plugin.php:116
 msgid "now (empty)"
 msgstr "ahora (vacía)"
 
-#: includes/class-wcll-plugin.php:114
+#: includes/class-wcll-plugin.php:117
 msgid "Loading…"
 msgstr "Cargando…"
 
 #. translators: 1: current page number, 2: total number of pages.
-#: includes/class-wcll-plugin.php:116
+#: includes/class-wcll-plugin.php:119
 #, php-format
 msgid "Page %1$s of %2$s"
 msgstr "Página %1$s de %2$s"
 
-#: includes/class-wcll-plugin.php:125
+#: includes/class-wcll-plugin.php:128
 msgid "You are not allowed to verify the Lightning Address."
 msgstr "No tienes permisos para verificar la Lightning Address."
 
-#: includes/class-wcll-plugin.php:154
+#: includes/class-wcll-plugin.php:157
 msgid "Lightning Address resolves (LUD-16)."
 msgstr "La Lightning Address se resuelve (LUD-16)."
 
-#: includes/class-wcll-plugin.php:179
+#: includes/class-wcll-plugin.php:182
 msgid ""
 "This Lightning Address does not support LUD-21 verification (no verify URL)."
 msgstr ""
 "Esta Lightning Address no admite la verificación LUD-21 (sin URL de "
 "verificación)."
 
-#: includes/class-wcll-plugin.php:184
+#: includes/class-wcll-plugin.php:187
 msgid "LUD-21 settlement verification supported."
 msgstr "Verificación de liquidación LUD-21 admitida."
 
-#: includes/class-wcll-plugin.php:191
+#: includes/class-wcll-plugin.php:194
 msgid "NIP-57 zap receipts supported."
 msgstr "Recibos zap NIP-57 admitidos."
 
-#: includes/class-wcll-plugin.php:209
+#: includes/class-wcll-plugin.php:212
 msgid "You are not allowed to manage the NWC wallet."
 msgstr "No tienes permiso para gestionar la billetera NWC."
 
-#: includes/class-wcll-plugin.php:250
+#: includes/class-wcll-plugin.php:253
 msgid "No NWC wallet is configured yet."
 msgstr "Todavía no hay ninguna billetera NWC configurada."
 
 #. translators: %d: amount in sats.
-#: includes/class-wcll-plugin.php:274
+#: includes/class-wcll-plugin.php:277
 #, php-format
 msgid "Top up %d sats"
 msgstr "Recargar %d sats"
 
-#: includes/class-wcll-plugin.php:307
+#: includes/class-wcll-plugin.php:301
+msgid "Missing payment hash."
+msgstr "Falta el hash de pago."
+
+#: includes/class-wcll-plugin.php:341
 msgid "Enter an amount in sats to send to a Lightning Address."
 msgstr "Introduce un monto en sats para enviar a una Lightning Address."
 
-#: includes/class-wcll-plugin.php:318
+#: includes/class-wcll-plugin.php:352
 msgid "NWC wallet withdrawal"
 msgstr "Retiro de la billetera NWC"
 
-#: includes/class-wcll-plugin.php:326
+#: includes/class-wcll-plugin.php:360
 msgid "The Lightning Address did not return an invoice."
 msgstr "La Lightning Address no devolvió una factura."
 
-#: includes/class-wcll-plugin.php:330
+#: includes/class-wcll-plugin.php:364
 msgid "Enter a valid Lightning Address or BOLT11 invoice."
 msgstr "Introduce una Lightning Address o factura BOLT11 válida."
 
-#: includes/class-wcll-plugin.php:350
+#: includes/class-wcll-plugin.php:384
 msgid "Enter a valid lncurl service URL."
 msgstr "Introduce una URL de servicio lncurl válida."
 
-#: includes/class-wcll-plugin.php:355
+#: includes/class-wcll-plugin.php:389
 msgid "Switch to Disposable mode to regenerate the wallet."
 msgstr "Cambia al modo Descartable para regenerar la billetera."
 
-#: includes/class-wcll-plugin.php:383
+#: includes/class-wcll-plugin.php:417
 msgid ""
 "Disposable wallets are only available in NWC Proxy mode with the disposable "
 "wallet mode."
@@ -1486,94 +1506,94 @@ msgstr ""
 "Las billeteras desechables solo están disponibles en el modo Proxy NWC con "
 "el modo de billetera desechable."
 
-#: includes/class-wcll-plugin.php:519 includes/class-wcll-plugin.php:603
+#: includes/class-wcll-plugin.php:553 includes/class-wcll-plugin.php:637
 msgid "Pending"
 msgstr "Pendiente"
 
-#: includes/class-wcll-plugin.php:520 includes/class-wcll-plugin.php:600
+#: includes/class-wcll-plugin.php:554 includes/class-wcll-plugin.php:634
 msgid "Failed"
 msgstr "Falló"
 
-#: includes/class-wcll-plugin.php:521 includes/class-wcll-plugin.php:606
+#: includes/class-wcll-plugin.php:555 includes/class-wcll-plugin.php:640
 msgid "Not forwarded"
 msgstr "No reenviado"
 
 #. translators: %s: merchant Lightning Address.
-#: includes/class-wcll-plugin.php:529
+#: includes/class-wcll-plugin.php:563
 #, php-format
 msgid "to %s"
 msgstr "a %s"
 
-#: includes/class-wcll-plugin.php:534 includes/class-wcll-plugin.php:620
+#: includes/class-wcll-plugin.php:568 includes/class-wcll-plugin.php:654
 msgid "Awaiting payment"
 msgstr "Esperando pago"
 
-#: includes/class-wcll-plugin.php:536
+#: includes/class-wcll-plugin.php:570
 msgid "Show"
 msgstr "Ver"
 
-#: includes/class-wcll-plugin.php:561
+#: includes/class-wcll-plugin.php:595
 msgid "Transaction not found."
 msgstr "Transacción no encontrada."
 
 #. translators: 1: order number, 2: order date.
-#: includes/class-wcll-plugin.php:613
+#: includes/class-wcll-plugin.php:647
 #, php-format
 msgid "Order #%1$s — %2$s"
 msgstr "Pedido #%1$s — %2$s"
 
-#: includes/class-wcll-plugin.php:615
+#: includes/class-wcll-plugin.php:649
 msgid "Received (NWC wallet)"
 msgstr "Recibido (billetera NWC)"
 
-#: includes/class-wcll-plugin.php:617 includes/class-wcll-plugin.php:632
+#: includes/class-wcll-plugin.php:651 includes/class-wcll-plugin.php:666
 msgid "Status"
 msgstr "Estado"
 
-#: includes/class-wcll-plugin.php:623
+#: includes/class-wcll-plugin.php:657
 msgid "Payment hash"
 msgstr "Hash de pago"
 
-#: includes/class-wcll-plugin.php:624 includes/class-wcll-plugin.php:638
+#: includes/class-wcll-plugin.php:658 includes/class-wcll-plugin.php:672
 msgid "Preimage"
 msgstr "Preimagen"
 
-#: includes/class-wcll-plugin.php:625 includes/class-wcll-plugin.php:639
+#: includes/class-wcll-plugin.php:659 includes/class-wcll-plugin.php:673
 msgid "Invoice"
 msgstr "Factura"
 
-#: includes/class-wcll-plugin.php:631
+#: includes/class-wcll-plugin.php:665
 msgid "Sent (forward)"
 msgstr "Enviado (reenvío)"
 
-#: includes/class-wcll-plugin.php:633
+#: includes/class-wcll-plugin.php:667
 msgid "To"
 msgstr "Para"
 
-#: includes/class-wcll-plugin.php:635
+#: includes/class-wcll-plugin.php:669
 msgid "Reserve kept"
 msgstr "Reserva retenida"
 
 #. translators: %s: routing fee in millisatoshis.
-#: includes/class-wcll-plugin.php:637
+#: includes/class-wcll-plugin.php:671
 msgid "Routing fee"
 msgstr "Comisión de ruteo"
 
 #. translators: %s: routing fee in millisatoshis.
-#: includes/class-wcll-plugin.php:637
+#: includes/class-wcll-plugin.php:671
 #, php-format
 msgid "%s msat"
 msgstr "%s msat"
 
-#: includes/class-wcll-plugin.php:695
+#: includes/class-wcll-plugin.php:729
 msgid "Settings"
 msgstr "Ajustes"
 
-#: includes/class-wcll-plugin.php:706
+#: includes/class-wcll-plugin.php:740
 msgid "Every minute"
 msgstr "Cada minuto"
 
-#: includes/class-wcll-plugin.php:731
+#: includes/class-wcll-plugin.php:765
 msgid ""
 "Accept Bitcoin with your Lightning Address needs WooCommerce active for "
 "checkout payments. Lightning Address discovery can still be configured from "
@@ -1583,7 +1603,7 @@ msgstr ""
 "los pagos en el checkout. El descubrimiento de Lightning Address se puede "
 "configurar igualmente desde Ajustes -> LaWallet."
 
-#: includes/class-wcll-plugin.php:739
+#: includes/class-wcll-plugin.php:773
 msgid ""
 "Lightning payments need a merchant Lightning Address before checkout can "
 "accept payments."
@@ -1591,66 +1611,66 @@ msgstr ""
 "Los pagos Lightning necesitan una Lightning Address de comerciante antes de "
 "que el checkout pueda aceptar pagos."
 
-#: includes/class-wcll-plugin.php:740
+#: includes/class-wcll-plugin.php:774
 msgid "Set Lightning Address"
 msgstr "Configurar Lightning Address"
 
-#: includes/class-wcll-plugin.php:753
+#: includes/class-wcll-plugin.php:787
 msgid "Lightning invoice is not available for this order."
 msgstr "La factura Lightning no está disponible para este pedido."
 
-#: includes/class-wcll-plugin.php:779 templates/payment-page.php:90
+#: includes/class-wcll-plugin.php:813 templates/payment-page.php:90
 msgid "Waiting for payment"
 msgstr "Esperando el pago"
 
-#: includes/class-wcll-plugin.php:780
+#: includes/class-wcll-plugin.php:814
 msgid "Checking settlement"
 msgstr "Comprobando la liquidación"
 
-#: includes/class-wcll-plugin.php:781
+#: includes/class-wcll-plugin.php:815
 msgid "Payment received"
 msgstr "Pago recibido"
 
-#: includes/class-wcll-plugin.php:782
+#: includes/class-wcll-plugin.php:816
 msgid "Invoice expired"
 msgstr "Factura expirada"
 
-#: includes/class-wcll-plugin.php:785 templates/payment-page.php:126
+#: includes/class-wcll-plugin.php:819 templates/payment-page.php:126
 msgid "Pay with WebLN"
 msgstr "Pagar con WebLN"
 
-#: includes/class-wcll-plugin.php:786
+#: includes/class-wcll-plugin.php:820
 msgid "Opening WebLN"
 msgstr "Abriendo WebLN"
 
-#: includes/class-wcll-plugin.php:787
+#: includes/class-wcll-plugin.php:821
 msgid "Checking payment"
 msgstr "Comprobando el pago"
 
-#: includes/class-wcll-plugin.php:824
+#: includes/class-wcll-plugin.php:858
 msgid "Invalid order."
 msgstr "Pedido no válido."
 
-#: includes/class-wcll-plugin.php:828
+#: includes/class-wcll-plugin.php:862
 msgid "Invalid payment session."
 msgstr "Sesión de pago no válida."
 
-#: includes/class-wcll-plugin.php:986
+#: includes/class-wcll-plugin.php:1020
 msgid ""
 "This invoice has no LUD-21 verify URL or NIP-57 relays to confirm settlement."
 msgstr ""
 "Esta factura no tiene una URL de verificación LUD-21 ni relays NIP-57 para "
 "confirmar la liquidación."
 
-#: includes/class-wcll-plugin.php:1002
+#: includes/class-wcll-plugin.php:1036
 msgid "This NWC order has no payment hash to verify."
 msgstr "Este pedido NWC no tiene un hash de pago para verificar."
 
-#: includes/class-wcll-plugin.php:1062
+#: includes/class-wcll-plugin.php:1096
 msgid "NWC proxy: reached the maximum number of forwarding attempts."
 msgstr "Proxy NWC: se alcanzó el número máximo de intentos de reenvío."
 
-#: includes/class-wcll-plugin.php:1072
+#: includes/class-wcll-plugin.php:1106
 msgid ""
 "NWC proxy: the order amount is too small to forward after the routing "
 "reserve. Forward the funds to your Lightning Address manually."
@@ -1658,7 +1678,7 @@ msgstr ""
 "Proxy NWC: el monto del pedido es demasiado pequeño para reenviar tras la "
 "reserva de ruteo. Reenvía los fondos a tu Lightning Address manualmente."
 
-#: includes/class-wcll-plugin.php:1109
+#: includes/class-wcll-plugin.php:1143
 msgid ""
 "NWC proxy: the forward amount is outside the Lightning Address limits. "
 "Forward the funds to your Lightning Address manually."
@@ -1666,12 +1686,12 @@ msgstr ""
 "Proxy NWC: el monto a reenviar está fuera de los límites de la Lightning "
 "Address. Reenvía los fondos a tu Lightning Address manualmente."
 
-#: includes/class-wcll-plugin.php:1124
+#: includes/class-wcll-plugin.php:1158
 msgid "The Lightning Address did not return a forward invoice."
 msgstr "La Lightning Address no devolvió una factura de reenvío."
 
 #. translators: 1: forwarded amount in sats, 2: reserve kept in sats, 3: routing fee paid in sats.
-#: includes/class-wcll-plugin.php:1182
+#: includes/class-wcll-plugin.php:1216
 #, php-format
 msgid ""
 "NWC proxy: forwarded %1$d sats to the merchant Lightning Address (kept %2$d "
@@ -1681,7 +1701,7 @@ msgstr ""
 "retuvieron %2$d sats de reserva; %3$d sats de comisión de ruteo)."
 
 #. translators: %s: last forwarding error message.
-#: includes/class-wcll-plugin.php:1204
+#: includes/class-wcll-plugin.php:1238
 #, php-format
 msgid ""
 "NWC proxy: could not forward the payment after several attempts (%s). The "
@@ -1692,24 +1712,24 @@ msgstr ""
 "están retenidos en la billetera proxy — reenvíalos a tu Lightning Address "
 "manualmente."
 
-#: includes/class-wcll-plugin.php:1229
+#: includes/class-wcll-plugin.php:1263
 msgid "Lightning payment verified via NIP-57 zap receipt."
 msgstr "Pago Lightning verificado mediante recibo zap NIP-57."
 
-#: includes/class-wcll-plugin.php:1232
+#: includes/class-wcll-plugin.php:1266
 msgid "Lightning payment verified in the NWC wallet."
 msgstr "Pago Lightning verificado en la billetera NWC."
 
-#: includes/class-wcll-plugin.php:1234
+#: includes/class-wcll-plugin.php:1268
 msgid "Lightning payment verified with LUD-21."
 msgstr "Pago Lightning verificado con LUD-21."
 
-#: includes/class-wcll-plugin.php:1245
+#: includes/class-wcll-plugin.php:1279
 msgid "Lightning invoice expired before settlement was confirmed."
 msgstr "La factura Lightning expiró antes de que se confirmara la liquidación."
 
 #. translators: %s: error message returned by the last settlement verification attempt.
-#: includes/class-wcll-plugin.php:1248
+#: includes/class-wcll-plugin.php:1282
 #, php-format
 msgid "Last verification error: %s"
 msgstr "Último error de verificación: %s"

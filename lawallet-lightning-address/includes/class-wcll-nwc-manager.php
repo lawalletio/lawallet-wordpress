@@ -409,6 +409,25 @@ class WCLL_NWC_Manager {
 		return $client;
 	}
 
+	/**
+	 * Build a client for a SPECIFIC wallet by pubkey (active, archived, permanent,
+	 * or the terminal receiver). Used to look an invoice up on the exact wallet it
+	 * was minted on, even after a disposable rotation.
+	 *
+	 * @return WCLL_NWC_Client|WP_Error
+	 */
+	public static function client_for_pubkey( array $settings, $pubkey ) {
+		$pubkey = strtolower( (string) $pubkey );
+		if ( ! preg_match( '/^[0-9a-f]{64}$/', $pubkey ) ) {
+			return new WP_Error( 'wcll_nwc_no_pubkey', __( 'Missing wallet.', 'lawallet-lightning-address' ) );
+		}
+		$uri = self::connection_uri_for_pubkey( $settings, $pubkey );
+		if ( '' === $uri ) {
+			return new WP_Error( 'wcll_nwc_wallet_gone', __( 'The NWC wallet is no longer available.', 'lawallet-lightning-address' ) );
+		}
+		return WCLL_NWC_Client::from_uri( $uri );
+	}
+
 	private static function connection_uri_for_pubkey( array $settings, $pubkey ) {
 		$pubkey = strtolower( $pubkey );
 
