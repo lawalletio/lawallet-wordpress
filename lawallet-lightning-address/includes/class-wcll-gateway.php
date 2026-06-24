@@ -33,7 +33,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			),
 			'settlement_method'     => array(
 				'title'       => __( 'Receiver mode', 'lawallet-lightning-address' ),
-				'type'        => 'select',
+				'type'        => 'settlement_toggle',
 				'description' => __( 'How payments are received. Lightning Address: paid directly to your address (LUD-21 / NIP-57). Lightning Address via NWC Proxy: paid into a managed NWC wallet, then forwarded to your address. NWC: paid into your own NWC wallet and kept there.', 'lawallet-lightning-address' ),
 				'default'     => 'lightning_address',
 				'options'     => array(
@@ -41,7 +41,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 					'nwc_proxy'         => __( 'Lightning Address via NWC Proxy', 'lawallet-lightning-address' ),
 					'nwc'               => __( 'NWC', 'lawallet-lightning-address' ),
 				),
-				'desc_tip'    => true,
 			),
 			'lightning_address'     => array(
 				'title'       => __( 'Lightning Address', 'lawallet-lightning-address' ),
@@ -106,13 +105,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'default'     => 'https://lncurl.lol',
 				'desc_tip'    => true,
 			),
-			'nwc_auto_replace'      => array(
-				'title'       => __( 'Auto-replace dead wallet', 'lawallet-lightning-address' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Provision a new wallet when the current disposable wallet becomes unavailable', 'lawallet-lightning-address' ),
-				'description' => __( 'Disposable mode only. A permanent connection is never replaced.', 'lawallet-lightning-address' ),
-				'default'     => 'yes',
-			),
 			'nwc_connection'        => array(
 				'title'       => __( 'Permanent NWC connection string', 'lawallet-lightning-address' ),
 				'type'        => 'password',
@@ -159,6 +151,58 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	}
 
 	/**
+	 * Custom settings field: a segmented toggle group (instead of a plain select)
+	 * for the Receiver mode. A hidden input carries the value through the normal
+	 * WooCommerce form save; JS toggles it and dispatches a `change` event so the
+	 * existing field-reveal logic keeps working.
+	 */
+	public function generate_settlement_toggle_html( $key, $data ) {
+		$field_key = $this->get_field_key( $key );
+		$data      = wp_parse_args(
+			$data,
+			array(
+				'title'       => '',
+				'description' => '',
+				'options'     => array(),
+				'default'     => '',
+			)
+		);
+		$value = $this->get_option( $key );
+		if ( '' === $value ) {
+			$value = (string) $data['default'];
+		}
+
+		ob_start();
+		?>
+		<tr valign="top">
+			<th scope="row" class="titledesc"><?php echo esc_html( $data['title'] ); ?></th>
+			<td class="forminp">
+				<div class="wcll-toggle-group" role="radiogroup" data-wcll-toggle-group aria-label="<?php echo esc_attr( $data['title'] ); ?>">
+					<?php foreach ( $data['options'] as $opt_value => $opt_label ) : ?>
+						<?php $is_active = ( (string) $opt_value === (string) $value ); ?>
+						<button type="button" class="wcll-toggle<?php echo $is_active ? ' is-active' : ''; ?>" role="radio" aria-checked="<?php echo $is_active ? 'true' : 'false'; ?>" data-wcll-toggle="<?php echo esc_attr( $opt_value ); ?>"><?php echo esc_html( $opt_label ); ?></button>
+					<?php endforeach; ?>
+				</div>
+				<input type="hidden" id="<?php echo esc_attr( $field_key ); ?>" name="<?php echo esc_attr( $field_key ); ?>" value="<?php echo esc_attr( $value ); ?>" data-wcll-toggle-input />
+				<?php if ( ! empty( $data['description'] ) ) : ?>
+					<p class="description"><?php echo esc_html( $data['description'] ); ?></p>
+				<?php endif; ?>
+			</td>
+		</tr>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Validator for the Receiver mode toggle (custom field type).
+	 */
+	public function validate_settlement_toggle_field( $key, $value ) {
+		unset( $key );
+		$value = is_string( $value ) ? sanitize_text_field( $value ) : '';
+		return in_array( $value, array( 'lightning_address', 'nwc_proxy', 'nwc' ), true ) ? $value : 'lightning_address';
+	}
+
+	/**
 	 * Grouping of the gateway settings into tabs for a clearer admin UI. Each
 	 * field is still part of the single settings form, so saving and validation
 	 * are unchanged — only the presentation is grouped.
@@ -176,9 +220,9 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'fields' => array( 'settlement_method', 'lightning_address', 'nwc_receiver_connection' ),
 			),
 			'nwc'      => array(
-				'label'  => __( 'NWC Wallet', 'lawallet-lightning-address' ),
+				'label'  => __( 'NWC Proxy', 'lawallet-lightning-address' ),
 				'intro'  => __( 'Settings for the managed proxy wallet, used only in "Lightning Address via NWC Proxy" mode. Payments settle here and are forwarded to your Lightning Address.', 'lawallet-lightning-address' ),
-				'fields' => array( 'nwc_mode', 'nwc_lncurl_url', 'nwc_auto_replace', 'nwc_connection' ),
+				'fields' => array( 'nwc_mode', 'nwc_lncurl_url', 'nwc_connection' ),
 			),
 			'pricing'  => array(
 				'label'  => __( 'Pricing & rates', 'lawallet-lightning-address' ),
@@ -310,16 +354,17 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				$this->render_compatible_wallets();
 			}
 			if ( 'nwc' === $id ) {
+				$this->render_nwc_create();
+				$this->render_nwc_disposable_info();
 				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
 				$this->render_nwc_transactions();
+				$this->render_connection_status();
 			}
 			echo '</div>';
 			$is_first = false;
 		}
 		echo '</div>';
-
-		$this->render_connection_status();
 	}
 
 	public function process_admin_options() {
@@ -997,6 +1042,29 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	 * "Regenerate" affordance shown on the NWC tab when the lncurl service URL is
 	 * changed: provisions a fresh disposable wallet from the new service.
 	 */
+	/**
+	 * "Create disposable wallet" control, rendered right below the lncurl service
+	 * field. JS (the wallet panel) reveals it only when the saved mode is a
+	 * configured disposable proxy wallet, and wires the click handler.
+	 */
+	private function render_nwc_create() {
+		echo '<p class="wcll-nwc-create" data-wcll-nwc-create-row hidden>';
+		echo '<button type="button" class="button" data-wcll-nwc-create>' . esc_html__( 'Create disposable wallet', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<span class="description">' . esc_html__( 'Provision a fresh disposable wallet and archive the current one.', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<span class="wcll-nwc-create-feedback" data-wcll-nwc-create-feedback role="status" aria-live="polite"></span>';
+		echo '</p>';
+	}
+
+	/**
+	 * Explainer for the lncurl disposable-wallet economics. JS reveals it only when
+	 * the proxy wallet is in disposable mode (it starts hidden via inline display).
+	 */
+	private function render_nwc_disposable_info() {
+		echo '<div class="notice notice-info inline wcll-nwc-disposable-info" data-wcll-nwc-disposable-info style="display:none"><p>';
+		echo esc_html__( 'Disposable wallets are provisioned from an lncurl service. The first hour is free; after that the wallet costs about 1 sat per hour and is reclaimed once it runs out. When spending — including forwarding a payment to your Lightning Address — keep a reserve of 1% of the amount or 10 sats, whichever is greater, for routing fees (forwarded payments set this aside automatically).', 'lawallet-lightning-address' );
+		echo '</p></div>';
+	}
+
 	private function render_nwc_regenerate() {
 		echo '<p class="wcll-nwc-regenerate" data-wcll-nwc-regenerate-row hidden>';
 		echo '<button type="button" class="button" data-wcll-nwc-regenerate>' . esc_html__( 'Regenerate NWC connection', 'lawallet-lightning-address' ) . '</button> ';
@@ -1015,6 +1083,14 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<div class="notice notice-warning inline wcll-receiver-alert" data-wcll-receiver-alert hidden><p>'
 			. esc_html__( 'This Lightning Address cannot confirm payments on its own (no LUD-21 and no NIP-57). Switch the Receiver mode to "Lightning Address via NWC Proxy" to accept it.', 'lawallet-lightning-address' )
 			. '</p></div>';
+
+		// Shown by JS only in "Lightning Address via NWC Proxy" mode: the proxy
+		// wallet lives on its own tab. The button saves first (the tab reflects
+		// saved settings), then opens the NWC Proxy tab.
+		echo '<div class="notice notice-info inline wcll-receiver-proxy-note" data-wcll-receiver-proxy-note style="display:none"><p>';
+		echo esc_html__( 'Payments are received by a managed NWC proxy wallet and forwarded to this Lightning Address. The proxy wallet is configured on the NWC Proxy tab.', 'lawallet-lightning-address' ) . ' ';
+		echo '<button type="button" class="button wcll-goto-nwc" data-wcll-goto-nwc>' . esc_html__( 'Save & open NWC Proxy', 'lawallet-lightning-address' ) . '</button>';
+		echo '</p></div>';
 
 		$info = WCLL_NWC_Manager::receiver_admin_info( self::get_gateway_settings() );
 		echo '<div class="wcll-nwc-wallet" data-wcll-receiver-panel hidden>';
@@ -1041,13 +1117,20 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$info = WCLL_NWC_Manager::admin_wallet_info( self::get_gateway_settings() );
 
 		echo '<div class="wcll-nwc-wallet" data-wcll-nwc-wallet>';
-		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</h4>';
 
 		if ( empty( $info['configured'] ) ) {
+			echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</h4>';
 			echo '<p class="description">' . esc_html__( 'Set the settlement method to NWC wallet, save, and the wallet controls will appear here.', 'lawallet-lightning-address' ) . '</p>';
 			echo '</div>';
 			return;
 		}
+
+		// Header: title on the left, the secret-string reveal as a small button on
+		// the right. The reveal box (with the warning) sits below, hidden until clicked.
+		echo '<div class="wcll-nwc-wallet-head">';
+		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</h4>';
+		echo '<button type="button" class="button button-small wcll-nwc-show-connection" data-wcll-nwc-show-connection>' . esc_html__( 'Show connection string', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
 
 		echo '<div class="wcll-nwc-balance-row">';
 		echo '<span class="wcll-nwc-balance-label">' . esc_html__( 'Balance', 'lawallet-lightning-address' ) . '</span> ';
@@ -1055,14 +1138,21 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<button type="button" class="button-link wcll-nwc-refresh" data-wcll-nwc-refresh aria-label="' . esc_attr__( 'Refresh balance', 'lawallet-lightning-address' ) . '"><span class="dashicons dashicons-update" aria-hidden="true"></span></button>';
 		echo '</div>';
 
-		// Connection-string reveal. The string carries the wallet secret, so it is
-		// never rendered into the page: the textarea starts empty and is filled by
-		// an authenticated AJAX request only when the admin clicks "Show".
-		echo '<p class="wcll-nwc-connection">';
-		echo '<button type="button" class="button" data-wcll-nwc-show-connection>' . esc_html__( 'Show connection string', 'lawallet-lightning-address' ) . '</button> ';
-		echo '<span class="description">' . esc_html__( 'Reveal this wallet\'s connection string to import it into another app. It contains the wallet secret — anyone who has it can spend the funds, so keep it private.', 'lawallet-lightning-address' ) . '</span>';
+		// Disposable wallets burn ~1 sat/hour of lncurl upkeep, so the balance (in
+		// sats) is the wallet's remaining lifetime in hours. JS reveals the live
+		// countdown only in disposable mode. (The "Create disposable wallet" button
+		// is rendered below the lncurl service field instead — see render_nwc_create.)
+		echo '<p class="wcll-nwc-lifetime" data-wcll-nwc-lifetime hidden>';
+		echo '<span class="wcll-nwc-balance-label">' . esc_html__( 'Expires in', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<strong data-wcll-nwc-countdown>—</strong>';
 		echo '</p>';
+
+		// Connection-string reveal box (toggled by the header button). The string
+		// carries the wallet secret, so it is never rendered into the page: the
+		// textarea starts empty and is filled by an authenticated AJAX request only
+		// when the admin clicks "Show".
 		echo '<div class="wcll-nwc-connection-box" data-wcll-nwc-connection-box hidden>';
+		echo '<p class="description wcll-nwc-connection-warn">' . esc_html__( 'This connection string contains the wallet secret — anyone who has it can spend the funds, so keep it private.', 'lawallet-lightning-address' ) . '</p>';
 		echo '<textarea readonly rows="3" class="large-text code wcll-nwc-connection-text" data-wcll-nwc-connection-text aria-label="' . esc_attr__( 'NWC connection string', 'lawallet-lightning-address' ) . '"></textarea>';
 		echo '<button type="button" class="button" data-wcll-nwc-connection-copy>' . esc_html__( 'Copy', 'lawallet-lightning-address' ) . '</button>';
 		echo '</div>';

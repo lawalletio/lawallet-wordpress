@@ -176,6 +176,59 @@
 	}
 })(window.WCLLGatewayAdmin || {});
 
+// Receiver mode segmented control: a styled toggle group drives the hidden
+// settlement_method input, dispatching `change` so the field-reveal/alert logic
+// (which listens on that input) keeps working.
+(function () {
+	function init() {
+		var group = document.querySelector('[data-wcll-toggle-group]');
+		var input = document.querySelector('[data-wcll-toggle-input]');
+		if (!group || !input) {
+			return;
+		}
+		var buttons = Array.prototype.slice.call(group.querySelectorAll('[data-wcll-toggle]'));
+
+		function select(value, focus) {
+			input.value = value;
+			buttons.forEach(function (btn) {
+				var on = btn.getAttribute('data-wcll-toggle') === value;
+				btn.classList.toggle('is-active', on);
+				btn.setAttribute('aria-checked', on ? 'true' : 'false');
+				if (on && focus) {
+					btn.focus();
+				}
+			});
+			input.dispatchEvent(new Event('change', { bubbles: true }));
+		}
+
+		buttons.forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				select(btn.getAttribute('data-wcll-toggle'), false);
+			});
+		});
+
+		group.addEventListener('keydown', function (event) {
+			var idx = buttons.indexOf(document.activeElement);
+			if (idx === -1) {
+				return;
+			}
+			if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+				event.preventDefault();
+				select(buttons[(idx + 1) % buttons.length].getAttribute('data-wcll-toggle'), true);
+			} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+				event.preventDefault();
+				select(buttons[(idx - 1 + buttons.length) % buttons.length].getAttribute('data-wcll-toggle'), true);
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();
+
 // Tabbed settings: show the panel that matches the clicked tab.
 (function () {
 	function init() {
@@ -217,6 +270,38 @@
 		var hash = (window.location.hash || '').replace('#wcll-', '');
 		if (hash && root.querySelector('[data-wcll-panel="' + hash + '"]')) {
 			activate(hash);
+		}
+
+		// After a "Save & open NWC Proxy" save, land on the requested tab.
+		var openTab = '';
+		try {
+			openTab = window.sessionStorage.getItem('wcllOpenTab') || '';
+		} catch (e) {} // eslint-disable-line no-empty
+		if (openTab && root.querySelector('[data-wcll-panel="' + openTab + '"]')) {
+			try {
+				window.sessionStorage.removeItem('wcllOpenTab');
+			} catch (e) {} // eslint-disable-line no-empty
+			activate(openTab);
+		}
+
+		// "Save & open NWC Proxy": persist settings (so the proxy tab reflects them),
+		// then open that tab on reload.
+		var gotoNwc = root.querySelector('[data-wcll-goto-nwc]');
+		if (gotoNwc) {
+			gotoNwc.addEventListener('click', function () {
+				try {
+					window.sessionStorage.setItem('wcllOpenTab', 'nwc');
+				} catch (e) {} // eslint-disable-line no-empty
+				var save = document.querySelector('button[name="save"], .woocommerce-save-button, input[name="save"]');
+				if (save) {
+					save.click();
+				} else {
+					var form = root.closest('form');
+					if (form) {
+						form.submit();
+					}
+				}
+			});
 		}
 	}
 
@@ -269,6 +354,7 @@
 			if (wallets) {
 				wallets.style.display = usesAddress ? '' : 'none';
 			}
+			show(document.querySelector('[data-wcll-receiver-proxy-note]'), isProxy);
 
 			// Proxy-only "NWC Wallet" tab: hide its nav (and panel) outside proxy mode.
 			show(nwcTab, isProxy);
@@ -281,9 +367,9 @@
 
 			// Proxy wallet sub-fields (only meaningful while the NWC tab is shown).
 			show(rowOf('woocommerce_wcll_gateway_nwc_lncurl_url'), isProxy && disposable);
-			show(rowOf('woocommerce_wcll_gateway_nwc_auto_replace'), isProxy && disposable);
 			show(rowOf('woocommerce_wcll_gateway_nwc_connection'), isProxy && !disposable);
 			show(rowOf('woocommerce_wcll_gateway_nwc_mode'), isProxy);
+			show(document.querySelector('[data-wcll-nwc-disposable-info]'), isProxy && disposable);
 		}
 
 		method.addEventListener('change', apply);
@@ -384,23 +470,84 @@
 			}
 		}
 
+		// Disposable wallets burn ~1 sat/hour of lncurl upkeep, so the balance (in
+		// sats) is the remaining lifetime in hours from the moment it was read.
+		var isDisposable = nwc.mode === 'disposable';
+		var lifetimeEl = root.querySelector('[data-wcll-nwc-lifetime]');
+		var countdownEl = root.querySelector('[data-wcll-nwc-countdown]');
+		var deathTs = null;
+
+		function pad2(n) {
+			return (n < 10 ? '0' : '') + n;
+		}
+
+		function fmtCountdown(ms) {
+			if (ms <= 0) {
+				return i18n.walletEmpty || 'now (empty)';
+			}
+			var s = Math.floor(ms / 1000);
+			var d = Math.floor(s / 86400);
+			s -= d * 86400;
+			var h = Math.floor(s / 3600);
+			s -= h * 3600;
+			var m = Math.floor(s / 60);
+			s -= m * 60;
+			var parts = [];
+			if (d) {
+				parts.push(d + 'd');
+			}
+			if (h || d) {
+				parts.push(pad2(h) + 'h');
+			}
+			parts.push(pad2(m) + 'm');
+			parts.push(pad2(s) + 's');
+			return parts.join(' ');
+		}
+
+		function renderCountdown() {
+			if (!lifetimeEl || !countdownEl) {
+				return;
+			}
+			if (deathTs === null) {
+				lifetimeEl.hidden = true;
+				return;
+			}
+			lifetimeEl.hidden = false;
+			countdownEl.textContent = fmtCountdown(deathTs - Date.now());
+		}
+
+		function setBalance(ok, sats) {
+			if (balanceEl) {
+				balanceEl.textContent = ok
+					? (Number(sats).toLocaleString() + ' ' + (i18n.sats || 'sats'))
+					: (i18n.unavailable || 'Balance unavailable');
+			}
+			deathTs = (isDisposable && ok) ? (Date.now() + Number(sats) * 3600 * 1000) : null;
+			renderCountdown();
+		}
+
 		function refreshBalance() {
 			if (!balanceEl) {
 				return;
 			}
 			ajax('wcll_nwc_balance', {}).then(function (res) {
 				var d = (res && res.data) || {};
-				balanceEl.textContent = (res && res.success && d.ok)
-					? (Number(d.sats).toLocaleString() + ' ' + (i18n.sats || 'sats'))
-					: (i18n.unavailable || 'Balance unavailable');
+				setBalance(!!(res && res.success && d.ok), d.sats || 0);
 			}).catch(function () {
-				balanceEl.textContent = i18n.unavailable || 'Balance unavailable';
+				setBalance(false, 0);
 			});
+		}
+
+		if (isDisposable) {
+			window.setInterval(renderCountdown, 1000);
 		}
 
 		root.querySelectorAll('[data-wcll-nwc-tab]').forEach(function (btn) {
 			btn.addEventListener('click', function () {
 				var which = btn.getAttribute('data-wcll-nwc-tab');
+				// Reset both sections so reopening one always starts from scratch.
+				resetSection('receive');
+				resetSection('withdraw');
 				root.querySelectorAll('[data-wcll-nwc-form]').forEach(function (form) {
 					var match = form.getAttribute('data-wcll-nwc-form') === which;
 					form.hidden = match ? !form.hidden : true;
@@ -419,6 +566,153 @@
 			});
 		}
 
+		// Create a fresh disposable wallet on demand (disposable mode only). The
+		// control lives below the lncurl field, outside this panel root, so query
+		// the document for it.
+		var createRow = document.querySelector('[data-wcll-nwc-create-row]');
+		var createBtn = document.querySelector('[data-wcll-nwc-create]');
+		var createFeedback = document.querySelector('[data-wcll-nwc-create-feedback]');
+		if (isDisposable && createRow) {
+			createRow.hidden = false;
+		}
+		function createSay(message, isError) {
+			if (createFeedback) {
+				createFeedback.textContent = message || '';
+				createFeedback.classList.toggle('is-error', !!isError);
+			}
+		}
+		if (createBtn) {
+			createBtn.addEventListener('click', function () {
+				if (!window.confirm(i18n.createConfirm || 'Create a new disposable wallet? The current one will be archived.')) {
+					return;
+				}
+				createBtn.disabled = true;
+				createSay(i18n.creating || 'Creating…');
+				ajax('wcll_nwc_create', {}).then(function (res) {
+					createBtn.disabled = false;
+					var d = (res && res.data) || {};
+					if (res && res.success) {
+						createSay(i18n.created || 'New disposable wallet created.');
+						setBalance(!!d.ok, d.sats || 0);
+					} else {
+						createSay(d.message || i18n.unavailable || 'Could not create the wallet.', true);
+					}
+				}).catch(function () {
+					createBtn.disabled = false;
+					createSay(i18n.unavailable || 'Could not create the wallet.', true);
+				});
+			});
+		}
+
+		// Receive-invoice payment detection: poll lookup_invoice for the generated
+		// top-up invoice, re-checking immediately on any wallet notification. On
+		// settlement, announce it and close the invoice section.
+		var receiveBox = root.querySelector('[data-wcll-nwc-invoice]');
+		var receiveForm = root.querySelector('[data-wcll-nwc-form="receive"]');
+		var receiveText = root.querySelector('[data-wcll-nwc-invoice-text]');
+		var pendingHash = null;
+		var pendingPubkey = '';
+		var receivePoll = null;
+		var receiveTicks = 0;
+		var receiveInFlight = false;
+		var receiveErrors = 0;
+
+		function stopReceiveWatch() {
+			pendingHash = null;
+			pendingPubkey = '';
+			receiveTicks = 0;
+			receiveErrors = 0;
+			if (receivePoll) {
+				window.clearInterval(receivePoll);
+				receivePoll = null;
+			}
+		}
+
+		function receiveCheckFailed() {
+			receiveErrors += 1;
+			if (receiveErrors >= 3) {
+				stopReceiveWatch();
+				say(i18n.unavailable || 'Could not check the payment.', true);
+			}
+		}
+
+		function checkReceiveInvoice() {
+			if (!pendingHash || receiveInFlight) {
+				return;
+			}
+			receiveInFlight = true;
+			ajax('wcll_nwc_invoice_status', { payment_hash: pendingHash, wallet_pubkey: pendingPubkey }).then(function (res) {
+				receiveInFlight = false;
+				var d = (res && res.data) || {};
+				if (res && res.success) {
+					receiveErrors = 0;
+					if (d.settled) {
+						stopReceiveWatch();
+						if (receiveText) {
+							receiveText.value = '';
+						}
+						if (receiveBox) {
+							receiveBox.hidden = true;
+						}
+						if (receiveForm) {
+							receiveForm.hidden = true;
+						}
+						say(i18n.received || 'Payment received.');
+						refreshBalance();
+					}
+				} else {
+					receiveCheckFailed();
+				}
+			}).catch(function () {
+				receiveInFlight = false;
+				receiveCheckFailed();
+			});
+		}
+
+		function startReceiveWatch(hash, pubkey) {
+			stopReceiveWatch();
+			if (!hash) {
+				return;
+			}
+			pendingHash = hash;
+			pendingPubkey = pubkey || '';
+			receivePoll = window.setInterval(function () {
+				receiveTicks += 1;
+				if (receiveTicks > 240) { // ~20 min at 5s; the invoice has expired by then.
+					stopReceiveWatch();
+					return;
+				}
+				checkReceiveInvoice();
+			}, 5000);
+		}
+
+		// Return a form section to its initial state, so toggling it open never
+		// shows a stale invoice or a half-filled form.
+		function resetSection(which) {
+			if (which === 'receive') {
+				stopReceiveWatch();
+				if (receiveText) {
+					receiveText.value = '';
+				}
+				if (receiveBox) {
+					receiveBox.hidden = true;
+				}
+				var rAmount = root.querySelector('[data-wcll-nwc-amount="receive"]');
+				if (rAmount) {
+					rAmount.value = '';
+				}
+			} else if (which === 'withdraw') {
+				var dest = root.querySelector('[data-wcll-nwc-destination]');
+				if (dest) {
+					dest.value = '';
+				}
+				var wAmount = root.querySelector('[data-wcll-nwc-amount="withdraw"]');
+				if (wAmount) {
+					wAmount.value = '';
+				}
+			}
+		}
+
 		var generateBtn = root.querySelector('[data-wcll-nwc-generate]');
 		if (generateBtn) {
 			generateBtn.addEventListener('click', function () {
@@ -434,15 +728,14 @@
 					generateBtn.disabled = false;
 					var d = (res && res.data) || {};
 					if (res && res.success && d.invoice) {
-						var box = root.querySelector('[data-wcll-nwc-invoice]');
-						var text = root.querySelector('[data-wcll-nwc-invoice-text]');
-						if (text) {
-							text.value = d.invoice;
+						if (receiveText) {
+							receiveText.value = d.invoice;
 						}
-						if (box) {
-							box.hidden = false;
+						if (receiveBox) {
+							receiveBox.hidden = false;
 						}
-						say('');
+						say(i18n.waitingPayment || 'Waiting for payment…');
+						startReceiveWatch(d.payment_hash || null, d.wallet_pubkey || '');
 					} else {
 						say(d.message || i18n.unavailable, true);
 					}
@@ -518,6 +811,29 @@
 			});
 		}
 
+		// A withdraw is confirmed by whichever arrives first: the wallet's NIP-47
+		// payment_sent notification (via watchNotifications) or the pay AJAX
+		// response. Confirming once clears the form, announces it, and refreshes the
+		// balance — so a slow or lost pay response is still reflected when the
+		// subscription reports the send.
+		var withdrawing = false;
+		function confirmWithdrawSent() {
+			if (!withdrawing) {
+				return;
+			}
+			withdrawing = false;
+			say(i18n.sent);
+			var dest = root.querySelector('[data-wcll-nwc-destination]');
+			var wAmt = root.querySelector('[data-wcll-nwc-amount="withdraw"]');
+			if (dest) {
+				dest.value = '';
+			}
+			if (wAmt) {
+				wAmt.value = '';
+			}
+			refreshBalance();
+		}
+
 		var sendBtn = root.querySelector('[data-wcll-nwc-send]');
 		if (sendBtn) {
 			sendBtn.addEventListener('click', function () {
@@ -530,28 +846,49 @@
 					return;
 				}
 				sendBtn.disabled = true;
+				withdrawing = true;
 				say(i18n.sending);
 				ajax('wcll_nwc_withdraw', { destination: destination, amount: amount > 0 ? amount : 0 }).then(function (res) {
 					sendBtn.disabled = false;
 					var d = (res && res.data) || {};
 					if (res && res.success) {
-						say(i18n.sent);
-						if (destInput) {
-							destInput.value = '';
-						}
-						if (amountInput) {
-							amountInput.value = '';
-						}
-						refreshBalance();
-					} else {
+						confirmWithdrawSent();
+					} else if (withdrawing) {
+						// Only surface the error if a notification hasn't already
+						// confirmed the send (a lost-but-settled pay response).
+						withdrawing = false;
 						say(d.message || i18n.unavailable, true);
 					}
 				}).catch(function () {
 					sendBtn.disabled = false;
-					say(i18n.unavailable, true);
+					if (withdrawing) {
+						withdrawing = false;
+						say(i18n.unavailable, true);
+					}
 				});
 			});
 		}
+
+		// Pressing Enter in a wallet input runs its action (Generate/Send) instead of
+		// submitting the surrounding WooCommerce settings form.
+		function enterRuns(input, buttonSelector) {
+			if (!input) {
+				return;
+			}
+			input.addEventListener('keydown', function (event) {
+				if (event.key !== 'Enter') {
+					return;
+				}
+				event.preventDefault();
+				var btn = root.querySelector(buttonSelector);
+				if (btn && !btn.disabled) {
+					btn.click();
+				}
+			});
+		}
+		enterRuns(root.querySelector('[data-wcll-nwc-amount="receive"]'), '[data-wcll-nwc-generate]');
+		enterRuns(root.querySelector('[data-wcll-nwc-destination]'), '[data-wcll-nwc-send]');
+		enterRuns(root.querySelector('[data-wcll-nwc-amount="withdraw"]'), '[data-wcll-nwc-send]');
 
 		// Live: subscribe to NIP-47 notifications and refresh the balance on any.
 		function watchNotifications() {
@@ -589,6 +926,8 @@
 					var ev = parsed[2];
 					if (ev && (ev.kind === 23196 || ev.kind === 23197) && ev.pubkey === nwc.walletPubkey) {
 						refreshBalance();
+						checkReceiveInvoice();
+						confirmWithdrawSent();
 					}
 				});
 			});

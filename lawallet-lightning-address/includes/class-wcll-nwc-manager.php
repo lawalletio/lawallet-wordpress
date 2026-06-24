@@ -306,9 +306,9 @@ class WCLL_NWC_Manager {
 	}
 
 	public static function auto_replace( array $settings ) {
-		// Only meaningful in disposable mode; a permanent string is never replaced.
-		return 'disposable' === self::mode( $settings )
-			&& isset( $settings['nwc_auto_replace'] ) && 'yes' === $settings['nwc_auto_replace'];
+		// Disposable wallets are always replaced when they die — that is the whole
+		// point of disposable mode. A permanent connection is never replaced.
+		return 'disposable' === self::mode( $settings );
 	}
 
 	public static function lncurl_url( array $settings ) {
@@ -407,6 +407,25 @@ class WCLL_NWC_Manager {
 			$client->with_relays( $order_relays );
 		}
 		return $client;
+	}
+
+	/**
+	 * Build a client for a SPECIFIC wallet by pubkey (active, archived, permanent,
+	 * or the terminal receiver). Used to look an invoice up on the exact wallet it
+	 * was minted on, even after a disposable rotation.
+	 *
+	 * @return WCLL_NWC_Client|WP_Error
+	 */
+	public static function client_for_pubkey( array $settings, $pubkey ) {
+		$pubkey = strtolower( (string) $pubkey );
+		if ( ! preg_match( '/^[0-9a-f]{64}$/', $pubkey ) ) {
+			return new WP_Error( 'wcll_nwc_no_pubkey', __( 'Missing wallet.', 'lawallet-lightning-address' ) );
+		}
+		$uri = self::connection_uri_for_pubkey( $settings, $pubkey );
+		if ( '' === $uri ) {
+			return new WP_Error( 'wcll_nwc_wallet_gone', __( 'The NWC wallet is no longer available.', 'lawallet-lightning-address' ) );
+		}
+		return WCLL_NWC_Client::from_uri( $uri );
 	}
 
 	private static function connection_uri_for_pubkey( array $settings, $pubkey ) {
@@ -532,7 +551,7 @@ class WCLL_NWC_Manager {
 	 * has died, so a live wallet is always ready before the next order.
 	 */
 	public static function ensure_live_active( array $settings ) {
-		if ( ! self::is_enabled( $settings ) || 'disposable' !== self::mode( $settings ) || ! self::auto_replace( $settings ) ) {
+		if ( ! self::is_enabled( $settings ) || 'disposable' !== self::mode( $settings ) ) {
 			return;
 		}
 
@@ -842,9 +861,8 @@ class WCLL_NWC_Manager {
 
 		// First run on installs predating modes: default permanent vs disposable.
 		if ( ! isset( $settings['nwc_mode'] ) ) {
-			$settings['nwc_mode']         = '' !== self::permanent_connection() ? 'permanent' : 'disposable';
-			$settings['nwc_auto_replace'] = isset( $settings['nwc_auto_replace'] ) ? $settings['nwc_auto_replace'] : 'no';
-			$changed                      = true;
+			$settings['nwc_mode'] = '' !== self::permanent_connection() ? 'permanent' : 'disposable';
+			$changed              = true;
 		}
 
 		// First run after the explicit settlement selector (v0.5.0): map the old

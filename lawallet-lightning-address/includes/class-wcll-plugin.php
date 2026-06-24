@@ -36,8 +36,10 @@ class WCLL_Plugin {
 		add_action( 'wp_ajax_wcll_nwc_balance', array( __CLASS__, 'ajax_nwc_balance' ) );
 		add_action( 'wp_ajax_wcll_nwc_receiver_balance', array( __CLASS__, 'ajax_nwc_receiver_balance' ) );
 		add_action( 'wp_ajax_wcll_nwc_receive', array( __CLASS__, 'ajax_nwc_receive' ) );
+		add_action( 'wp_ajax_wcll_nwc_invoice_status', array( __CLASS__, 'ajax_nwc_invoice_status' ) );
 		add_action( 'wp_ajax_wcll_nwc_withdraw', array( __CLASS__, 'ajax_nwc_withdraw' ) );
 		add_action( 'wp_ajax_wcll_nwc_regenerate', array( __CLASS__, 'ajax_nwc_regenerate' ) );
+		add_action( 'wp_ajax_wcll_nwc_create', array( __CLASS__, 'ajax_nwc_create_disposable' ) );
 		add_action( 'wp_ajax_wcll_nwc_connection', array( __CLASS__, 'ajax_nwc_connection' ) );
 		add_action( 'wp_ajax_wcll_nwc_transactions', array( __CLASS__, 'ajax_nwc_transactions' ) );
 		add_action( 'wp_ajax_wcll_nwc_transaction', array( __CLASS__, 'ajax_nwc_transaction' ) );
@@ -99,6 +101,8 @@ class WCLL_Plugin {
 					'generating'     => __( 'Generating…', 'lawallet-lightning-address' ),
 					'copied'         => __( 'Copied', 'lawallet-lightning-address' ),
 					'sent'           => __( 'Payment sent.', 'lawallet-lightning-address' ),
+					'received'       => __( 'Payment received.', 'lawallet-lightning-address' ),
+					'waitingPayment' => __( 'Waiting for payment…', 'lawallet-lightning-address' ),
 					'amountRequired' => __( 'Enter an amount in sats.', 'lawallet-lightning-address' ),
 					'destRequired'   => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ),
 					'regenerating'   => __( 'Regenerating…', 'lawallet-lightning-address' ),
@@ -106,6 +110,10 @@ class WCLL_Plugin {
 					'connShow'       => __( 'Show connection string', 'lawallet-lightning-address' ),
 					'connHide'       => __( 'Hide connection string', 'lawallet-lightning-address' ),
 					'connError'      => __( 'Could not load the connection string.', 'lawallet-lightning-address' ),
+					'createConfirm'  => __( 'Create a new disposable wallet? The current one will be archived.', 'lawallet-lightning-address' ),
+					'creating'       => __( 'Creating…', 'lawallet-lightning-address' ),
+					'created'        => __( 'New disposable wallet created.', 'lawallet-lightning-address' ),
+					'walletEmpty'    => __( 'now (empty)', 'lawallet-lightning-address' ),
 					'txLoading'      => __( 'Loading…', 'lawallet-lightning-address' ),
 					/* translators: 1: current page number, 2: total number of pages. */
 					'txPage'         => __( 'Page %1$s of %2$s', 'lawallet-lightning-address' ),
@@ -274,10 +282,41 @@ class WCLL_Plugin {
 
 		wp_send_json_success(
 			array(
-				'invoice' => isset( $invoice['invoice'] ) ? $invoice['invoice'] : '',
-				'amount'  => $amount_sats,
+				'invoice'       => isset( $invoice['invoice'] ) ? $invoice['invoice'] : '',
+				'payment_hash'  => isset( $invoice['payment_hash'] ) ? (string) $invoice['payment_hash'] : '',
+				'wallet_pubkey' => $client->wallet_pubkey(),
+				'amount'        => $amount_sats,
 			)
 		);
+	}
+
+	/**
+	 * Poll whether a wallet invoice (by payment hash) has settled. Used by the
+	 * Receive panel to detect an incoming top-up and close the invoice section.
+	 */
+	public static function ajax_nwc_invoice_status() {
+		self::verify_nwc_admin();
+		$hash = isset( $_POST['payment_hash'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_hash'] ) ) : '';
+		if ( ! preg_match( '/^[0-9a-f]{64}$/i', $hash ) ) {
+			wp_send_json_error( array( 'message' => __( 'Missing payment hash.', 'lawallet-lightning-address' ) ) );
+		}
+
+		$settings = WCLL_Gateway::get_gateway_settings();
+		// Look the invoice up on the EXACT wallet it was minted on, by pubkey, so a
+		// disposable wallet that has since rotated (active -> archive) is still found.
+		$pubkey = isset( $_POST['wallet_pubkey'] ) ? sanitize_text_field( wp_unslash( $_POST['wallet_pubkey'] ) ) : '';
+		$client = preg_match( '/^[0-9a-f]{64}$/i', $pubkey )
+			? WCLL_NWC_Manager::client_for_pubkey( $settings, $pubkey )
+			: WCLL_NWC_Manager::get_active_client( $settings );
+		if ( ! ( $client instanceof WCLL_NWC_Client ) ) {
+			wp_send_json_error( array( 'message' => is_wp_error( $client ) ? $client->get_error_message() : __( 'The NWC wallet is not available.', 'lawallet-lightning-address' ) ) );
+		}
+
+		$look = $client->lookup_invoice( $hash );
+		// A pending/not-found invoice is a normal "not yet" answer for the poll, not
+		// an error to surface.
+		$settled = ! is_wp_error( $look ) && ! empty( $look['settled'] );
+		wp_send_json_success( array( 'settled' => (bool) $settled ) );
 	}
 
 	public static function ajax_nwc_withdraw() {
@@ -360,6 +399,30 @@ class WCLL_Plugin {
 		}
 
 		$balance = WCLL_NWC_Manager::get_cached_balance( WCLL_Gateway::get_gateway_settings(), true );
+		wp_send_json_success(
+			array(
+				'ok'   => ! empty( $balance['ok'] ),
+				'sats' => isset( $balance['sats'] ) ? (int) $balance['sats'] : 0,
+			)
+		);
+	}
+
+	/**
+	 * Mint a fresh disposable proxy wallet on demand (archiving the current one).
+	 */
+	public static function ajax_nwc_create_disposable() {
+		self::verify_nwc_admin();
+		$settings = WCLL_Gateway::get_gateway_settings();
+		if ( ! WCLL_NWC_Manager::is_proxy( $settings ) || 'disposable' !== WCLL_NWC_Manager::mode( $settings ) ) {
+			wp_send_json_error( array( 'message' => __( 'Disposable wallets are only available in NWC Proxy mode with the disposable wallet mode.', 'lawallet-lightning-address' ) ), 400 );
+		}
+
+		$client = WCLL_NWC_Manager::mint_and_store( $settings );
+		if ( is_wp_error( $client ) ) {
+			wp_send_json_error( array( 'message' => $client->get_error_message() ) );
+		}
+
+		$balance = WCLL_NWC_Manager::get_cached_balance( $settings, true );
 		wp_send_json_success(
 			array(
 				'ok'   => ! empty( $balance['ok'] ),

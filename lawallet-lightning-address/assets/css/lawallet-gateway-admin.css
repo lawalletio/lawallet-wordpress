@@ -45,6 +45,52 @@
 	}
 }
 
+/* Receiver mode segmented toggle group */
+.wcll-toggle-group {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 3px;
+	padding: 3px;
+	background: #f0f0f1;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	max-width: 100%;
+}
+.wcll-toggle {
+	appearance: none;
+	border: 0;
+	margin: 0;
+	background: transparent;
+	color: #50575e;
+	padding: 8px 16px;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.4;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.wcll-toggle:hover {
+	background: #fff;
+	color: #1d2327;
+}
+.wcll-toggle.is-active {
+	background: #2271b1;
+	color: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.wcll-toggle.is-active:hover {
+	background: #135e96;
+	color: #fff;
+}
+.wcll-toggle:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 1px;
+}
+.forminp .wcll-toggle-group + .description {
+	margin-top: 8px;
+}
+
 /* Tabbed gateway settings */
 .wcll-settings {
 	margin-top: 12px;
@@ -186,6 +232,19 @@
 	margin: 0 0 10px;
 	font-size: 14px;
 }
+.wcll-nwc-wallet-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+.wcll-nwc-wallet-head .wcll-nwc-wallet-title {
+	margin: 0;
+}
+.wcll-nwc-show-connection {
+	flex: 0 0 auto;
+}
 .wcll-nwc-balance-row {
 	display: flex;
 	align-items: center;
@@ -211,6 +270,32 @@
 	font-size: 18px;
 	width: 18px;
 	height: 18px;
+}
+.wcll-nwc-lifetime {
+	margin: 0 0 12px;
+}
+.wcll-nwc-lifetime[hidden] {
+	display: none;
+}
+.wcll-nwc-lifetime strong {
+	font-variant-numeric: tabular-nums;
+}
+.wcll-nwc-create {
+	margin: 0 0 12px;
+}
+.wcll-nwc-disposable-info {
+	margin: 12px 0;
+	max-width: 640px;
+}
+.wcll-nwc-create[hidden] {
+	display: none;
+}
+.wcll-nwc-create-feedback {
+	margin-left: 6px;
+	color: #0a7f28;
+}
+.wcll-nwc-create-feedback.is-error {
+	color: #b32d2e;
 }
 .wcll-nwc-actions {
 	margin-bottom: 10px;
@@ -250,14 +335,11 @@
 .wcll-nwc-regenerate {
 	margin: 12px 0;
 }
-.wcll-nwc-connection {
-	margin: 12px 0 8px;
-}
-.wcll-nwc-connection .description {
-	margin-left: 6px;
-}
 .wcll-nwc-connection-box {
 	margin: 0 0 12px;
+}
+.wcll-nwc-connection-warn {
+	margin: 0 0 6px;
 }
 .wcll-nwc-connection-box[hidden] {
 	display: none;
