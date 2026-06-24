@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.13
+Stable tag: 0.6.14
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -151,46 +151,49 @@ fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
 
-= 0.6.13 =
+= 0.6.14 =
 * The Connection status section now appears only on the NWC Proxy tab instead of below every tab.
 
-= 0.6.12 =
+= 0.6.13 =
 * Redesigned the Receiver mode selector as a segmented toggle button group (keyboard-accessible) instead of a dropdown.
 
-= 0.6.11 =
+= 0.6.12 =
 * Renamed the "NWC Wallet" tab to "NWC Proxy".
 * In NWC Proxy receiver mode, a note below the Lightning Address points to the NWC Proxy tab with a "Save & open NWC Proxy" button that saves first, then opens it.
 
-= 0.6.10 =
-* Added an explainer in the NWC Wallet tab (disposable mode) describing how lncurl wallets work: free for the first hour, ~1 sat/hour after, and a 1%/10-sat routing reserve.
+= 0.6.11 =
+* Added an explainer in the NWC Proxy tab (disposable mode) describing how lncurl wallets work: free for the first hour, ~1 sat/hour after, and a 1%/10-sat routing reserve.
 
-= 0.6.9 =
+= 0.6.10 =
 * The NWC Wallet "Withdraw" flow now confirms the send and refreshes the balance as soon as the wallet's NIP-47 payment_sent notification arrives, falling back to the pay response — so a slow or lost response is still reflected.
 
-= 0.6.8 =
+= 0.6.9 =
 * Pressing Enter in an NWC Wallet amount or destination field now runs that action (Generate invoice / Send payment) instead of saving the settings tab.
 
-= 0.6.7 =
+= 0.6.8 =
 * The disposable wallet lifetime countdown now zero-pads its units (e.g. "02h 09m 05s") for a steady clock-style readout.
 
-= 0.6.6 =
+= 0.6.7 =
 * Moved the "Create disposable wallet" button to sit directly below the "Disposable wallet service (lncurl)" field.
 
-= 0.6.5 =
+= 0.6.6 =
 * Reset the NWC Wallet Receive/Withdraw section whenever you toggle it, so reopening always starts fresh (no stale invoice or half-filled form).
 
-= 0.6.4 =
+= 0.6.5 =
 * The NWC Wallet "Receive" flow now detects the incoming payment (via wallet notifications, with a polling fallback), shows a "Payment received" message, refreshes the balance, and closes the invoice section automatically.
 
-= 0.6.3 =
+= 0.6.4 =
 * Moved "Show connection string" to a smaller button in the top-right of the NWC wallet panel; the secret warning now appears with the revealed string.
 
-= 0.6.2 =
-* Add a "Create disposable wallet" button to the NWC Wallet tab to provision a fresh proxy wallet on demand (archiving the current one).
+= 0.6.3 =
+* Add a "Create disposable wallet" button to the NWC Proxy tab to provision a fresh proxy wallet on demand (archiving the current one).
 * Show a live countdown of when a disposable proxy wallet will run dry, based on its balance and the ~1 sat/hour lncurl upkeep.
 
-= 0.6.1 =
+= 0.6.2 =
 * Removed the "Auto-replace dead wallet" setting. Disposable proxy wallets are now always replaced automatically when they die — that is the point of disposable mode.
+
+= 0.6.1 =
+* Maintenance release: internal release packaging and documentation only. No functional changes to the plugin.
 
 = 0.6.0 =
 * New Receiver section with a single mode selector: **Lightning Address**, **Lightning Address via NWC Proxy**, or **NWC**. The page adapts to the chosen mode.

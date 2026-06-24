@@ -22,6 +22,10 @@ Guide for AI agents working in this repo.
   - `lawallet-lightning-address-wporg.zip` — **WordPress.org upload** (the updater
     is excluded; .org disallows bundled self-updaters and Plugin Check flags it).
   The updater loads defensively (`file_exists`/`class_exists`) so omitting it is safe.
+- Full release build: **`bin/build-release.sh`** → `dist/` with two artifacts:
+  the installable `lawallet-lightning-address.zip` and an SVN payload
+  `dist/svn/{assets,trunk,tags/<version>}` (current tag only, no updater).
+  WordPress.org SVN publish flow: **`docs/RELEASE-WORDPRESS-ORG.md`**.
 - Releases are GitHub Releases tagged `vX.Y.Z` with the zip attached (`gh release create`).
 - Plugin Check (must pass on the `-wporg` build): bring up Docker, then
   `docker compose run --rm --no-deps wpcli wp plugin check lawallet-lightning-address`.
