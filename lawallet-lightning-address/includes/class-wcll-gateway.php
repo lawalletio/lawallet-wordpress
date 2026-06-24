@@ -106,13 +106,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'default'     => 'https://lncurl.lol',
 				'desc_tip'    => true,
 			),
-			'nwc_auto_replace'      => array(
-				'title'       => __( 'Auto-replace dead wallet', 'lawallet-lightning-address' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Provision a new wallet when the current disposable wallet becomes unavailable', 'lawallet-lightning-address' ),
-				'description' => __( 'Disposable mode only. A permanent connection is never replaced.', 'lawallet-lightning-address' ),
-				'default'     => 'yes',
-			),
 			'nwc_connection'        => array(
 				'title'       => __( 'Permanent NWC connection string', 'lawallet-lightning-address' ),
 				'type'        => 'password',
@@ -178,7 +171,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			'nwc'      => array(
 				'label'  => __( 'NWC Wallet', 'lawallet-lightning-address' ),
 				'intro'  => __( 'Settings for the managed proxy wallet, used only in "Lightning Address via NWC Proxy" mode. Payments settle here and are forwarded to your Lightning Address.', 'lawallet-lightning-address' ),
-				'fields' => array( 'nwc_mode', 'nwc_lncurl_url', 'nwc_auto_replace', 'nwc_connection' ),
+				'fields' => array( 'nwc_mode', 'nwc_lncurl_url', 'nwc_connection' ),
 			),
 			'pricing'  => array(
 				'label'  => __( 'Pricing & rates', 'lawallet-lightning-address' ),

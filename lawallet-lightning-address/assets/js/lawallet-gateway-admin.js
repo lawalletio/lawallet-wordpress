@@ -281,7 +281,6 @@
 
 			// Proxy wallet sub-fields (only meaningful while the NWC tab is shown).
 			show(rowOf('woocommerce_wcll_gateway_nwc_lncurl_url'), isProxy && disposable);
-			show(rowOf('woocommerce_wcll_gateway_nwc_auto_replace'), isProxy && disposable);
 			show(rowOf('woocommerce_wcll_gateway_nwc_connection'), isProxy && !disposable);
 			show(rowOf('woocommerce_wcll_gateway_nwc_mode'), isProxy);
 		}
