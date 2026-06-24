@@ -383,18 +383,72 @@
 			}
 		}
 
+		// Disposable wallets burn ~1 sat/hour of lncurl upkeep, so the balance (in
+		// sats) is the remaining lifetime in hours from the moment it was read.
+		var isDisposable = nwc.mode === 'disposable';
+		var lifetimeEl = root.querySelector('[data-wcll-nwc-lifetime]');
+		var countdownEl = root.querySelector('[data-wcll-nwc-countdown]');
+		var deathTs = null;
+
+		function fmtCountdown(ms) {
+			if (ms <= 0) {
+				return i18n.walletEmpty || 'now (empty)';
+			}
+			var s = Math.floor(ms / 1000);
+			var d = Math.floor(s / 86400);
+			s -= d * 86400;
+			var h = Math.floor(s / 3600);
+			s -= h * 3600;
+			var m = Math.floor(s / 60);
+			s -= m * 60;
+			var parts = [];
+			if (d) {
+				parts.push(d + 'd');
+			}
+			if (h || d) {
+				parts.push(h + 'h');
+			}
+			parts.push(m + 'm');
+			parts.push(s + 's');
+			return parts.join(' ');
+		}
+
+		function renderCountdown() {
+			if (!lifetimeEl || !countdownEl) {
+				return;
+			}
+			if (deathTs === null) {
+				lifetimeEl.hidden = true;
+				return;
+			}
+			lifetimeEl.hidden = false;
+			countdownEl.textContent = fmtCountdown(deathTs - Date.now());
+		}
+
+		function setBalance(ok, sats) {
+			if (balanceEl) {
+				balanceEl.textContent = ok
+					? (Number(sats).toLocaleString() + ' ' + (i18n.sats || 'sats'))
+					: (i18n.unavailable || 'Balance unavailable');
+			}
+			deathTs = (isDisposable && ok) ? (Date.now() + Number(sats) * 3600 * 1000) : null;
+			renderCountdown();
+		}
+
 		function refreshBalance() {
 			if (!balanceEl) {
 				return;
 			}
 			ajax('wcll_nwc_balance', {}).then(function (res) {
 				var d = (res && res.data) || {};
-				balanceEl.textContent = (res && res.success && d.ok)
-					? (Number(d.sats).toLocaleString() + ' ' + (i18n.sats || 'sats'))
-					: (i18n.unavailable || 'Balance unavailable');
+				setBalance(!!(res && res.success && d.ok), d.sats || 0);
 			}).catch(function () {
-				balanceEl.textContent = i18n.unavailable || 'Balance unavailable';
+				setBalance(false, 0);
 			});
+		}
+
+		if (isDisposable) {
+			window.setInterval(renderCountdown, 1000);
 		}
 
 		root.querySelectorAll('[data-wcll-nwc-tab]').forEach(function (btn) {
@@ -415,6 +469,42 @@
 					balanceEl.textContent = i18n.loading || '…';
 				}
 				refreshBalance();
+			});
+		}
+
+		// Create a fresh disposable wallet on demand (disposable mode only).
+		var createRow = root.querySelector('[data-wcll-nwc-create-row]');
+		var createBtn = root.querySelector('[data-wcll-nwc-create]');
+		var createFeedback = root.querySelector('[data-wcll-nwc-create-feedback]');
+		if (isDisposable && createRow) {
+			createRow.hidden = false;
+		}
+		function createSay(message, isError) {
+			if (createFeedback) {
+				createFeedback.textContent = message || '';
+				createFeedback.classList.toggle('is-error', !!isError);
+			}
+		}
+		if (createBtn) {
+			createBtn.addEventListener('click', function () {
+				if (!window.confirm(i18n.createConfirm || 'Create a new disposable wallet? The current one will be archived.')) {
+					return;
+				}
+				createBtn.disabled = true;
+				createSay(i18n.creating || 'Creating…');
+				ajax('wcll_nwc_create', {}).then(function (res) {
+					createBtn.disabled = false;
+					var d = (res && res.data) || {};
+					if (res && res.success) {
+						createSay(i18n.created || 'New disposable wallet created.');
+						setBalance(!!d.ok, d.sats || 0);
+					} else {
+						createSay(d.message || i18n.unavailable || 'Could not create the wallet.', true);
+					}
+				}).catch(function () {
+					createBtn.disabled = false;
+					createSay(i18n.unavailable || 'Could not create the wallet.', true);
+				});
 			});
 		}
 

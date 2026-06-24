@@ -1048,6 +1048,19 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<button type="button" class="button-link wcll-nwc-refresh" data-wcll-nwc-refresh aria-label="' . esc_attr__( 'Refresh balance', 'lawallet-lightning-address' ) . '"><span class="dashicons dashicons-update" aria-hidden="true"></span></button>';
 		echo '</div>';
 
+		// Disposable wallets burn ~1 sat/hour of lncurl upkeep, so the balance (in
+		// sats) is the wallet's remaining lifetime in hours. JS reveals the live
+		// countdown and the "create" control only in disposable mode.
+		echo '<p class="wcll-nwc-lifetime" data-wcll-nwc-lifetime hidden>';
+		echo '<span class="wcll-nwc-balance-label">' . esc_html__( 'Expires in', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<strong data-wcll-nwc-countdown>—</strong>';
+		echo '</p>';
+		echo '<p class="wcll-nwc-create" data-wcll-nwc-create-row hidden>';
+		echo '<button type="button" class="button" data-wcll-nwc-create>' . esc_html__( 'Create disposable wallet', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<span class="description">' . esc_html__( 'Provision a fresh disposable wallet and archive the current one.', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<span class="wcll-nwc-create-feedback" data-wcll-nwc-create-feedback role="status" aria-live="polite"></span>';
+		echo '</p>';
+
 		// Connection-string reveal. The string carries the wallet secret, so it is
 		// never rendered into the page: the textarea starts empty and is filled by
 		// an authenticated AJAX request only when the admin clicks "Show".

@@ -212,6 +212,28 @@
 	width: 18px;
 	height: 18px;
 }
+.wcll-nwc-lifetime {
+	margin: 0 0 12px;
+}
+.wcll-nwc-lifetime[hidden] {
+	display: none;
+}
+.wcll-nwc-lifetime strong {
+	font-variant-numeric: tabular-nums;
+}
+.wcll-nwc-create {
+	margin: 0 0 12px;
+}
+.wcll-nwc-create[hidden] {
+	display: none;
+}
+.wcll-nwc-create-feedback {
+	margin-left: 6px;
+	color: #0a7f28;
+}
+.wcll-nwc-create-feedback.is-error {
+	color: #b32d2e;
+}
 .wcll-nwc-actions {
 	margin-bottom: 10px;
 }
