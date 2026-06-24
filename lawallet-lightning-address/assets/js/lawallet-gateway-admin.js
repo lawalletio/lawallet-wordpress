@@ -390,6 +390,10 @@
 		var countdownEl = root.querySelector('[data-wcll-nwc-countdown]');
 		var deathTs = null;
 
+		function pad2(n) {
+			return (n < 10 ? '0' : '') + n;
+		}
+
 		function fmtCountdown(ms) {
 			if (ms <= 0) {
 				return i18n.walletEmpty || 'now (empty)';
@@ -406,10 +410,10 @@
 				parts.push(d + 'd');
 			}
 			if (h || d) {
-				parts.push(h + 'h');
+				parts.push(pad2(h) + 'h');
 			}
-			parts.push(m + 'm');
-			parts.push(s + 's');
+			parts.push(pad2(m) + 'm');
+			parts.push(pad2(s) + 's');
 			return parts.join(' ');
 		}
 

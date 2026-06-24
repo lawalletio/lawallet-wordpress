@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.6
+Stable tag: 0.6.7
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -150,6 +150,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.6.7 =
+* The disposable wallet lifetime countdown now zero-pads its units (e.g. "02h 09m 05s") for a steady clock-style readout.
 
 = 0.6.6 =
 * Moved the "Create disposable wallet" button to sit directly below the "Disposable wallet service (lncurl)" field.
