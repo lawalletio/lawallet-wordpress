@@ -169,7 +169,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'fields' => array( 'settlement_method', 'lightning_address', 'nwc_receiver_connection' ),
 			),
 			'nwc'      => array(
-				'label'  => __( 'NWC Wallet', 'lawallet-lightning-address' ),
+				'label'  => __( 'NWC Proxy', 'lawallet-lightning-address' ),
 				'intro'  => __( 'Settings for the managed proxy wallet, used only in "Lightning Address via NWC Proxy" mode. Payments settle here and are forwarded to your Lightning Address.', 'lawallet-lightning-address' ),
 				'fields' => array( 'nwc_mode', 'nwc_lncurl_url', 'nwc_connection' ),
 			),
@@ -1033,6 +1033,14 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<div class="notice notice-warning inline wcll-receiver-alert" data-wcll-receiver-alert hidden><p>'
 			. esc_html__( 'This Lightning Address cannot confirm payments on its own (no LUD-21 and no NIP-57). Switch the Receiver mode to "Lightning Address via NWC Proxy" to accept it.', 'lawallet-lightning-address' )
 			. '</p></div>';
+
+		// Shown by JS only in "Lightning Address via NWC Proxy" mode: the proxy
+		// wallet lives on its own tab. The button saves first (the tab reflects
+		// saved settings), then opens the NWC Proxy tab.
+		echo '<div class="notice notice-info inline wcll-receiver-proxy-note" data-wcll-receiver-proxy-note style="display:none"><p>';
+		echo esc_html__( 'Payments are received by a managed NWC proxy wallet and forwarded to this Lightning Address. The proxy wallet is configured on the NWC Proxy tab.', 'lawallet-lightning-address' ) . ' ';
+		echo '<button type="button" class="button wcll-goto-nwc" data-wcll-goto-nwc>' . esc_html__( 'Save & open NWC Proxy', 'lawallet-lightning-address' ) . '</button>';
+		echo '</p></div>';
 
 		$info = WCLL_NWC_Manager::receiver_admin_info( self::get_gateway_settings() );
 		echo '<div class="wcll-nwc-wallet" data-wcll-receiver-panel hidden>';

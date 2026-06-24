@@ -218,6 +218,38 @@
 		if (hash && root.querySelector('[data-wcll-panel="' + hash + '"]')) {
 			activate(hash);
 		}
+
+		// After a "Save & open NWC Proxy" save, land on the requested tab.
+		var openTab = '';
+		try {
+			openTab = window.sessionStorage.getItem('wcllOpenTab') || '';
+		} catch (e) {} // eslint-disable-line no-empty
+		if (openTab && root.querySelector('[data-wcll-panel="' + openTab + '"]')) {
+			try {
+				window.sessionStorage.removeItem('wcllOpenTab');
+			} catch (e) {} // eslint-disable-line no-empty
+			activate(openTab);
+		}
+
+		// "Save & open NWC Proxy": persist settings (so the proxy tab reflects them),
+		// then open that tab on reload.
+		var gotoNwc = root.querySelector('[data-wcll-goto-nwc]');
+		if (gotoNwc) {
+			gotoNwc.addEventListener('click', function () {
+				try {
+					window.sessionStorage.setItem('wcllOpenTab', 'nwc');
+				} catch (e) {} // eslint-disable-line no-empty
+				var save = document.querySelector('button[name="save"], .woocommerce-save-button, input[name="save"]');
+				if (save) {
+					save.click();
+				} else {
+					var form = root.closest('form');
+					if (form) {
+						form.submit();
+					}
+				}
+			});
+		}
 	}
 
 	if (document.readyState === 'loading') {
@@ -269,6 +301,7 @@
 			if (wallets) {
 				wallets.style.display = usesAddress ? '' : 'none';
 			}
+			show(document.querySelector('[data-wcll-receiver-proxy-note]'), isProxy);
 
 			// Proxy-only "NWC Wallet" tab: hide its nav (and panel) outside proxy mode.
 			show(nwcTab, isProxy);
