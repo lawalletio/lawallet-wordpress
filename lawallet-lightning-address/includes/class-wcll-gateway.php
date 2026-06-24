@@ -359,13 +359,12 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
 				$this->render_nwc_transactions();
+				$this->render_connection_status();
 			}
 			echo '</div>';
 			$is_first = false;
 		}
 		echo '</div>';
-
-		$this->render_connection_status();
 	}
 
 	public function process_admin_options() {
