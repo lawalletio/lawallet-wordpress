@@ -724,6 +724,29 @@
 			});
 		}
 
+		// A withdraw is confirmed by whichever arrives first: the wallet's NIP-47
+		// payment_sent notification (via watchNotifications) or the pay AJAX
+		// response. Confirming once clears the form, announces it, and refreshes the
+		// balance — so a slow or lost pay response is still reflected when the
+		// subscription reports the send.
+		var withdrawing = false;
+		function confirmWithdrawSent() {
+			if (!withdrawing) {
+				return;
+			}
+			withdrawing = false;
+			say(i18n.sent);
+			var dest = root.querySelector('[data-wcll-nwc-destination]');
+			var wAmt = root.querySelector('[data-wcll-nwc-amount="withdraw"]');
+			if (dest) {
+				dest.value = '';
+			}
+			if (wAmt) {
+				wAmt.value = '';
+			}
+			refreshBalance();
+		}
+
 		var sendBtn = root.querySelector('[data-wcll-nwc-send]');
 		if (sendBtn) {
 			sendBtn.addEventListener('click', function () {
@@ -736,25 +759,25 @@
 					return;
 				}
 				sendBtn.disabled = true;
+				withdrawing = true;
 				say(i18n.sending);
 				ajax('wcll_nwc_withdraw', { destination: destination, amount: amount > 0 ? amount : 0 }).then(function (res) {
 					sendBtn.disabled = false;
 					var d = (res && res.data) || {};
 					if (res && res.success) {
-						say(i18n.sent);
-						if (destInput) {
-							destInput.value = '';
-						}
-						if (amountInput) {
-							amountInput.value = '';
-						}
-						refreshBalance();
-					} else {
+						confirmWithdrawSent();
+					} else if (withdrawing) {
+						// Only surface the error if a notification hasn't already
+						// confirmed the send (a lost-but-settled pay response).
+						withdrawing = false;
 						say(d.message || i18n.unavailable, true);
 					}
 				}).catch(function () {
 					sendBtn.disabled = false;
-					say(i18n.unavailable, true);
+					if (withdrawing) {
+						withdrawing = false;
+						say(i18n.unavailable, true);
+					}
 				});
 			});
 		}
@@ -817,6 +840,7 @@
 					if (ev && (ev.kind === 23196 || ev.kind === 23197) && ev.pubkey === nwc.walletPubkey) {
 						refreshBalance();
 						checkReceiveInvoice();
+						confirmWithdrawSent();
 					}
 				});
 			});
