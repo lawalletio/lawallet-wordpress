@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Accept Bitcoin with your Lightning Address 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-"
 "lightning-address\n"
-"POT-Creation-Date: 2026-06-24T17:28:43+00:00\n"
+"POT-Creation-Date: 2026-06-24T17:44:49+00:00\n"
 "PO-Revision-Date: 2026-06-12T01:00:00+00:00\n"
 "Last-Translator: LaWallet <hello@lawallet.io>\n"
 "Language-Team: Spanish\n"
@@ -369,7 +369,7 @@ msgstr ""
 "En modo Lightning Address, aquí se reciben los pagos (debe admitir LUD-21 o "
 "NIP-57). En modo Proxy NWC es el destino de reenvío."
 
-#: includes/class-wcll-gateway.php:55 includes/class-wcll-gateway.php:1077
+#: includes/class-wcll-gateway.php:55 includes/class-wcll-gateway.php:1087
 msgid "NWC connection string"
 msgstr "Cadena de conexión NWC"
 
@@ -643,36 +643,36 @@ msgstr ""
 "Al guardar esta página se crea una factura de prueba y se confirma que la "
 "dirección admite la verificación LUD-21 o los recibos zap NIP-57."
 
-#: includes/class-wcll-gateway.php:330
+#: includes/class-wcll-gateway.php:331
 msgid "Lightning Address must look like name@example.com."
 msgstr "La Lightning Address debe tener el formato nombre@ejemplo.com."
 
-#: includes/class-wcll-gateway.php:346
+#: includes/class-wcll-gateway.php:347
 msgid "Manual sats per currency unit must be greater than zero."
 msgstr "Los sats manuales por unidad de moneda deben ser mayores que cero."
 
-#: includes/class-wcll-gateway.php:426
+#: includes/class-wcll-gateway.php:427
 msgid "The lncurl service must be a valid http(s) URL."
 msgstr "El servicio lncurl debe ser una URL http(s) válida."
 
-#: includes/class-wcll-gateway.php:474
+#: includes/class-wcll-gateway.php:475
 msgid "Payment error: order could not be loaded."
 msgstr "Error de pago: no se pudo cargar el pedido."
 
-#: includes/class-wcll-gateway.php:483 includes/class-wcll-gateway.php:508
-#: includes/class-wcll-gateway.php:525
+#: includes/class-wcll-gateway.php:484 includes/class-wcll-gateway.php:509
+#: includes/class-wcll-gateway.php:526
 msgid "Payment error:"
 msgstr "Error de pago:"
 
-#: includes/class-wcll-gateway.php:570
+#: includes/class-wcll-gateway.php:571
 msgid "Awaiting Bitcoin Lightning payment."
 msgstr "Esperando el pago Bitcoin Lightning."
 
-#: includes/class-wcll-gateway.php:592
+#: includes/class-wcll-gateway.php:593
 msgid "Merchant Lightning Address is not configured."
 msgstr "La Lightning Address del comercio no está configurada."
 
-#: includes/class-wcll-gateway.php:616
+#: includes/class-wcll-gateway.php:617
 msgid ""
 "This Lightning Address cannot confirm payments. It supports neither LUD-21 "
 "verification nor NIP-57 zap receipts. Choose the NWC wallet settlement "
@@ -682,11 +682,11 @@ msgstr ""
 "LUD-21 ni recibos de zap NIP-57. Elige el método de liquidación con "
 "billetera NWC, o usa una dirección que admita alguno de ellos."
 
-#: includes/class-wcll-gateway.php:647 includes/class-wcll-gateway.php:678
+#: includes/class-wcll-gateway.php:648 includes/class-wcll-gateway.php:679
 msgid "The NWC wallet returned an incomplete invoice."
 msgstr "La billetera NWC devolvió una factura incompleta."
 
-#: includes/class-wcll-gateway.php:719
+#: includes/class-wcll-gateway.php:720
 msgid ""
 "No Lightning Address is set to forward to; add one so proxied payments reach "
 "you."
@@ -694,22 +694,22 @@ msgstr ""
 "No hay una Lightning Address configurada para reenviar; agrega una para que "
 "los pagos por proxy te lleguen."
 
-#: includes/class-wcll-gateway.php:773
+#: includes/class-wcll-gateway.php:774
 msgid "Lightning Address is required."
 msgstr "La Lightning Address es obligatoria."
 
-#: includes/class-wcll-gateway.php:794
+#: includes/class-wcll-gateway.php:795
 msgid ""
 "No LUD-21 verify URL; payments will be confirmed via NIP-57 zap receipts."
 msgstr ""
 "Sin URL de verificación LUD-21; los pagos se confirmarán mediante recibos "
 "zap NIP-57."
 
-#: includes/class-wcll-gateway.php:797
+#: includes/class-wcll-gateway.php:798
 msgid "Lightning Address will be confirmed via NIP-57 zap receipts."
 msgstr "La Lightning Address se confirmará mediante recibos zap NIP-57."
 
-#: includes/class-wcll-gateway.php:802
+#: includes/class-wcll-gateway.php:803
 msgid ""
 "Switch the settlement method to NWC wallet, or use an address that supports "
 "LUD-21 or NIP-57."
@@ -717,19 +717,19 @@ msgstr ""
 "Cambia el método de liquidación a billetera NWC, o usa una dirección que "
 "admita LUD-21 o NIP-57."
 
-#: includes/class-wcll-gateway.php:822
+#: includes/class-wcll-gateway.php:823
 msgid "Lightning Address supports LUD-21 verification."
 msgstr "La Lightning Address es compatible con la verificación LUD-21."
 
-#: includes/class-wcll-gateway.php:826
+#: includes/class-wcll-gateway.php:827
 msgid "Lightning Address verified with LUD-21."
 msgstr "Lightning Address verificada con LUD-21."
 
-#: includes/class-wcll-gateway.php:838 includes/class-wcll-plugin.php:196
+#: includes/class-wcll-gateway.php:839 includes/class-wcll-plugin.php:196
 msgid "This Lightning Address does not advertise NIP-57 zap receipts."
 msgstr "Esta Lightning Address no anuncia recibos zap NIP-57."
 
-#: includes/class-wcll-gateway.php:843
+#: includes/class-wcll-gateway.php:844
 msgid ""
 "Add at least one NIP-57 relay URL to confirm payments when LUD-21 is "
 "unavailable."
@@ -737,145 +737,153 @@ msgstr ""
 "Agrega al menos una URL de relay NIP-57 para confirmar pagos cuando LUD-21 "
 "no esté disponible."
 
-#: includes/class-wcll-gateway.php:863
+#: includes/class-wcll-gateway.php:864
 msgid "No Lightning Address has been checked yet."
 msgstr "Todavía no se ha comprobado ninguna Lightning Address."
 
-#: includes/class-wcll-gateway.php:865
+#: includes/class-wcll-gateway.php:866
 msgid "Connection status"
 msgstr "Estado de la conexión"
 
-#: includes/class-wcll-gateway.php:867
+#: includes/class-wcll-gateway.php:868
 msgid "Settlement verification"
 msgstr "Verificación de liquidación"
 
-#: includes/class-wcll-gateway.php:869
+#: includes/class-wcll-gateway.php:870
 msgid "LUD-21 verified"
 msgstr "LUD-21 verificado"
 
-#: includes/class-wcll-gateway.php:871
+#: includes/class-wcll-gateway.php:872
 msgid "NIP-57 zap receipts"
 msgstr "Recibos zap NIP-57"
 
-#: includes/class-wcll-gateway.php:873 includes/class-wcll-gateway.php:1039
-#: includes/class-wcll-gateway.php:1048 includes/class-wcll-nwc-manager.php:627
+#: includes/class-wcll-gateway.php:874 includes/class-wcll-gateway.php:1053
+#: includes/class-wcll-gateway.php:1062 includes/class-wcll-nwc-manager.php:627
 msgid "NWC wallet"
 msgstr "Billetera NWC"
 
-#: includes/class-wcll-gateway.php:875
+#: includes/class-wcll-gateway.php:876
 msgid "Not verified"
 msgstr "No verificada"
 
 #. translators: %s: date and time of the last Lightning Address verification.
-#: includes/class-wcll-gateway.php:880
+#: includes/class-wcll-gateway.php:881
 #, php-format
 msgid "Last checked: %s"
 msgstr "Última comprobación: %s"
 
-#: includes/class-wcll-gateway.php:884
+#: includes/class-wcll-gateway.php:885
 msgid "NIP-57 receipts are available for fast checkout detection."
 msgstr ""
 "Los recibos NIP-57 están disponibles para detectar el pago más rápido en el "
 "checkout."
 
-#: includes/class-wcll-gateway.php:890
+#: includes/class-wcll-gateway.php:891
 msgid "Proxy wallet: disposable (auto-created)."
 msgstr "Billetera proxy: desechable (creada automáticamente)."
 
-#: includes/class-wcll-gateway.php:891
+#: includes/class-wcll-gateway.php:892
 msgid "Proxy wallet: permanent (your own connection)."
 msgstr "Billetera proxy: permanente (tu propia conexión)."
 
 #. translators: %s: merchant Lightning Address the funds are forwarded to.
-#: includes/class-wcll-gateway.php:898
+#: includes/class-wcll-gateway.php:899
 #, php-format
 msgid "Forwarding settled funds to %s."
 msgstr "Reenviando los fondos liquidados a %s."
 
-#: includes/class-wcll-gateway.php:901
+#: includes/class-wcll-gateway.php:902
 msgid "Your own NWC wallet; settled funds stay in it."
 msgstr "Tu propia billetera NWC; los fondos liquidados permanecen en ella."
 
 #. translators: %s: NWC wallet balance in sats.
-#: includes/class-wcll-gateway.php:907
+#: includes/class-wcll-gateway.php:908
 #, php-format
 msgid "Wallet balance: %s sats."
 msgstr "Saldo de la billetera: %s sats."
 
-#: includes/class-wcll-gateway.php:909
+#: includes/class-wcll-gateway.php:910
 msgid "Wallet balance: unavailable."
 msgstr "Saldo de la billetera: no disponible."
 
-#: includes/class-wcll-gateway.php:917
+#: includes/class-wcll-gateway.php:918
 msgid "Order"
 msgstr "Pedido"
 
-#: includes/class-wcll-gateway.php:918
+#: includes/class-wcll-gateway.php:919
 msgid "Date"
 msgstr "Fecha"
 
-#: includes/class-wcll-gateway.php:919 includes/class-wcll-plugin.php:656
+#: includes/class-wcll-gateway.php:920 includes/class-wcll-plugin.php:656
 #: includes/class-wcll-plugin.php:668 templates/payment-page.php:105
 msgid "Amount"
 msgstr "Importe"
 
-#: includes/class-wcll-gateway.php:920 includes/class-wcll-plugin.php:567
+#: includes/class-wcll-gateway.php:921 includes/class-wcll-plugin.php:567
 #: includes/class-wcll-plugin.php:653
 msgid "Received"
 msgstr "Recibido"
 
-#: includes/class-wcll-gateway.php:921 includes/class-wcll-plugin.php:552
+#: includes/class-wcll-gateway.php:922 includes/class-wcll-plugin.php:552
 #: includes/class-wcll-plugin.php:631
 msgid "Forwarded"
 msgstr "Reenviado"
 
-#: includes/class-wcll-gateway.php:922
+#: includes/class-wcll-gateway.php:923
 msgid "Details"
 msgstr "Detalles"
 
-#: includes/class-wcll-gateway.php:939
+#: includes/class-wcll-gateway.php:940
 msgid "NWC transactions"
 msgstr "Transacciones NWC"
 
-#: includes/class-wcll-gateway.php:942
+#: includes/class-wcll-gateway.php:943
 msgid "No NWC transactions yet."
 msgstr "Todavía no hay transacciones NWC."
 
 #. translators: %d: total number of proxy transactions.
-#: includes/class-wcll-gateway.php:957
+#: includes/class-wcll-gateway.php:958
 #, php-format
 msgid "Show all transactions (%d)"
 msgstr "Ver todas las transacciones (%d)"
 
-#: includes/class-wcll-gateway.php:964 includes/class-wcll-gateway.php:966
+#: includes/class-wcll-gateway.php:965 includes/class-wcll-gateway.php:967
 msgid "All NWC transactions"
 msgstr "Todas las transacciones NWC"
 
-#: includes/class-wcll-gateway.php:965 includes/class-wcll-gateway.php:982
+#: includes/class-wcll-gateway.php:966 includes/class-wcll-gateway.php:983
 msgid "Close"
 msgstr "Cerrar"
 
-#: includes/class-wcll-gateway.php:972
+#: includes/class-wcll-gateway.php:973
 msgid "Previous"
 msgstr "Anterior"
 
-#: includes/class-wcll-gateway.php:974
+#: includes/class-wcll-gateway.php:975
 msgid "Next"
 msgstr "Siguiente"
 
-#: includes/class-wcll-gateway.php:981
+#: includes/class-wcll-gateway.php:982
 msgid "Transaction details"
 msgstr "Detalles de la transacción"
 
-#: includes/class-wcll-gateway.php:995
+#: includes/class-wcll-gateway.php:1001
+msgid "Create disposable wallet"
+msgstr "Crear billetera desechable"
+
+#: includes/class-wcll-gateway.php:1002
+msgid "Provision a fresh disposable wallet and archive the current one."
+msgstr "Provisiona una billetera desechable nueva y archiva la actual."
+
+#: includes/class-wcll-gateway.php:1009
 msgid "Regenerate NWC connection"
 msgstr "Regenerar conexión NWC"
 
-#: includes/class-wcll-gateway.php:996
+#: includes/class-wcll-gateway.php:1010
 msgid "Provision a fresh disposable wallet from the new service."
 msgstr "Provisiona una nueva billetera descartable desde el nuevo servicio."
 
-#: includes/class-wcll-gateway.php:1009
+#: includes/class-wcll-gateway.php:1023
 msgid ""
 "This Lightning Address cannot confirm payments on its own (no LUD-21 and no "
 "NIP-57). Switch the Receiver mode to \"Lightning Address via NWC Proxy\" to "
@@ -885,11 +893,11 @@ msgstr ""
 "NIP-57). Cambia el modo de recepción a «Lightning Address vía Proxy NWC» "
 "para aceptarla."
 
-#: includes/class-wcll-gateway.php:1014
+#: includes/class-wcll-gateway.php:1028
 msgid "Your NWC wallet"
 msgstr "Tu billetera NWC"
 
-#: includes/class-wcll-gateway.php:1016
+#: includes/class-wcll-gateway.php:1030
 msgid ""
 "Paste your NWC connection string above and save to see the wallet balance "
 "here."
@@ -897,20 +905,20 @@ msgstr ""
 "Pega tu cadena de conexión NWC arriba y guarda para ver el saldo de la "
 "billetera aquí."
 
-#: includes/class-wcll-gateway.php:1021 includes/class-wcll-gateway.php:1053
+#: includes/class-wcll-gateway.php:1035 includes/class-wcll-gateway.php:1067
 msgid "Balance"
 msgstr "Saldo"
 
-#: includes/class-wcll-gateway.php:1022 includes/class-wcll-gateway.php:1054
+#: includes/class-wcll-gateway.php:1036 includes/class-wcll-gateway.php:1068
 #: includes/class-wcll-plugin.php:97
 msgid "Loading balance…"
 msgstr "Cargando saldo…"
 
-#: includes/class-wcll-gateway.php:1023 includes/class-wcll-gateway.php:1055
+#: includes/class-wcll-gateway.php:1037 includes/class-wcll-gateway.php:1069
 msgid "Refresh balance"
 msgstr "Actualizar saldo"
 
-#: includes/class-wcll-gateway.php:1040
+#: includes/class-wcll-gateway.php:1054
 msgid ""
 "Set the settlement method to NWC wallet, save, and the wallet controls will "
 "appear here."
@@ -918,23 +926,15 @@ msgstr ""
 "Establece el método de liquidación en billetera NWC, guarda, y los controles "
 "de la billetera aparecerán aquí."
 
-#: includes/class-wcll-gateway.php:1049 includes/class-wcll-plugin.php:110
+#: includes/class-wcll-gateway.php:1063 includes/class-wcll-plugin.php:110
 msgid "Show connection string"
 msgstr "Mostrar cadena de conexión"
 
-#: includes/class-wcll-gateway.php:1062
+#: includes/class-wcll-gateway.php:1077
 msgid "Expires in"
 msgstr "Expira en"
 
-#: includes/class-wcll-gateway.php:1066
-msgid "Create disposable wallet"
-msgstr "Crear billetera desechable"
-
-#: includes/class-wcll-gateway.php:1067
-msgid "Provision a fresh disposable wallet and archive the current one."
-msgstr "Provisiona una billetera desechable nueva y archiva la actual."
-
-#: includes/class-wcll-gateway.php:1076
+#: includes/class-wcll-gateway.php:1086
 msgid ""
 "This connection string contains the wallet secret — anyone who has it can "
 "spend the funds, so keep it private."
@@ -942,48 +942,48 @@ msgstr ""
 "Esta cadena de conexión contiene el secreto de la billetera: cualquiera que "
 "lo tenga puede gastar los fondos, así que mantenla en privado."
 
-#: includes/class-wcll-gateway.php:1078 includes/class-wcll-plugin.php:614
+#: includes/class-wcll-gateway.php:1088 includes/class-wcll-plugin.php:614
 msgid "Copy"
 msgstr "Copiar"
 
-#: includes/class-wcll-gateway.php:1082
+#: includes/class-wcll-gateway.php:1092
 msgid "Receive"
 msgstr "Recibir"
 
-#: includes/class-wcll-gateway.php:1083
+#: includes/class-wcll-gateway.php:1093
 msgid "Withdraw"
 msgstr "Retirar"
 
-#: includes/class-wcll-gateway.php:1087
+#: includes/class-wcll-gateway.php:1097
 msgid "Amount (sats)"
 msgstr "Monto (sats)"
 
-#: includes/class-wcll-gateway.php:1088
+#: includes/class-wcll-gateway.php:1098
 msgid "Generate invoice"
 msgstr "Generar factura"
 
-#: includes/class-wcll-gateway.php:1091 includes/class-wcll-plugin.php:817
+#: includes/class-wcll-gateway.php:1101 includes/class-wcll-plugin.php:817
 #: templates/payment-page.php:132
 msgid "Copy invoice"
 msgstr "Copiar factura"
 
-#: includes/class-wcll-gateway.php:1096
+#: includes/class-wcll-gateway.php:1106
 msgid "To (Lightning Address or BOLT11 invoice)"
 msgstr "Para (Lightning Address o factura BOLT11)"
 
-#: includes/class-wcll-gateway.php:1098
+#: includes/class-wcll-gateway.php:1108
 msgid "Amount (sats — required for a Lightning Address)"
 msgstr "Monto (sats — obligatorio para una Lightning Address)"
 
-#: includes/class-wcll-gateway.php:1100
+#: includes/class-wcll-gateway.php:1110
 msgid "Send payment"
 msgstr "Enviar pago"
 
-#: includes/class-wcll-gateway.php:1111
+#: includes/class-wcll-gateway.php:1121
 msgid "Compatible wallets"
 msgstr "Billeteras compatibles"
 
-#: includes/class-wcll-gateway.php:1112
+#: includes/class-wcll-gateway.php:1122
 msgid ""
 "This plugin works with every Lightning Address. Customers can pay from any "
 "of these popular wallets, or any other wallet that gives them a Lightning "
@@ -994,12 +994,12 @@ msgstr ""
 "billetera que les dé una Lightning Address."
 
 #. translators: %s: wallet name.
-#: includes/class-wcll-gateway.php:1117
+#: includes/class-wcll-gateway.php:1127
 #, php-format
 msgid "Open the %s website (opens in a new tab)"
 msgstr "Abrir el sitio web de %s (se abre en una pestaña nueva)"
 
-#: includes/class-wcll-gateway.php:1130
+#: includes/class-wcll-gateway.php:1140
 msgid ""
 "These are popular examples. See the full list of compatible wallets and "
 "services at"

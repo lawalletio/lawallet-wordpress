@@ -475,10 +475,12 @@
 			});
 		}
 
-		// Create a fresh disposable wallet on demand (disposable mode only).
-		var createRow = root.querySelector('[data-wcll-nwc-create-row]');
-		var createBtn = root.querySelector('[data-wcll-nwc-create]');
-		var createFeedback = root.querySelector('[data-wcll-nwc-create-feedback]');
+		// Create a fresh disposable wallet on demand (disposable mode only). The
+		// control lives below the lncurl field, outside this panel root, so query
+		// the document for it.
+		var createRow = document.querySelector('[data-wcll-nwc-create-row]');
+		var createBtn = document.querySelector('[data-wcll-nwc-create]');
+		var createFeedback = document.querySelector('[data-wcll-nwc-create-feedback]');
 		if (isDisposable && createRow) {
 			createRow.hidden = false;
 		}

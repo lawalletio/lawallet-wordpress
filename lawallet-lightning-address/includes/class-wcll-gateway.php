@@ -303,6 +303,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				$this->render_compatible_wallets();
 			}
 			if ( 'nwc' === $id ) {
+				$this->render_nwc_create();
 				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
 				$this->render_nwc_transactions();
@@ -990,6 +991,19 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	 * "Regenerate" affordance shown on the NWC tab when the lncurl service URL is
 	 * changed: provisions a fresh disposable wallet from the new service.
 	 */
+	/**
+	 * "Create disposable wallet" control, rendered right below the lncurl service
+	 * field. JS (the wallet panel) reveals it only when the saved mode is a
+	 * configured disposable proxy wallet, and wires the click handler.
+	 */
+	private function render_nwc_create() {
+		echo '<p class="wcll-nwc-create" data-wcll-nwc-create-row hidden>';
+		echo '<button type="button" class="button" data-wcll-nwc-create>' . esc_html__( 'Create disposable wallet', 'lawallet-lightning-address' ) . '</button> ';
+		echo '<span class="description">' . esc_html__( 'Provision a fresh disposable wallet and archive the current one.', 'lawallet-lightning-address' ) . '</span> ';
+		echo '<span class="wcll-nwc-create-feedback" data-wcll-nwc-create-feedback role="status" aria-live="polite"></span>';
+		echo '</p>';
+	}
+
 	private function render_nwc_regenerate() {
 		echo '<p class="wcll-nwc-regenerate" data-wcll-nwc-regenerate-row hidden>';
 		echo '<button type="button" class="button" data-wcll-nwc-regenerate>' . esc_html__( 'Regenerate NWC connection', 'lawallet-lightning-address' ) . '</button> ';
@@ -1057,15 +1071,11 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 
 		// Disposable wallets burn ~1 sat/hour of lncurl upkeep, so the balance (in
 		// sats) is the wallet's remaining lifetime in hours. JS reveals the live
-		// countdown and the "create" control only in disposable mode.
+		// countdown only in disposable mode. (The "Create disposable wallet" button
+		// is rendered below the lncurl service field instead — see render_nwc_create.)
 		echo '<p class="wcll-nwc-lifetime" data-wcll-nwc-lifetime hidden>';
 		echo '<span class="wcll-nwc-balance-label">' . esc_html__( 'Expires in', 'lawallet-lightning-address' ) . '</span> ';
 		echo '<strong data-wcll-nwc-countdown>—</strong>';
-		echo '</p>';
-		echo '<p class="wcll-nwc-create" data-wcll-nwc-create-row hidden>';
-		echo '<button type="button" class="button" data-wcll-nwc-create>' . esc_html__( 'Create disposable wallet', 'lawallet-lightning-address' ) . '</button> ';
-		echo '<span class="description">' . esc_html__( 'Provision a fresh disposable wallet and archive the current one.', 'lawallet-lightning-address' ) . '</span> ';
-		echo '<span class="wcll-nwc-create-feedback" data-wcll-nwc-create-feedback role="status" aria-live="polite"></span>';
 		echo '</p>';
 
 		// Connection-string reveal box (toggled by the header button). The string
