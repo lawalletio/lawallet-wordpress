@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.2
+Stable tag: 0.6.3
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -150,6 +150,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.6.3 =
+* Moved "Show connection string" to a smaller button in the top-right of the NWC wallet panel; the secret warning now appears with the revealed string.
 
 = 0.6.2 =
 * Add a "Create disposable wallet" button to the NWC Wallet tab to provision a fresh proxy wallet on demand (archiving the current one).

@@ -186,6 +186,19 @@
 	margin: 0 0 10px;
 	font-size: 14px;
 }
+.wcll-nwc-wallet-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 10px;
+}
+.wcll-nwc-wallet-head .wcll-nwc-wallet-title {
+	margin: 0;
+}
+.wcll-nwc-show-connection {
+	flex: 0 0 auto;
+}
 .wcll-nwc-balance-row {
 	display: flex;
 	align-items: center;
@@ -272,14 +285,11 @@
 .wcll-nwc-regenerate {
 	margin: 12px 0;
 }
-.wcll-nwc-connection {
-	margin: 12px 0 8px;
-}
-.wcll-nwc-connection .description {
-	margin-left: 6px;
-}
 .wcll-nwc-connection-box {
 	margin: 0 0 12px;
+}
+.wcll-nwc-connection-warn {
+	margin: 0 0 6px;
 }
 .wcll-nwc-connection-box[hidden] {
 	display: none;

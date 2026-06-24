@@ -6,7 +6,7 @@ msgstr ""
 "Project-Id-Version: Accept Bitcoin with your Lightning Address 0.1.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/lawallet-"
 "lightning-address\n"
-"POT-Creation-Date: 2026-06-24T17:08:28+00:00\n"
+"POT-Creation-Date: 2026-06-24T17:12:25+00:00\n"
 "PO-Revision-Date: 2026-06-12T01:00:00+00:00\n"
 "Last-Translator: LaWallet <hello@lawallet.io>\n"
 "Language-Team: Spanish\n"
@@ -369,7 +369,7 @@ msgstr ""
 "En modo Lightning Address, aquí se reciben los pagos (debe admitir LUD-21 o "
 "NIP-57). En modo Proxy NWC es el destino de reenvío."
 
-#: includes/class-wcll-gateway.php:55 includes/class-wcll-gateway.php:1072
+#: includes/class-wcll-gateway.php:55 includes/class-wcll-gateway.php:1077
 msgid "NWC connection string"
 msgstr "Cadena de conexión NWC"
 
@@ -757,8 +757,8 @@ msgstr "LUD-21 verificado"
 msgid "NIP-57 zap receipts"
 msgstr "Recibos zap NIP-57"
 
-#: includes/class-wcll-gateway.php:873 includes/class-wcll-gateway.php:1037
-#: includes/class-wcll-nwc-manager.php:608
+#: includes/class-wcll-gateway.php:873 includes/class-wcll-gateway.php:1039
+#: includes/class-wcll-gateway.php:1048 includes/class-wcll-nwc-manager.php:608
 msgid "NWC wallet"
 msgstr "Billetera NWC"
 
@@ -897,16 +897,16 @@ msgstr ""
 "Pega tu cadena de conexión NWC arriba y guarda para ver el saldo de la "
 "billetera aquí."
 
-#: includes/class-wcll-gateway.php:1021 includes/class-wcll-gateway.php:1046
+#: includes/class-wcll-gateway.php:1021 includes/class-wcll-gateway.php:1053
 msgid "Balance"
 msgstr "Saldo"
 
-#: includes/class-wcll-gateway.php:1022 includes/class-wcll-gateway.php:1047
+#: includes/class-wcll-gateway.php:1022 includes/class-wcll-gateway.php:1054
 #: includes/class-wcll-plugin.php:96
 msgid "Loading balance…"
 msgstr "Cargando saldo…"
 
-#: includes/class-wcll-gateway.php:1023 includes/class-wcll-gateway.php:1048
+#: includes/class-wcll-gateway.php:1023 includes/class-wcll-gateway.php:1055
 msgid "Refresh balance"
 msgstr "Actualizar saldo"
 
@@ -918,74 +918,72 @@ msgstr ""
 "Establece el método de liquidación en billetera NWC, guarda, y los controles "
 "de la billetera aparecerán aquí."
 
-#: includes/class-wcll-gateway.php:1055
-msgid "Expires in"
-msgstr "Expira en"
-
-#: includes/class-wcll-gateway.php:1059
-msgid "Create disposable wallet"
-msgstr "Crear billetera desechable"
-
-#: includes/class-wcll-gateway.php:1060
-msgid "Provision a fresh disposable wallet and archive the current one."
-msgstr "Provisiona una billetera desechable nueva y archiva la actual."
-
-#: includes/class-wcll-gateway.php:1068 includes/class-wcll-plugin.php:107
+#: includes/class-wcll-gateway.php:1049 includes/class-wcll-plugin.php:107
 msgid "Show connection string"
 msgstr "Mostrar cadena de conexión"
 
-#: includes/class-wcll-gateway.php:1069
-msgid ""
-"Reveal this wallet's connection string to import it into another app. It "
-"contains the wallet secret — anyone who has it can spend the funds, so keep "
-"it private."
-msgstr ""
-"Revela la cadena de conexión de esta billetera para importarla en otra app. "
-"Contiene el secreto de la billetera: cualquiera que lo tenga puede gastar "
-"los fondos, así que mantenla en privado."
+#: includes/class-wcll-gateway.php:1062
+msgid "Expires in"
+msgstr "Expira en"
 
-#: includes/class-wcll-gateway.php:1073 includes/class-wcll-plugin.php:580
+#: includes/class-wcll-gateway.php:1066
+msgid "Create disposable wallet"
+msgstr "Crear billetera desechable"
+
+#: includes/class-wcll-gateway.php:1067
+msgid "Provision a fresh disposable wallet and archive the current one."
+msgstr "Provisiona una billetera desechable nueva y archiva la actual."
+
+#: includes/class-wcll-gateway.php:1076
+msgid ""
+"This connection string contains the wallet secret — anyone who has it can "
+"spend the funds, so keep it private."
+msgstr ""
+"Esta cadena de conexión contiene el secreto de la billetera: cualquiera que "
+"lo tenga puede gastar los fondos, así que mantenla en privado."
+
+#: includes/class-wcll-gateway.php:1078 includes/class-wcll-plugin.php:580
 msgid "Copy"
 msgstr "Copiar"
 
-#: includes/class-wcll-gateway.php:1077
+#: includes/class-wcll-gateway.php:1082
 msgid "Receive"
 msgstr "Recibir"
 
-#: includes/class-wcll-gateway.php:1078
+#: includes/class-wcll-gateway.php:1083
 msgid "Withdraw"
 msgstr "Retirar"
 
-#: includes/class-wcll-gateway.php:1082
+#: includes/class-wcll-gateway.php:1087
 msgid "Amount (sats)"
 msgstr "Monto (sats)"
 
-#: includes/class-wcll-gateway.php:1083
+#: includes/class-wcll-gateway.php:1088
 msgid "Generate invoice"
 msgstr "Generar factura"
 
-#: includes/class-wcll-gateway.php:1086 includes/class-wcll-plugin.php:783
+#: includes/class-wcll-gateway.php:1091 includes/class-wcll-plugin.php:783
 #: templates/payment-page.php:132
 msgid "Copy invoice"
 msgstr "Copiar factura"
 
-#: includes/class-wcll-gateway.php:1091
+#: includes/class-wcll-gateway.php:1096
 msgid "To (Lightning Address or BOLT11 invoice)"
 msgstr "Para (Lightning Address o factura BOLT11)"
 
-#: includes/class-wcll-gateway.php:1093
+#: includes/class-wcll-gateway.php:1098
 msgid "Amount (sats — required for a Lightning Address)"
 msgstr "Monto (sats — obligatorio para una Lightning Address)"
 
-#: includes/class-wcll-gateway.php:1095
+#: includes/class-wcll-gateway.php:1100
 msgid "Send payment"
 msgstr "Enviar pago"
 
-#: includes/class-wcll-gateway.php:1106
+#: includes/class-wcll-gateway.php:1111
 msgid "Compatible wallets"
 msgstr "Billeteras compatibles"
 
-#: includes/class-wcll-gateway.php:1107
+#: includes/class-wcll-gateway.php:1112
 msgid ""
 "This plugin works with every Lightning Address. Customers can pay from any "
 "of these popular wallets, or any other wallet that gives them a Lightning "
@@ -996,12 +994,12 @@ msgstr ""
 "billetera que les dé una Lightning Address."
 
 #. translators: %s: wallet name.
-#: includes/class-wcll-gateway.php:1112
+#: includes/class-wcll-gateway.php:1117
 #, php-format
 msgid "Open the %s website (opens in a new tab)"
 msgstr "Abrir el sitio web de %s (se abre en una pestaña nueva)"
 
-#: includes/class-wcll-gateway.php:1125
+#: includes/class-wcll-gateway.php:1130
 msgid ""
 "These are popular examples. See the full list of compatible wallets and "
 "services at"

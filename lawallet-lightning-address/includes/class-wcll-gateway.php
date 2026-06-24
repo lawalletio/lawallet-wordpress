@@ -1034,13 +1034,20 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$info = WCLL_NWC_Manager::admin_wallet_info( self::get_gateway_settings() );
 
 		echo '<div class="wcll-nwc-wallet" data-wcll-nwc-wallet>';
-		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</h4>';
 
 		if ( empty( $info['configured'] ) ) {
+			echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</h4>';
 			echo '<p class="description">' . esc_html__( 'Set the settlement method to NWC wallet, save, and the wallet controls will appear here.', 'lawallet-lightning-address' ) . '</p>';
 			echo '</div>';
 			return;
 		}
+
+		// Header: title on the left, the secret-string reveal as a small button on
+		// the right. The reveal box (with the warning) sits below, hidden until clicked.
+		echo '<div class="wcll-nwc-wallet-head">';
+		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</h4>';
+		echo '<button type="button" class="button button-small wcll-nwc-show-connection" data-wcll-nwc-show-connection>' . esc_html__( 'Show connection string', 'lawallet-lightning-address' ) . '</button>';
+		echo '</div>';
 
 		echo '<div class="wcll-nwc-balance-row">';
 		echo '<span class="wcll-nwc-balance-label">' . esc_html__( 'Balance', 'lawallet-lightning-address' ) . '</span> ';
@@ -1061,14 +1068,12 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		echo '<span class="wcll-nwc-create-feedback" data-wcll-nwc-create-feedback role="status" aria-live="polite"></span>';
 		echo '</p>';
 
-		// Connection-string reveal. The string carries the wallet secret, so it is
-		// never rendered into the page: the textarea starts empty and is filled by
-		// an authenticated AJAX request only when the admin clicks "Show".
-		echo '<p class="wcll-nwc-connection">';
-		echo '<button type="button" class="button" data-wcll-nwc-show-connection>' . esc_html__( 'Show connection string', 'lawallet-lightning-address' ) . '</button> ';
-		echo '<span class="description">' . esc_html__( 'Reveal this wallet\'s connection string to import it into another app. It contains the wallet secret — anyone who has it can spend the funds, so keep it private.', 'lawallet-lightning-address' ) . '</span>';
-		echo '</p>';
+		// Connection-string reveal box (toggled by the header button). The string
+		// carries the wallet secret, so it is never rendered into the page: the
+		// textarea starts empty and is filled by an authenticated AJAX request only
+		// when the admin clicks "Show".
 		echo '<div class="wcll-nwc-connection-box" data-wcll-nwc-connection-box hidden>';
+		echo '<p class="description wcll-nwc-connection-warn">' . esc_html__( 'This connection string contains the wallet secret — anyone who has it can spend the funds, so keep it private.', 'lawallet-lightning-address' ) . '</p>';
 		echo '<textarea readonly rows="3" class="large-text code wcll-nwc-connection-text" data-wcll-nwc-connection-text aria-label="' . esc_attr__( 'NWC connection string', 'lawallet-lightning-address' ) . '"></textarea>';
 		echo '<button type="button" class="button" data-wcll-nwc-connection-copy>' . esc_html__( 'Copy', 'lawallet-lightning-address' ) . '</button>';
 		echo '</div>';
