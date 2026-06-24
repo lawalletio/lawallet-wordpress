@@ -454,6 +454,9 @@
 		root.querySelectorAll('[data-wcll-nwc-tab]').forEach(function (btn) {
 			btn.addEventListener('click', function () {
 				var which = btn.getAttribute('data-wcll-nwc-tab');
+				// Reset both sections so reopening one always starts from scratch.
+				resetSection('receive');
+				resetSection('withdraw');
 				root.querySelectorAll('[data-wcll-nwc-form]').forEach(function (form) {
 					var match = form.getAttribute('data-wcll-nwc-form') === which;
 					form.hidden = match ? !form.hidden : true;
@@ -588,6 +591,33 @@
 				}
 				checkReceiveInvoice();
 			}, 5000);
+		}
+
+		// Return a form section to its initial state, so toggling it open never
+		// shows a stale invoice or a half-filled form.
+		function resetSection(which) {
+			if (which === 'receive') {
+				stopReceiveWatch();
+				if (receiveText) {
+					receiveText.value = '';
+				}
+				if (receiveBox) {
+					receiveBox.hidden = true;
+				}
+				var rAmount = root.querySelector('[data-wcll-nwc-amount="receive"]');
+				if (rAmount) {
+					rAmount.value = '';
+				}
+			} else if (which === 'withdraw') {
+				var dest = root.querySelector('[data-wcll-nwc-destination]');
+				if (dest) {
+					dest.value = '';
+				}
+				var wAmount = root.querySelector('[data-wcll-nwc-amount="withdraw"]');
+				if (wAmount) {
+					wAmount.value = '';
+				}
+			}
 		}
 
 		var generateBtn = root.querySelector('[data-wcll-nwc-generate]');
