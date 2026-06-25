@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.14
+Stable tag: 0.6.15
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -106,8 +106,9 @@ For the proxy wallet, in Disposable mode the plugin obtains a throwaway wallet c
 HTTP request returns a connection string; default https://lncurl.lol, configurable to any lncurl
 instance you trust) and requests a replacement when a wallet dies. Only the request to mint a wallet
 is sent to that service; the wallet you receive is custodial at whichever provider the lncurl service
-is backed by, so use it only for funds in transit. In Permanent mode no provisioning service is
-contacted — you supply the connection string yourself.
+is backed by, so use it only for funds in transit. This service is provided by lncurl; see the lncurl
+[terms](https://lncurl.lol/terms) and [privacy policy](https://lncurl.lol/privacy). In Permanent mode
+no provisioning service is contacted — you supply the connection string yourself.
 
 == Installation ==
 
@@ -150,6 +151,9 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.6.15 =
+* Documented the lncurl disposable-wallet service with links to its terms and privacy policy.
 
 = 0.6.14 =
 * The Connection status section now appears only on the NWC Proxy tab instead of below every tab.
