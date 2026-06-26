@@ -7,6 +7,33 @@ if ( ! defined( 'ABSPATH' ) ) {
 class WCLL_Plugin {
 	const CRON_HOOK = 'wcll_check_pending_payments';
 
+	/**
+	 * Floor (in millisatoshis) kept back from a forwarded NWC-proxy payment to
+	 * cover the routing fee when paying the merchant Lightning Address.
+	 */
+	const FORWARD_RESERVE_FLOOR_MSAT = 10000;
+
+	/** Per-wallet in-flight sweep invoice, keyed by wallet pubkey (idempotency). */
+	const SWEEP_INFLIGHT_OPTION = 'wcll_nwc_sweep_inflight';
+
+	/** Rolling log of completed proxy sweeps (payouts to the merchant address). */
+	const SWEEP_LOG_OPTION = 'wcll_nwc_sweeps';
+
+	/** Most sweep log entries to retain. */
+	const SWEEP_LOG_MAX = 50;
+
+	/** Most Lightning-Address payments a single sweep run will make per wallet. */
+	const SWEEP_MAX_HOPS = 8;
+
+	/**
+	 * Millisatoshis withheld from an NWC-proxy forward as a routing-fee reserve:
+	 * 1% of the amount, never below {@see self::FORWARD_RESERVE_FLOOR_MSAT}.
+	 * Centralised so checkout, forwarding and the admin detail view stay in sync.
+	 */
+	public static function forward_reserve_msat( $amount_msat ) {
+		return max( (int) round( (int) $amount_msat * 0.01 ), self::FORWARD_RESERVE_FLOOR_MSAT );
+	}
+
 	public static function init() {
 		add_action( 'init', array( __CLASS__, 'load_textdomain' ) );
 		WCLL_Discovery::init();
@@ -30,6 +57,8 @@ class WCLL_Plugin {
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_checkout_assets' ) );
 		add_action( 'wp_ajax_wcll_claim_payment', array( __CLASS__, 'ajax_claim_payment' ) );
 		add_action( 'wp_ajax_nopriv_wcll_claim_payment', array( __CLASS__, 'ajax_claim_payment' ) );
+		add_action( 'wp_ajax_wcll_recreate_invoice', array( __CLASS__, 'ajax_recreate_invoice' ) );
+		add_action( 'wp_ajax_nopriv_wcll_recreate_invoice', array( __CLASS__, 'ajax_recreate_invoice' ) );
 		add_action( 'woocommerce_receipt_wcll_gateway', array( __CLASS__, 'render_payment_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_gateway_admin_assets' ) );
 		add_action( 'wp_ajax_wcll_check_lightning_address', array( __CLASS__, 'ajax_check_lightning_address' ) );
@@ -432,11 +461,16 @@ class WCLL_Plugin {
 	}
 
 	/**
-	 * Paginated list of orders settled through the NWC proxy, newest first.
+	 * Paginated ledger of NWC proxy activity, newest first: inbound orders
+	 * (settled into the proxy wallet) merged with outbound sweeps (payouts to the
+	 * merchant Lightning Address). Each item carries a 'type' ('order'|'sweep').
+	 *
+	 * Sweeps are capped at SWEEP_LOG_MAX; orders are fetched to the requested page
+	 * depth, so the two sources merge correctly for any page.
 	 *
 	 * @return array{items:array,total:int,pages:int,page:int}
 	 */
-	public static function nwc_transactions( $page = 1, $per_page = 5 ) {
+	public static function nwc_transactions( $page = 1, $per_page = 8 ) {
 		$page     = max( 1, (int) $page );
 		$per_page = max( 1, (int) $per_page );
 		$result   = array(
@@ -450,17 +484,17 @@ class WCLL_Plugin {
 			return $result;
 		}
 
-		// This is the proxy panel, so list only proxy (forwarding) orders: NWC
-		// settlement AND forwarding on. Terminal NWC orders ('_wcll_nwc_forward' =
-		// 'no') keep funds in the merchant's own wallet and belong on the normal
-		// Orders screen, not here. Legacy proxy orders (pre-flag) have no
-		// '_wcll_nwc_forward' meta, so NOT EXISTS keeps them visible.
+		// Inbound: proxy (forwarding) orders only. Terminal NWC orders
+		// ('_wcll_nwc_forward' = 'no') keep funds in the merchant's own wallet and
+		// belong on the normal Orders screen. Legacy proxy orders (pre-flag) have no
+		// '_wcll_nwc_forward' meta, so NOT EXISTS keeps them visible. Fetch enough
+		// recent orders to cover this page once merged with the sweeps.
 		$query = wc_get_orders(
 			array(
-				'limit'      => $per_page,
-				'paged'      => $page,
+				'limit'      => $page * $per_page,
+				'paged'      => 1,
 				'paginate'   => true,
-				// phpcs:disable WordPress.DB.SlowDBQuery -- Bounded, paginated admin list; wc_get_orders is HPOS-aware.
+				// phpcs:disable WordPress.DB.SlowDBQuery -- Bounded admin list; wc_get_orders is HPOS-aware.
 				'meta_query' => array(
 					'relation' => 'AND',
 					array(
@@ -485,48 +519,95 @@ class WCLL_Plugin {
 			)
 		);
 
+		$entries = array();
 		foreach ( $query->orders as $order ) {
-			$result['items'][] = self::nwc_tx_row( $order );
+			$entries[] = self::nwc_tx_row( $order );
 		}
-		$result['total'] = (int) $query->total;
-		$result['pages'] = (int) $query->max_num_pages;
+
+		// Outbound: completed sweeps (payouts to the merchant Lightning Address).
+		$sweeps = self::nwc_sweeps( self::SWEEP_LOG_MAX );
+		foreach ( $sweeps as $sweep ) {
+			$entries[] = self::nwc_sweep_row( $sweep );
+		}
+
+		// Merge into one chronological ledger, newest first.
+		usort(
+			$entries,
+			static function ( $a, $b ) {
+				return ( isset( $b['at'] ) ? (int) $b['at'] : 0 ) <=> ( isset( $a['at'] ) ? (int) $a['at'] : 0 );
+			}
+		);
+
+		$total           = (int) $query->total + count( $sweeps );
+		$result['total'] = $total;
+		$result['pages'] = (int) ceil( $total / $per_page );
+		$result['items'] = array_slice( $entries, ( $page - 1 ) * $per_page, $per_page );
 		return $result;
 	}
 
 	private static function nwc_tx_row( WC_Order $order ) {
 		$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
 		$forwarded   = (string) $order->get_meta( '_wcll_nwc_forwarded', true );
-		$pending     = 'yes' === (string) $order->get_meta( '_wcll_nwc_forward_pending', true );
 		$received    = $order->is_paid();
 
+		// Forwarding is pooled now (a periodic wallet sweep), so a received order
+		// shows "pooled". Legacy per-order results stay truthful for old orders.
 		if ( 'yes' === $forwarded ) {
 			$forward = 'forwarded';
 		} elseif ( 'failed' === $forwarded ) {
 			$forward = 'failed';
-		} elseif ( $received && $pending ) {
-			$forward = 'pending';
+		} elseif ( $received ) {
+			$forward = 'pooled';
 		} else {
 			$forward = 'none';
 		}
 
 		$date = $order->get_date_created();
+		$at   = $date ? $date->getTimestamp() : 0;
 
 		return array(
+			'type'     => 'order',
+			'at'       => $at,
 			'order_id' => $order->get_id(),
 			'order'    => $order->get_order_number(),
 			'url'      => $order->get_edit_order_url(),
-			'date'     => $date ? wc_format_datetime( $date ) : '',
+			'date'     => self::ledger_datetime( $at ),
 			'amount'   => (int) round( $amount_msat / 1000 ),
 			'received' => $received,
 			'forward'  => $forward,
+			'fees'     => (int) $order->get_meta( '_wcll_nwc_forward_fees', true ),
 			'dest'     => (string) $order->get_meta( '_wcll_lightning_address', true ),
 		);
 	}
 
+	/**
+	 * Normalize a sweep-log entry into a ledger row (an outbound payout).
+	 */
+	private static function nwc_sweep_row( array $sweep ) {
+		$at = isset( $sweep['at'] ) ? (int) $sweep['at'] : 0;
+		return array(
+			'type'   => 'sweep',
+			'at'     => $at,
+			'date'   => self::ledger_datetime( $at ),
+			'amount' => (int) round( ( isset( $sweep['amount'] ) ? (int) $sweep['amount'] : 0 ) / 1000 ),
+			'fees'   => isset( $sweep['fees'] ) ? (int) $sweep['fees'] : 0,
+			'dest'   => isset( $sweep['address'] ) ? (string) $sweep['address'] : '',
+		);
+	}
+
+	private static function ledger_datetime( $timestamp ) {
+		$timestamp = (int) $timestamp;
+		if ( ! $timestamp ) {
+			return '';
+		}
+		return wp_date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $timestamp );
+	}
+
 	public static function ajax_nwc_transactions() {
 		self::verify_nwc_admin();
-		$page = isset( $_POST['page'] ) ? max( 1, absint( wp_unslash( $_POST['page'] ) ) ) : 1;
-		$data = self::nwc_transactions( $page, 10 );
+		$page     = isset( $_POST['page'] ) ? max( 1, absint( wp_unslash( $_POST['page'] ) ) ) : 1;
+		$per_page = isset( $_POST['per_page'] ) ? min( 50, max( 1, absint( wp_unslash( $_POST['per_page'] ) ) ) ) : 10;
+		$data     = self::nwc_transactions( $page, $per_page );
 
 		$rows = '';
 		foreach ( $data['items'] as $row ) {
@@ -544,42 +625,69 @@ class WCLL_Plugin {
 	}
 
 	/**
-	 * Render one transaction as a fully-escaped table row. Used for both the
-	 * inline list and the (AJAX-fed) modal, so the markup is defined once.
+	 * Render one ledger entry as a fully-escaped table row. Handles both inbound
+	 * order rows and outbound sweep rows, so the markup is defined once and shared
+	 * by the inline list and the (AJAX-fed) modal.
 	 */
 	public static function nwc_tx_row_html( array $row ) {
-		$labels        = array(
-			'forwarded' => __( 'Forwarded', 'lawallet-lightning-address' ),
-			'pending'   => __( 'Pending', 'lawallet-lightning-address' ),
-			'failed'    => __( 'Failed', 'lawallet-lightning-address' ),
-			'none'      => __( 'Not forwarded', 'lawallet-lightning-address' ),
-		);
-		$forward       = isset( $row['forward'] ) ? (string) $row['forward'] : 'none';
-		$forward_label = isset( $labels[ $forward ] ) ? $labels[ $forward ] : $labels['none'];
+		$is_sweep = isset( $row['type'] ) && 'sweep' === $row['type'];
+		$dash     = '<span aria-hidden="true">&mdash;</span>';
 
-		$forward_cell = '<span class="wcll-tx-status is-' . esc_attr( sanitize_html_class( $forward ) ) . '">' . esc_html( $forward_label ) . '</span>';
-		if ( 'forwarded' === $forward && ! empty( $row['dest'] ) ) {
-			/* translators: %s: merchant Lightning Address. */
-			$forward_cell .= '<br /><span class="wcll-tx-dest">' . esc_html( sprintf( __( 'to %s', 'lawallet-lightning-address' ), $row['dest'] ) ) . '</span>';
+		// Origin: a linked #order for inbound payments, or a "Sweep" badge.
+		if ( $is_sweep ) {
+			$origin_cell = '<span class="wcll-tx-origin is-sweep">' . esc_html__( 'Sweep', 'lawallet-lightning-address' ) . '</span>';
+		} else {
+			$origin_cell = ! empty( $row['url'] )
+				? '<a href="' . esc_url( $row['url'] ) . '">#' . esc_html( isset( $row['order'] ) ? $row['order'] : '' ) . '</a>'
+				: '#' . esc_html( isset( $row['order'] ) ? $row['order'] : '' );
 		}
 
-		$received_cell = ! empty( $row['received'] )
-			? '<span class="wcll-tx-status is-received">' . esc_html__( 'Received', 'lawallet-lightning-address' ) . '</span>'
-			: '<span class="wcll-tx-status is-unpaid">' . esc_html__( 'Awaiting payment', 'lawallet-lightning-address' ) . '</span>';
+		// Routing fee (sats) — per-order for legacy forwards, the sweep fee for
+		// sweeps; pooled orders carry no per-order fee (it is on their sweep).
+		$fees_msat = isset( $row['fees'] ) ? (int) $row['fees'] : 0;
+		$fee_cell  = $fees_msat > 0
+			? esc_html( number_format_i18n( (int) round( $fees_msat / 1000 ) ) . ' ' . __( 'sats', 'lawallet-lightning-address' ) )
+			: $dash;
 
-		$show_cell = '<button type="button" class="button button-small wcll-tx-show" data-wcll-tx-show="' . esc_attr( (int) $row['order_id'] ) . '">' . esc_html__( 'Show', 'lawallet-lightning-address' ) . '</button>';
+		if ( $is_sweep ) {
+			// A sweep is an outbound payout: nothing "received", the forward IS it.
+			$received_cell = $dash;
+			$forward_cell  = '<span class="wcll-tx-status is-forwarded">' . esc_html__( 'Paid out', 'lawallet-lightning-address' ) . '</span>';
+			if ( ! empty( $row['dest'] ) ) {
+				/* translators: %s: merchant Lightning Address. */
+				$forward_cell .= '<br /><span class="wcll-tx-dest">' . esc_html( sprintf( __( 'to %s', 'lawallet-lightning-address' ), $row['dest'] ) ) . '</span>';
+			}
+			$detail_cell = $dash;
+		} else {
+			$received_cell = ! empty( $row['received'] )
+				? '<span class="wcll-tx-status is-received">' . esc_html__( 'Received', 'lawallet-lightning-address' ) . '</span>'
+				: '<span class="wcll-tx-status is-unpaid">' . esc_html__( 'Awaiting payment', 'lawallet-lightning-address' ) . '</span>';
 
-		$order_cell = ! empty( $row['url'] )
-			? '<a href="' . esc_url( $row['url'] ) . '">#' . esc_html( $row['order'] ) . '</a>'
-			: '#' . esc_html( $row['order'] );
+			$labels        = array(
+				'forwarded' => __( 'Forwarded', 'lawallet-lightning-address' ),
+				'pending'   => __( 'Pending', 'lawallet-lightning-address' ),
+				'failed'    => __( 'Failed', 'lawallet-lightning-address' ),
+				'pooled'    => __( 'Pooled', 'lawallet-lightning-address' ),
+				'none'      => __( 'Not forwarded', 'lawallet-lightning-address' ),
+			);
+			$forward       = isset( $row['forward'] ) ? (string) $row['forward'] : 'none';
+			$forward_label = isset( $labels[ $forward ] ) ? $labels[ $forward ] : $labels['none'];
+			$forward_cell  = '<span class="wcll-tx-status is-' . esc_attr( sanitize_html_class( $forward ) ) . '">' . esc_html( $forward_label ) . '</span>';
+			if ( ( 'forwarded' === $forward || 'pooled' === $forward ) && ! empty( $row['dest'] ) ) {
+				/* translators: %s: merchant Lightning Address. */
+				$forward_cell .= '<br /><span class="wcll-tx-dest">' . esc_html( sprintf( __( 'to %s', 'lawallet-lightning-address' ), $row['dest'] ) ) . '</span>';
+			}
+			$detail_cell = '<button type="button" class="button button-small wcll-tx-show" data-wcll-tx-show="' . esc_attr( (int) $row['order_id'] ) . '">' . esc_html__( 'Show', 'lawallet-lightning-address' ) . '</button>';
+		}
 
 		$html  = '<tr>';
-		$html .= '<td>' . $order_cell . '</td>';
+		$html .= '<td>' . $origin_cell . '</td>';
 		$html .= '<td>' . esc_html( $row['date'] ) . '</td>';
-		$html .= '<td>' . esc_html( number_format_i18n( (int) $row['amount'] ) ) . ' ' . esc_html__( 'sats', 'lawallet-lightning-address' ) . '</td>';
+		$html .= '<td>' . esc_html( number_format_i18n( (int) ( isset( $row['amount'] ) ? $row['amount'] : 0 ) ) ) . ' ' . esc_html__( 'sats', 'lawallet-lightning-address' ) . '</td>';
 		$html .= '<td>' . $received_cell . '</td>';
 		$html .= '<td>' . $forward_cell . '</td>';
-		$html .= '<td>' . $show_cell . '</td>';
+		$html .= '<td>' . $fee_cell . '</td>';
+		$html .= '<td>' . $detail_cell . '</td>';
 		$html .= '</tr>';
 		return $html;
 	}
@@ -620,27 +728,8 @@ class WCLL_Plugin {
 	 */
 	public static function nwc_transaction_detail_html( WC_Order $order ) {
 		$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
-		$reserve     = max( (int) round( $amount_msat * 0.01 ), 10000 );
-		$forward     = max( 0, $amount_msat - $reserve );
 		$received    = $order->is_paid();
-		$forwarded   = (string) $order->get_meta( '_wcll_nwc_forwarded', true );
-		$fwd_pending = 'yes' === (string) $order->get_meta( '_wcll_nwc_forward_pending', true );
-
-		if ( 'yes' === $forwarded ) {
-			$fwd_state = 'forwarded';
-			$fwd_label = __( 'Forwarded', 'lawallet-lightning-address' );
-		} elseif ( 'failed' === $forwarded ) {
-			$fwd_state = 'failed';
-			$fwd_label = __( 'Failed', 'lawallet-lightning-address' );
-		} elseif ( $received && $fwd_pending ) {
-			$fwd_state = 'pending';
-			$fwd_label = __( 'Pending', 'lawallet-lightning-address' );
-		} else {
-			$fwd_state = 'none';
-			$fwd_label = __( 'Not forwarded', 'lawallet-lightning-address' );
-		}
-
-		$date = $order->get_date_created();
+		$date        = $order->get_date_created();
 
 		$html  = '<div class="wcll-txd">';
 		/* translators: 1: order number, 2: order date. */
@@ -659,18 +748,13 @@ class WCLL_Plugin {
 		$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_invoice', true ) ) );
 		$html .= '</dl></div>';
 
-		// The forward section only applies to proxy orders; terminal NWC orders keep
-		// the funds and have nothing to forward.
+		// Forwarding is pooled, not per-order: received funds accumulate in the
+		// managed wallet and are swept to the merchant Lightning Address in batches
+		// (a routing-fee reserve is kept behind). Terminal NWC orders keep the funds.
 		if ( self::order_forwards( $order ) ) {
-			$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Sent (forward)', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
-			$html .= self::txd_field( __( 'Status', 'lawallet-lightning-address' ), '<span class="wcll-tx-status is-' . esc_attr( $fwd_state ) . '">' . esc_html( $fwd_label ) . '</span>' );
+			$html .= '<div class="wcll-txd-section"><h4>' . esc_html__( 'Forwarding', 'lawallet-lightning-address' ) . '</h4><dl class="wcll-txd-list">';
+			$html .= self::txd_field( __( 'Payout', 'lawallet-lightning-address' ), esc_html__( 'Pooled — received funds are swept to the merchant Lightning Address in batches.', 'lawallet-lightning-address' ) );
 			$html .= self::txd_field( __( 'To', 'lawallet-lightning-address' ), esc_html( (string) $order->get_meta( '_wcll_lightning_address', true ) ) );
-			$html .= self::txd_field( __( 'Amount', 'lawallet-lightning-address' ), self::txd_sats( $forward ) );
-			$html .= self::txd_field( __( 'Reserve kept', 'lawallet-lightning-address' ), self::txd_sats( $reserve ) );
-			/* translators: %s: routing fee in millisatoshis. */
-			$html .= self::txd_field( __( 'Routing fee', 'lawallet-lightning-address' ), esc_html( sprintf( __( '%s msat', 'lawallet-lightning-address' ), number_format_i18n( (int) $order->get_meta( '_wcll_nwc_forward_fees', true ) ) ) ) );
-			$html .= self::txd_field( __( 'Preimage', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_preimage', true ) ) );
-			$html .= self::txd_field( __( 'Invoice', 'lawallet-lightning-address' ), self::txd_mono( (string) $order->get_meta( '_wcll_nwc_forward_invoice', true ) ) );
 			$html .= '</dl></div>';
 		}
 
@@ -792,34 +876,29 @@ class WCLL_Plugin {
 		wp_enqueue_script( 'wcll-qrcode', WCLL_PLUGIN_URL . 'assets/js/qrcode.min.js', array(), WCLL_VERSION, true );
 		wp_enqueue_script( 'wcll-checkout', WCLL_PLUGIN_URL . 'assets/js/checkout.js', array( 'wcll-qrcode' ), WCLL_VERSION, true );
 
-		$nwc_relays = $order->get_meta( '_wcll_nwc_relays', true );
-
-		$params = array(
-			'ajaxUrl'         => admin_url( 'admin-ajax.php' ),
-			'orderId'         => $order->get_id(),
-			'orderKey'        => $order->get_order_key(),
-			'nonce'           => wp_create_nonce( self::nonce_action( $order ) ),
-			'invoice'         => $invoice,
-			'paymentStatus'   => $order->get_meta( '_wcll_status', true ),
-			'isPaid'          => $order->is_paid(),
-			'expiresAt'       => (int) $order->get_meta( '_wcll_expires_at', true ),
-			'returnUrl'       => $order->get_checkout_order_received_url(),
-			'nostrPubkey'     => (string) $order->get_meta( '_wcll_nostr_pubkey', true ),
-			'nostrRelays'     => self::sanitize_ws_relays( $order->get_meta( '_wcll_nostr_relays', true ) ),
-			'nwcWalletPubkey' => (string) $order->get_meta( '_wcll_nwc_wallet_pubkey', true ),
-			'nwcClientPubkey' => (string) $order->get_meta( '_wcll_nwc_client_pubkey', true ),
-			'nwcRelays'       => self::sanitize_ws_relays( $nwc_relays ),
-			'i18n'            => array(
-				'waiting'  => __( 'Waiting for payment', 'lawallet-lightning-address' ),
-				'checking' => __( 'Checking settlement', 'lawallet-lightning-address' ),
-				'paid'     => __( 'Payment received', 'lawallet-lightning-address' ),
-				'expired'  => __( 'Invoice expired', 'lawallet-lightning-address' ),
-				'copy'     => __( 'Copy invoice', 'lawallet-lightning-address' ),
-				'copied'   => __( 'Copied', 'lawallet-lightning-address' ),
-				'payWebln' => __( 'Pay with WebLN', 'lawallet-lightning-address' ),
-				'webLnPaying' => __( 'Opening WebLN', 'lawallet-lightning-address' ),
-				'webLnChecking' => __( 'Checking payment', 'lawallet-lightning-address' ),
-			),
+		// The invoice/watch fields are identical to the re-issue endpoint's
+		// payload, so reuse it and add only the page-session fields here.
+		$params = array_merge(
+			self::invoice_payload( $order ),
+			array(
+				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+				'orderId'       => $order->get_id(),
+				'orderKey'      => $order->get_order_key(),
+				'nonce'         => wp_create_nonce( self::nonce_action( $order ) ),
+				'paymentStatus' => $order->get_meta( '_wcll_status', true ),
+				'isPaid'        => $order->is_paid(),
+				'i18n'          => array(
+					'waiting'       => __( 'Waiting for payment', 'lawallet-lightning-address' ),
+					'checking'      => __( 'Checking settlement', 'lawallet-lightning-address' ),
+					'paid'          => __( 'Payment received', 'lawallet-lightning-address' ),
+					'expired'       => __( 'Invoice expired', 'lawallet-lightning-address' ),
+					'copy'          => __( 'Copy invoice', 'lawallet-lightning-address' ),
+					'copied'        => __( 'Copied', 'lawallet-lightning-address' ),
+					'payWebln'      => __( 'Pay with WebLN', 'lawallet-lightning-address' ),
+					'webLnPaying'   => __( 'Opening WebLN', 'lawallet-lightning-address' ),
+					'webLnChecking' => __( 'Checking payment', 'lawallet-lightning-address' ),
+				),
+			)
 		);
 
 		wp_add_inline_script( 'wcll-checkout', 'window.WCLLPayment = ' . wp_json_encode( $params ) . ';', 'before' );
@@ -866,6 +945,97 @@ class WCLL_Plugin {
 		wp_send_json_success( $result );
 	}
 
+	/**
+	 * Re-issue a Lightning invoice for an order whose previous one expired. The
+	 * payment is ALWAYS verified first: if the expired invoice was in fact paid,
+	 * the order is settled and no new invoice is minted. Otherwise a fresh invoice
+	 * is created for the same amount and the order is revived to "pending".
+	 */
+	public static function ajax_recreate_invoice() {
+		$order_id  = isset( $_POST['order_id'] ) ? absint( $_POST['order_id'] ) : 0;
+		$order_key = isset( $_POST['order_key'] ) ? sanitize_text_field( wp_unslash( $_POST['order_key'] ) ) : '';
+		$nonce     = isset( $_POST['nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['nonce'] ) ) : '';
+		$order     = wc_get_order( $order_id );
+
+		if ( ! $order || 'wcll_gateway' !== $order->get_payment_method() || $order->get_order_key() !== $order_key ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid order.', 'lawallet-lightning-address' ) ), 404 );
+		}
+
+		if ( ! wp_verify_nonce( $nonce, self::nonce_action( $order ) ) ) {
+			wp_send_json_error( array( 'message' => __( 'Invalid payment session.', 'lawallet-lightning-address' ) ), 403 );
+		}
+
+		// Verify the (expired) invoice was not actually paid BEFORE minting a new
+		// one. cancel_on_expiry = false so a present customer's order is re-issued
+		// rather than cancelled when it is past expiry.
+		$check = self::claim_order_payment( $order, false, false );
+		if ( ! empty( $check['paid'] ) ) {
+			wp_send_json_success(
+				array(
+					'paid'      => true,
+					'returnUrl' => $order->get_checkout_order_received_url(),
+				)
+			);
+		}
+
+		// Re-issue for the same amount/rate the customer already agreed to.
+		$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
+		$rate        = $order->get_meta( '_wcll_rate', true );
+		if ( ! is_array( $rate ) ) {
+			$rate = array();
+		}
+		if ( $amount_msat < 1 ) {
+			$calc = WCLL_Rates::calculate_order_amount( $order, WCLL_Gateway::get_gateway_settings() );
+			if ( is_wp_error( $calc ) ) {
+				wp_send_json_error( array( 'message' => $calc->get_error_message() ) );
+			}
+			$amount_msat = (int) $calc['amount_msat'];
+			$rate        = $calc['rate'];
+		}
+
+		$gateway = self::gateway_instance();
+		if ( ! ( $gateway instanceof WCLL_Gateway ) ) {
+			wp_send_json_error( array( 'message' => __( 'Payment gateway unavailable.', 'lawallet-lightning-address' ) ) );
+		}
+
+		$issued = $gateway->issue_invoice_for_order( $order, $amount_msat, $rate );
+		if ( is_wp_error( $issued ) ) {
+			wp_send_json_error( array( 'message' => $issued->get_error_message() ) );
+		}
+
+		// Reload to read the freshly stored invoice/watch metadata.
+		$fresh = wc_get_order( $order->get_id() );
+		wp_send_json_success( self::invoice_payload( $fresh instanceof WC_Order ? $fresh : $order ) );
+	}
+
+	/**
+	 * The invoice-specific fields the checkout frontend needs to swap in a newly
+	 * issued invoice (QR, countdown, and the relays/pubkeys it re-watches).
+	 */
+	private static function invoice_payload( WC_Order $order ) {
+		return array(
+			'paid'            => false,
+			'invoice'         => (string) $order->get_meta( '_wcll_invoice', true ),
+			'expiresAt'       => (int) $order->get_meta( '_wcll_expires_at', true ),
+			'nostrPubkey'     => (string) $order->get_meta( '_wcll_nostr_pubkey', true ),
+			'nostrRelays'     => self::sanitize_ws_relays( $order->get_meta( '_wcll_nostr_relays', true ) ),
+			'nwcWalletPubkey' => (string) $order->get_meta( '_wcll_nwc_wallet_pubkey', true ),
+			'nwcClientPubkey' => (string) $order->get_meta( '_wcll_nwc_client_pubkey', true ),
+			'nwcRelays'       => self::sanitize_ws_relays( $order->get_meta( '_wcll_nwc_relays', true ) ),
+			'returnUrl'       => $order->get_checkout_order_received_url(),
+		);
+	}
+
+	private static function gateway_instance() {
+		if ( function_exists( 'WC' ) && WC()->payment_gateways() ) {
+			$gateways = WC()->payment_gateways()->payment_gateways();
+			if ( isset( $gateways['wcll_gateway'] ) && $gateways['wcll_gateway'] instanceof WCLL_Gateway ) {
+				return $gateways['wcll_gateway'];
+			}
+		}
+		return class_exists( 'WCLL_Gateway' ) ? new WCLL_Gateway() : null;
+	}
+
 	public static function check_pending_payments() {
 		if ( ! class_exists( 'WooCommerce' ) ) {
 			return;
@@ -887,36 +1057,18 @@ class WCLL_Plugin {
 			self::claim_order_payment( $order, true );
 		}
 
-		// Retry NWC forwards that settled but were not forwarded yet. These orders
-		// are already paid, so the pending-settlement query above will not see them.
-		$forward_orders = wc_get_orders(
-			array(
-				'limit'          => 50,
-				'status'         => array( 'processing', 'completed', 'on-hold' ),
-				'payment_method' => 'wcll_gateway',
-				'meta_key'       => '_wcll_nwc_forward_pending', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Bounded lookup (limit 50) of paid-but-unforwarded NWC orders; WooCommerce maps it to an HPOS-aware query.
-				'meta_value'     => 'yes', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- See above.
-				'orderby'        => 'date',
-				'order'          => 'ASC',
-			)
-		);
-
-		foreach ( $forward_orders as $order ) {
-			self::forward_nwc_payment( $order );
-		}
+		// Sweep the proxy wallet balance (minus the routing reserve) to the
+		// merchant Lightning Address. Pooled across all received orders, so tiny
+		// orders accumulate and ship out together.
+		self::sweep_proxy_wallets();
 
 		// Keep a live disposable wallet ready so the next order never lands on a
 		// wallet that lncurl has reaped.
 		WCLL_NWC_Manager::ensure_live_active( WCLL_Gateway::get_gateway_settings() );
 	}
 
-	public static function claim_order_payment( WC_Order $order, $from_cron = false ) {
+	public static function claim_order_payment( WC_Order $order, $from_cron = false, $cancel_on_expiry = true ) {
 		if ( $order->is_paid() ) {
-			// A paid NWC order may still owe its forward to the merchant address.
-			if ( 'nwc' === (string) $order->get_meta( '_wcll_settlement_method', true )
-				&& 'yes' === (string) $order->get_meta( '_wcll_nwc_forward_pending', true ) ) {
-				self::forward_nwc_payment( $order );
-			}
 			return self::payment_response( $order, 'paid' );
 		}
 
@@ -930,7 +1082,7 @@ class WCLL_Plugin {
 		$check = self::verify_order_settlement( $order, $invoice );
 
 		if ( is_wp_error( $check ) ) {
-			if ( $from_cron && $expires_at && time() > $expires_at ) {
+			if ( $cancel_on_expiry && $from_cron && $expires_at && time() > $expires_at ) {
 				self::cancel_expired_order( $order, $check->get_error_message() );
 				return self::payment_response( $order, 'expired' );
 			}
@@ -950,26 +1102,22 @@ class WCLL_Plugin {
 			if ( ! empty( $check['preimage'] ) ) {
 				$order->update_meta_data( '_wcll_preimage', sanitize_text_field( $check['preimage'] ) );
 			}
-			$forwards = ( 'nwc' === $method ) && self::order_forwards( $order );
-			if ( $forwards ) {
-				// Mark the forward owed before completing payment, so a crash
-				// between the two is recovered by the cron forward-retry query.
-				$order->update_meta_data( '_wcll_nwc_forward_pending', 'yes' );
-			}
 			$order->save();
 
 			$order->payment_complete();
 			$order->add_order_note( self::settlement_note( $method ) );
 
-			if ( $forwards ) {
-				self::forward_nwc_payment( $order );
-			}
+			// Proxy forwarding is pooled, not per-order: the received funds now sit
+			// in the managed wallet and are paid out to the merchant Lightning
+			// Address by sweep_proxy_wallets() on the next cron run.
 
 			return self::payment_response( $order, 'paid' );
 		}
 
 		if ( $expires_at && time() > $expires_at ) {
-			self::cancel_expired_order( $order );
+			if ( $cancel_on_expiry ) {
+				self::cancel_expired_order( $order );
+			}
 			return self::payment_response( $order, 'expired' );
 		}
 
@@ -1066,129 +1214,195 @@ class WCLL_Plugin {
 	}
 
 	/**
-	 * Forward a settled NWC proxy payment to the merchant Lightning Address.
+	 * Sweep the proxy wallet balance to the merchant Lightning Address.
 	 *
-	 * Idempotent and safe to call from both the AJAX claim and cron: a transient
-	 * inflight lock plus the `_wcll_nwc_forwarded` flag and an attempt cap prevent
-	 * a double payout, and a failure never un-pays the (already paid) order.
+	 * Forwarding is pooled, not per-order: received payments accumulate in the
+	 * managed proxy wallet, and this routine (run from cron) pays out everything
+	 * above a routing-fee reserve. Only the wallet currently in use is swept —
+	 * archived wallets are retired because they died and can no longer be reached.
 	 */
-	public static function forward_nwc_payment( WC_Order $order ) {
-		$forwarded = (string) $order->get_meta( '_wcll_nwc_forwarded', true );
-		if ( 'yes' === $forwarded || 'failed' === $forwarded ) {
-			return 'yes' === $forwarded;
+	public static function sweep_proxy_wallets() {
+		$settings = WCLL_Gateway::get_gateway_settings();
+		if ( ! WCLL_NWC_Manager::is_proxy( $settings ) ) {
+			return;
 		}
 
-		// Inflight lock: stop cron and the AJAX claim from forwarding concurrently.
-		$lock_key = 'wcll_nwc_fwd_' . $order->get_id();
+		$address = isset( $settings['lightning_address'] ) ? trim( (string) $settings['lightning_address'] ) : '';
+		if ( '' === $address ) {
+			return;
+		}
+
+		$uri = WCLL_NWC_Manager::current_connection_uri( $settings );
+		if ( '' === $uri ) {
+			return;
+		}
+		$client = WCLL_NWC_Client::from_uri( $uri );
+		if ( is_wp_error( $client ) ) {
+			return;
+		}
+
+		// Resolve the destination once; its sendable bounds apply to every hop.
+		$lnurl       = new WCLL_LNURL_Client( $settings );
+		$pay_request = $lnurl->resolve_lightning_address( $address );
+		if ( is_wp_error( $pay_request ) ) {
+			return;
+		}
+
+		self::sweep_wallet_to_address( $client, $lnurl, $pay_request, $address );
+	}
+
+	/**
+	 * Drain one wallet down to the reserve floor, one Lightning-Address payment at
+	 * a time. Idempotent: the in-flight forward invoice is persisted before paying
+	 * and reconciled with lookup_invoice on the next run, so a lost NWC response
+	 * never pays twice. A remainder below the reserve floor (or below the
+	 * address's minSendable) is left in the wallet for a later, larger sweep.
+	 */
+	private static function sweep_wallet_to_address( WCLL_NWC_Client $client, WCLL_LNURL_Client $lnurl, array $pay_request, $address ) {
+		$pubkey   = $client->wallet_pubkey();
+		$lock_key = 'wcll_nwc_sweep_' . $pubkey;
 		if ( false !== get_transient( $lock_key ) ) {
-			return false;
+			return;
 		}
 		set_transient( $lock_key, 1, 2 * MINUTE_IN_SECONDS );
 
-		$max_attempts = 10;
+		$min = isset( $pay_request['minSendable'] ) ? (int) $pay_request['minSendable'] : 0;
+		$max = isset( $pay_request['maxSendable'] ) ? (int) $pay_request['maxSendable'] : 0;
 
 		try {
-			$attempts = (int) $order->get_meta( '_wcll_nwc_forward_attempts', true );
-			if ( $attempts >= $max_attempts ) {
-				// Cap already reached (e.g. a crash between increment and resolution):
-				// mark it failed with a manual-recovery note instead of silently
-				// looping on every cron run.
-				return self::forward_failed( $order, __( 'NWC proxy: reached the maximum number of forwarding attempts.', 'lawallet-lightning-address' ), $attempts, $max_attempts );
-			}
-			$attempts++;
-			$order->update_meta_data( '_wcll_nwc_forward_attempts', $attempts );
-			$order->save();
-
-			$amount_msat = (int) $order->get_meta( '_wcll_amount_msat', true );
-			$reserve     = max( (int) round( $amount_msat * 0.01 ), 10000 );
-			$forward     = $amount_msat - $reserve;
-			if ( $forward <= 0 ) {
-				return self::forward_abort( $order, __( 'NWC proxy: the order amount is too small to forward after the routing reserve. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
-			}
-
-			$nwc = self::build_nwc_client_for_order( $order );
-			if ( is_wp_error( $nwc ) ) {
-				return self::forward_failed( $order, $nwc->get_error_message(), $attempts, $max_attempts );
-			}
-
-			// Reuse the forward invoice from a previous attempt when one exists.
-			// pay_invoice() can settle on the wallet yet have its NWC response lost
-			// in transit (a slow relay, a dropped connection) — which would leave
-			// the order stuck "pending" and, worse, make the next retry pay a
-			// second time. So forwarding is made idempotent against a single
-			// invoice: we persist it BEFORE paying and, before ever paying again,
-			// ask the wallet whether it is already settled.
-			$forward_bolt11 = (string) $order->get_meta( '_wcll_nwc_forward_invoice', true );
-			$reused         = ( '' !== $forward_bolt11 );
-
-			if ( $reused ) {
-				$look = $nwc->lookup_invoice( '', $forward_bolt11 );
-				if ( ! is_wp_error( $look ) && ! empty( $look['settled'] ) ) {
-					return self::forward_settled( $order, $forward, $reserve, $look['preimage'], self::lookup_fees( $look ) );
-				}
-			} else {
-				$settings    = WCLL_Gateway::get_gateway_settings();
-				$address     = (string) $order->get_meta( '_wcll_lightning_address', true );
-				$lnurl       = new WCLL_LNURL_Client( $settings );
-				$pay_request = $lnurl->resolve_lightning_address( $address );
-				if ( is_wp_error( $pay_request ) ) {
-					return self::forward_failed( $order, $pay_request->get_error_message(), $attempts, $max_attempts );
+			for ( $hop = 0; $hop < self::SWEEP_MAX_HOPS; $hop++ ) {
+				// 1. Reconcile a forward invoice left in flight by a previous run
+				//    before minting a new one, so a lost response is never paid twice.
+				$inflight = self::sweep_get_inflight( $pubkey );
+				if ( null !== $inflight ) {
+					$look = $client->lookup_invoice( '', $inflight['invoice'] );
+					if ( is_wp_error( $look ) ) {
+						return; // Cannot confirm; leave it and retry on the next run.
+					}
+					if ( ! empty( $look['settled'] ) ) {
+						self::sweep_record( $pubkey, $address, (int) $inflight['amount'], isset( $look['preimage'] ) ? $look['preimage'] : '', self::lookup_fees( $look ) );
+					}
+					// Settled, or definitively unpaid (stale/expired): clear either way.
+					self::sweep_clear_inflight( $pubkey );
 				}
 
-				// Respect the address's sendable bounds; abort cleanly if the forward
-				// (amount minus reserve) cannot fit within them.
-				$min = isset( $pay_request['minSendable'] ) ? (int) $pay_request['minSendable'] : 0;
-				$max = isset( $pay_request['maxSendable'] ) ? (int) $pay_request['maxSendable'] : 0;
-				if ( $forward < $min || ( $max > 0 && $forward > $max ) ) {
-					return self::forward_abort( $order, __( 'NWC proxy: the forward amount is outside the Lightning Address limits. Forward the funds to your Lightning Address manually.', 'lawallet-lightning-address' ) );
+				// 2. Decide how much can ship right now.
+				$balance = $client->get_balance();
+				if ( is_wp_error( $balance ) ) {
+					return;
+				}
+				$balance_msat = isset( $balance['balance'] ) ? (int) $balance['balance'] : 0;
+				$forwardable  = $balance_msat - self::forward_reserve_msat( $balance_msat );
+				if ( $forwardable <= 0 ) {
+					return; // At or below the reserve floor: nothing left to forward.
 				}
 
-				$forward_invoice = $lnurl->request_invoice(
+				$amount = ( $max > 0 && $forwardable > $max ) ? $max : $forwardable;
+				if ( $amount < $min ) {
+					return; // Remainder is below the address minimum; wait for more funds.
+				}
+
+				// 3. Mint the forward invoice and persist it BEFORE paying.
+				$invoice = $lnurl->request_invoice(
 					$pay_request,
-					$forward,
+					$amount,
 					array(
-						'comment'   => sprintf( 'Proxied from Woocommerce #%s', $order->get_order_number() ),
+						'comment'   => __( 'LaWallet WooCommerce proxy sweep', 'lawallet-lightning-address' ),
 						'use_nostr' => false,
 					)
 				);
-				if ( is_wp_error( $forward_invoice ) ) {
-					return self::forward_failed( $order, $forward_invoice->get_error_message(), $attempts, $max_attempts );
+				if ( is_wp_error( $invoice ) || empty( $invoice['pr'] ) ) {
+					return;
 				}
-				if ( empty( $forward_invoice['pr'] ) ) {
-					return self::forward_failed( $order, __( 'The Lightning Address did not return a forward invoice.', 'lawallet-lightning-address' ), $attempts, $max_attempts );
+				$bolt11 = (string) $invoice['pr'];
+				self::sweep_set_inflight( $pubkey, $bolt11, $amount );
+
+				// 4. Pay it from the proxy wallet.
+				$payment = $client->pay_invoice( $bolt11 );
+				if ( is_wp_error( $payment ) ) {
+					// The pay may have settled with its response lost — confirm before
+					// giving up so the next run never double-pays.
+					$look = $client->lookup_invoice( '', $bolt11 );
+					if ( ! is_wp_error( $look ) && ! empty( $look['settled'] ) ) {
+						self::sweep_record( $pubkey, $address, $amount, isset( $look['preimage'] ) ? $look['preimage'] : '', self::lookup_fees( $look ) );
+						self::sweep_clear_inflight( $pubkey );
+						continue;
+					}
+					if ( ! is_wp_error( $look ) ) {
+						self::sweep_clear_inflight( $pubkey ); // Definitively unpaid; drop the stale invoice.
+					}
+					return; // Retry on the next cron run.
 				}
 
-				$forward_bolt11 = (string) $forward_invoice['pr'];
-				// Persist the forward invoice BEFORE paying it, so a lost response is
-				// reconciled by lookup_invoice on the next attempt rather than paid twice.
-				$order->update_meta_data( '_wcll_nwc_forward_invoice', sanitize_text_field( $forward_bolt11 ) );
-				$order->save();
+				self::sweep_record( $pubkey, $address, $amount, isset( $payment['preimage'] ) ? $payment['preimage'] : '', isset( $payment['fees_paid'] ) ? (int) $payment['fees_paid'] : 0 );
+				self::sweep_clear_inflight( $pubkey );
 			}
-
-			$payment = $nwc->pay_invoice( $forward_bolt11 );
-			if ( is_wp_error( $payment ) ) {
-				// The payment may have settled even though the response was lost.
-				// Confirm with the wallet before treating this as a failure, so we
-				// never send the funds twice on the next retry.
-				$look = $nwc->lookup_invoice( '', $forward_bolt11 );
-				if ( ! is_wp_error( $look ) && ! empty( $look['settled'] ) ) {
-					return self::forward_settled( $order, $forward, $reserve, $look['preimage'], self::lookup_fees( $look ) );
-				}
-				// Only when the lookup definitively reports the reused invoice as
-				// unpaid do we discard it (it is stale/expired) and let the next
-				// attempt mint a fresh one. A lookup that itself errored leaves the
-				// invoice in place so the next run can re-confirm it.
-				if ( $reused && ! is_wp_error( $look ) ) {
-					$order->delete_meta_data( '_wcll_nwc_forward_invoice' );
-					$order->save();
-				}
-				return self::forward_failed( $order, $payment->get_error_message(), $attempts, $max_attempts );
-			}
-
-			return self::forward_settled( $order, $forward, $reserve, $payment['preimage'], (int) $payment['fees_paid'] );
 		} finally {
 			delete_transient( $lock_key );
 		}
+	}
+
+	private static function sweep_get_inflight( $pubkey ) {
+		$all = get_option( self::SWEEP_INFLIGHT_OPTION, array() );
+		$key = strtolower( (string) $pubkey );
+		return ( is_array( $all ) && isset( $all[ $key ]['invoice'] ) ) ? $all[ $key ] : null;
+	}
+
+	private static function sweep_set_inflight( $pubkey, $invoice, $amount_msat ) {
+		$all = get_option( self::SWEEP_INFLIGHT_OPTION, array() );
+		if ( ! is_array( $all ) ) {
+			$all = array();
+		}
+		$all[ strtolower( (string) $pubkey ) ] = array(
+			'invoice' => (string) $invoice,
+			'amount'  => (int) $amount_msat,
+			'created' => time(),
+		);
+		update_option( self::SWEEP_INFLIGHT_OPTION, $all, false );
+	}
+
+	private static function sweep_clear_inflight( $pubkey ) {
+		$all = get_option( self::SWEEP_INFLIGHT_OPTION, array() );
+		if ( is_array( $all ) && isset( $all[ strtolower( (string) $pubkey ) ] ) ) {
+			unset( $all[ strtolower( (string) $pubkey ) ] );
+			update_option( self::SWEEP_INFLIGHT_OPTION, $all, false );
+		}
+	}
+
+	/**
+	 * Append a completed sweep to the rolling payout log (newest first, capped).
+	 */
+	private static function sweep_record( $pubkey, $address, $amount_msat, $preimage, $fees_msat ) {
+		$log = get_option( self::SWEEP_LOG_OPTION, array() );
+		if ( ! is_array( $log ) ) {
+			$log = array();
+		}
+		array_unshift(
+			$log,
+			array(
+				'wallet'   => strtolower( (string) $pubkey ),
+				'address'  => (string) $address,
+				'amount'   => (int) $amount_msat,
+				'fees'     => (int) $fees_msat,
+				'preimage' => (string) $preimage,
+				'at'       => time(),
+			)
+		);
+		if ( count( $log ) > self::SWEEP_LOG_MAX ) {
+			$log = array_slice( $log, 0, self::SWEEP_LOG_MAX );
+		}
+		update_option( self::SWEEP_LOG_OPTION, $log, false );
+	}
+
+	/**
+	 * Most recent proxy sweeps (payouts to the merchant address), newest first.
+	 */
+	public static function nwc_sweeps( $limit = 5 ) {
+		$log = get_option( self::SWEEP_LOG_OPTION, array() );
+		if ( ! is_array( $log ) ) {
+			return array();
+		}
+		return array_slice( $log, 0, max( 1, (int) $limit ) );
 	}
 
 	/**
@@ -1196,66 +1410,6 @@ class WCLL_Plugin {
 	 */
 	private static function lookup_fees( array $look ) {
 		return isset( $look['raw']['fees_paid'] ) ? (int) $look['raw']['fees_paid'] : 0;
-	}
-
-	/**
-	 * Record a successful (or recovered) forward: flag it, store the proof, clear
-	 * the pending marker and add a merchant note. Shared by the direct-pay path
-	 * and the lookup-based recovery so both produce identical, idempotent state.
-	 */
-	private static function forward_settled( WC_Order $order, $forward, $reserve, $preimage, $fees_paid ) {
-		$order->update_meta_data( '_wcll_nwc_forwarded', 'yes' );
-		$order->update_meta_data( '_wcll_nwc_forward_preimage', sanitize_text_field( (string) $preimage ) );
-		$order->update_meta_data( '_wcll_nwc_forward_fees', (int) $fees_paid );
-		$order->delete_meta_data( '_wcll_nwc_forward_pending' );
-		$order->save();
-
-		$order->add_order_note(
-			sprintf(
-				/* translators: 1: forwarded amount in sats, 2: reserve kept in sats, 3: routing fee paid in sats. */
-				__( 'NWC proxy: forwarded %1$d sats to the merchant Lightning Address (kept %2$d sats reserve; %3$d sats routing fee).', 'lawallet-lightning-address' ),
-				(int) round( $forward / 1000 ),
-				(int) round( $reserve / 1000 ),
-				(int) round( ( (int) $fees_paid ) / 1000 )
-			)
-		);
-
-		return true;
-	}
-
-	/**
-	 * Record a recoverable forward failure: leave the order pending for cron to
-	 * retry, or give up with an admin note once the attempt cap is reached.
-	 */
-	private static function forward_failed( WC_Order $order, $message, $attempts, $max_attempts ) {
-		if ( $attempts >= $max_attempts ) {
-			$order->update_meta_data( '_wcll_nwc_forwarded', 'failed' );
-			$order->delete_meta_data( '_wcll_nwc_forward_pending' );
-			$order->save();
-			$order->add_order_note(
-				sprintf(
-					/* translators: %s: last forwarding error message. */
-					__( 'NWC proxy: could not forward the payment after several attempts (%s). The funds are held in the proxy wallet — forward them to your Lightning Address manually.', 'lawallet-lightning-address' ),
-					$message
-				)
-			);
-		} else {
-			// Keep _wcll_nwc_forward_pending set so cron retries later.
-			$order->save();
-		}
-
-		return false;
-	}
-
-	/**
-	 * Permanently abort forwarding (non-retryable): the amount cannot be routed.
-	 */
-	private static function forward_abort( WC_Order $order, $note ) {
-		$order->update_meta_data( '_wcll_nwc_forwarded', 'failed' );
-		$order->delete_meta_data( '_wcll_nwc_forward_pending' );
-		$order->save();
-		$order->add_order_note( $note );
-		return false;
 	}
 
 	private static function settlement_note( $method ) {
