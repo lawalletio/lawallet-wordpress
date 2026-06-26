@@ -18,8 +18,6 @@ if [[ -z "${ALLOW_INSECURE_HTTP:-}" ]]; then
 	fi
 fi
 
-MANUAL_SATS_PER_UNIT="${MANUAL_SATS_PER_UNIT:-}"
-
 docker compose up -d --build
 docker compose restart mock-lnurl >/dev/null
 
@@ -82,7 +80,6 @@ docker compose run --rm wpcli wp option update woocommerce_shop_page_id "$SHOP_I
 docker compose run --rm \
 	-e WCLL_LIGHTNING_ADDRESS="$LIGHTNING_ADDRESS" \
 	-e WCLL_NOSTR_RELAYS="$NOSTR_RELAYS" \
-	-e WCLL_MANUAL_SATS_PER_UNIT="$MANUAL_SATS_PER_UNIT" \
 	-e WCLL_RATE_DISPLAY_UNIT="$RATE_DISPLAY_UNIT" \
 	-e WCLL_PRICE_BUFFER_PERCENT="$PRICE_BUFFER_PERCENT" \
 	-e WCLL_INVOICE_EXPIRY_MINUTES="$INVOICE_EXPIRY_MINUTES" \
@@ -95,7 +92,6 @@ $settings = array(
 	"description"            => "Pay instantly with a Bitcoin Lightning wallet.",
 	"invoice_expiry_minutes" => getenv( "WCLL_INVOICE_EXPIRY_MINUTES" ),
 	"nostr_relays"           => getenv( "WCLL_NOSTR_RELAYS" ),
-	"manual_sats_per_unit"   => getenv( "WCLL_MANUAL_SATS_PER_UNIT" ),
 	"rate_display_unit"      => getenv( "WCLL_RATE_DISPLAY_UNIT" ),
 	"price_buffer_percent"   => getenv( "WCLL_PRICE_BUFFER_PERCENT" ),
 	"allow_insecure_http"    => getenv( "WCLL_ALLOW_INSECURE_HTTP" ),

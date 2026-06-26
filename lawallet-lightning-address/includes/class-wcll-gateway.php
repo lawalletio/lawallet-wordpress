@@ -113,13 +113,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				'default'     => '',
 				'desc_tip'    => true,
 			),
-			'manual_sats_per_unit'  => array(
-				'title'       => __( 'Manual sats per currency unit', 'lawallet-lightning-address' ),
-				'type'        => 'text',
-				'description' => __( 'Optional. Leave blank to use Yadio BTC exchange rates for fiat currencies.', 'lawallet-lightning-address' ),
-				'default'     => '',
-				'desc_tip'    => true,
-			),
 			'rate_display_unit'     => array(
 				'title'       => __( 'Rate display unit', 'lawallet-lightning-address' ),
 				'type'        => 'select',
@@ -134,6 +127,8 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			'price_buffer_percent'  => array(
 				'title'             => __( 'Price buffer percent', 'lawallet-lightning-address' ),
 				'type'              => 'number',
+				'description'       => __( 'Extra percentage added on top of the converted satoshi amount, to cushion exchange-rate movement between when the invoice is created and when the customer pays. Leave at 0 to charge the exact converted amount.', 'lawallet-lightning-address' ),
+				'desc_tip'          => true,
 				'default'           => 0,
 				'custom_attributes' => array(
 					'min'  => 0,
@@ -227,7 +222,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			'pricing'  => array(
 				'label'  => __( 'Pricing & rates', 'lawallet-lightning-address' ),
 				'intro'  => __( 'How fiat order totals are converted to satoshis and shown on the payment page.', 'lawallet-lightning-address' ),
-				'fields' => array( 'manual_sats_per_unit', 'rate_display_unit', 'price_buffer_percent' ),
+				'fields' => array( 'rate_display_unit', 'price_buffer_percent' ),
 			),
 			'advanced' => array(
 				'label'  => __( 'Advanced', 'lawallet-lightning-address' ),
@@ -350,6 +345,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			echo $this->generate_settings_html( $group, false );
 			echo '</table>';
 			if ( 'receiver' === $id ) {
+				$this->render_nwc_proxy_help();
 				$this->render_receiver_nwc_panel();
 				$this->render_compatible_wallets();
 			}
@@ -359,7 +355,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				$this->render_nwc_regenerate();
 				$this->render_nwc_wallet_panel();
 				$this->render_nwc_transactions();
-				$this->render_connection_status();
 			}
 			echo '</div>';
 			$is_first = false;
@@ -384,22 +379,6 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		}
 
 		return $value;
-	}
-
-	public function validate_manual_sats_per_unit_field( $key, $value ) {
-		unset( $key );
-		$value = trim( wc_clean( $value ) );
-		if ( '' === $value ) {
-			return '';
-		}
-
-		$number = (float) $value;
-		if ( $number <= 0 ) {
-			WC_Admin_Settings::add_error( __( 'Manual sats per currency unit must be greater than zero.', 'lawallet-lightning-address' ) );
-			return '';
-		}
-
-		return (string) $number;
 	}
 
 	public function validate_rate_display_unit_field( $key, $value ) {
@@ -527,16 +506,45 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
-		$settings = self::get_gateway_settings();
-		$method   = isset( $settings['settlement_method'] ) ? (string) $settings['settlement_method'] : 'lightning_address';
-
+		$settings           = self::get_gateway_settings();
 		$amount_calculation = WCLL_Rates::calculate_order_amount( $order, $settings );
 		if ( is_wp_error( $amount_calculation ) ) {
 			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $amount_calculation->get_error_message(), 'error' );
 			return array( 'result' => 'failure' );
 		}
 
-		$amount_msat    = (int) $amount_calculation['amount_msat'];
+		$issued = $this->issue_invoice_for_order( $order, (int) $amount_calculation['amount_msat'], $amount_calculation['rate'] );
+		if ( is_wp_error( $issued ) ) {
+			wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $issued->get_error_message(), 'error' );
+			return array( 'result' => 'failure' );
+		}
+
+		if ( WC()->cart ) {
+			WC()->cart->empty_cart();
+		}
+
+		return array(
+			'result'   => 'success',
+			'redirect' => $order->get_checkout_payment_url( true ),
+		);
+	}
+
+	/**
+	 * Mint a Lightning invoice for the order at the given amount/rate and persist
+	 * all checkout meta, leaving the order "pending". Shared by checkout and the
+	 * expiry-driven re-issue, so both produce identical order state. The re-issue
+	 * passes the order's stored amount/rate so the customer keeps paying the same
+	 * total; checkout passes a freshly calculated one.
+	 *
+	 * @param int   $amount_msat Invoice amount in millisatoshis.
+	 * @param array $rate        Rate snapshot from WCLL_Rates::calculate_order_amount().
+	 * @return true|WP_Error
+	 */
+	public function issue_invoice_for_order( WC_Order $order, $amount_msat, array $rate ) {
+		$settings = self::get_gateway_settings();
+		$method   = isset( $settings['settlement_method'] ) ? (string) $settings['settlement_method'] : 'lightning_address';
+
+		$amount_msat    = (int) $amount_msat;
 		$expiry_minutes = isset( $settings['invoice_expiry_minutes'] ) ? max( 1, absint( $settings['invoice_expiry_minutes'] ) ) : 30;
 		$address        = isset( $settings['lightning_address'] ) ? (string) $settings['lightning_address'] : '';
 
@@ -557,8 +565,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 				? $this->prepare_nwc_settlement( $settings, $amount_msat, $expiry_minutes, $order )
 				: $this->prepare_nwc_receiver_settlement( $settings, $amount_msat, $expiry_minutes, $order );
 			if ( is_wp_error( $prepared ) ) {
-				wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $prepared->get_error_message(), 'error' );
-				return array( 'result' => 'failure' );
+				return $prepared;
 			}
 			$invoice           = array(
 				'pr'     => $prepared['invoice'],
@@ -574,8 +581,7 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			// Settle directly on the Lightning Address (no NWC, no fallback).
 			$prepared = $this->prepare_la_settlement( $settings, $amount_msat, $order );
 			if ( is_wp_error( $prepared ) ) {
-				wc_add_notice( __( 'Payment error:', 'lawallet-lightning-address' ) . ' ' . $prepared->get_error_message(), 'error' );
-				return array( 'result' => 'failure' );
+				return $prepared;
 			}
 			$invoice           = $prepared['invoice'];
 			$settlement_method = $prepared['settlement_method'];
@@ -589,8 +595,8 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		$order->update_meta_data( '_wcll_status', 'pending' );
 		$order->update_meta_data( '_wcll_invoice', sanitize_text_field( $invoice['pr'] ) );
 		$order->update_meta_data( '_wcll_verify_url', esc_url_raw( isset( $invoice['verify'] ) ? $invoice['verify'] : '' ) );
-		$order->update_meta_data( '_wcll_amount_msat', (int) $amount_msat );
-		$order->update_meta_data( '_wcll_rate', $amount_calculation['rate'] );
+		$order->update_meta_data( '_wcll_amount_msat', $amount_msat );
+		$order->update_meta_data( '_wcll_rate', $rate );
 		$order->update_meta_data( '_wcll_expires_at', $expires_at );
 		$order->update_meta_data( '_wcll_settlement_method', $settlement_method );
 
@@ -616,19 +622,18 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 			$order->update_meta_data( '_wcll_zap_request', wp_json_encode( $nostr['event'] ) );
 			$order->update_meta_data( '_wcll_nostr_pubkey', sanitize_text_field( $nostr['recipient'] ) );
 			$order->update_meta_data( '_wcll_nostr_relays', array_values( $nostr['relays'] ) );
+		} else {
+			// A re-issued invoice may carry no zap request; clear any stale NIP-57
+			// pubkey/relays so the frontend never watches a key that no longer applies.
+			$order->delete_meta_data( '_wcll_zap_request' );
+			$order->delete_meta_data( '_wcll_nostr_pubkey' );
+			$order->delete_meta_data( '_wcll_nostr_relays' );
 		}
 
 		$order->save();
 		$order->update_status( 'pending', __( 'Awaiting Bitcoin Lightning payment.', 'lawallet-lightning-address' ) );
 
-		if ( WC()->cart ) {
-			WC()->cart->empty_cart();
-		}
-
-		return array(
-			'result'   => 'success',
-			'redirect' => $order->get_checkout_payment_url( true ),
-		);
+		return true;
 	}
 
 	/**
@@ -909,68 +914,14 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 		update_option( 'woocommerce_wcll_gateway_settings', $settings );
 	}
 
-	private function render_connection_status() {
-		$settings   = self::get_gateway_settings();
-		$settlement = self::effective_settlement( $settings );
-		$message    = ! empty( $settings['status_message'] ) ? $settings['status_message'] : __( 'No Lightning Address has been checked yet.', 'lawallet-lightning-address' );
-
-		echo '<h2>' . esc_html__( 'Connection status', 'lawallet-lightning-address' ) . '</h2>';
-		echo '<table class="form-table" role="presentation"><tbody>';
-		echo '<tr><th scope="row">' . esc_html__( 'Settlement verification', 'lawallet-lightning-address' ) . '</th><td>';
-		if ( 'lud21' === $settlement ) {
-			echo '<mark class="yes">' . esc_html__( 'LUD-21 verified', 'lawallet-lightning-address' ) . '</mark>';
-		} elseif ( 'nip57' === $settlement ) {
-			echo '<mark class="yes">' . esc_html__( 'NIP-57 zap receipts', 'lawallet-lightning-address' ) . '</mark>';
-		} elseif ( 'nwc' === $settlement ) {
-			echo '<mark class="yes">' . esc_html__( 'NWC wallet', 'lawallet-lightning-address' ) . '</mark>';
-		} else {
-			echo '<mark class="error">' . esc_html__( 'Not verified', 'lawallet-lightning-address' ) . '</mark>';
-		}
-		echo '<p class="description">' . esc_html( $message ) . '</p>';
-		if ( ! empty( $settings['verified_at'] ) ) {
-			/* translators: %s: date and time of the last Lightning Address verification. */
-			$last_checked = sprintf( __( 'Last checked: %s', 'lawallet-lightning-address' ), $settings['verified_at'] );
-			echo '<p class="description">' . esc_html( $last_checked ) . '</p>';
-		}
-		if ( ! empty( $settings['allows_nostr'] ) && 'yes' === $settings['allows_nostr'] ) {
-			echo '<p class="description">' . esc_html__( 'NIP-57 receipts are available for fast checkout detection.', 'lawallet-lightning-address' ) . '</p>';
-		}
-		if ( 'nwc' === $settlement ) {
-			if ( WCLL_NWC_Manager::is_proxy( $settings ) ) {
-				$mode      = WCLL_NWC_Manager::mode( $settings );
-				$mode_text = 'disposable' === $mode
-					? __( 'Proxy wallet: disposable (auto-created).', 'lawallet-lightning-address' )
-					: __( 'Proxy wallet: permanent (your own connection).', 'lawallet-lightning-address' );
-				echo '<p class="description">' . esc_html( $mode_text ) . '</p>';
-
-				$balance = WCLL_NWC_Manager::get_cached_balance( $settings );
-				$forward_address = isset( $settings['lightning_address'] ) ? trim( (string) $settings['lightning_address'] ) : '';
-				if ( '' !== $forward_address ) {
-					/* translators: %s: merchant Lightning Address the funds are forwarded to. */
-					echo '<p class="description">' . esc_html( sprintf( __( 'Forwarding settled funds to %s.', 'lawallet-lightning-address' ), $forward_address ) ) . '</p>';
-				}
-			} else {
-				echo '<p class="description">' . esc_html__( 'Your own NWC wallet; settled funds stay in it.', 'lawallet-lightning-address' ) . '</p>';
-				$balance = WCLL_NWC_Manager::receiver_balance( $settings );
-			}
-
-			if ( ! empty( $balance['ok'] ) ) {
-				/* translators: %s: NWC wallet balance in sats. */
-				echo '<p class="description">' . esc_html( sprintf( __( 'Wallet balance: %s sats.', 'lawallet-lightning-address' ), number_format_i18n( (int) $balance['sats'] ) ) ) . '</p>';
-			} else {
-				echo '<p class="description">' . esc_html__( 'Wallet balance: unavailable.', 'lawallet-lightning-address' ) . '</p>';
-			}
-		}
-		echo '</td></tr></tbody></table>';
-	}
-
 	private static function tx_table_head() {
 		$cols = array(
-			__( 'Order', 'lawallet-lightning-address' ),
+			__( 'Origin', 'lawallet-lightning-address' ),
 			__( 'Date', 'lawallet-lightning-address' ),
 			__( 'Amount', 'lawallet-lightning-address' ),
 			__( 'Received', 'lawallet-lightning-address' ),
 			__( 'Forwarded', 'lawallet-lightning-address' ),
+			__( 'Routing fee', 'lawallet-lightning-address' ),
 			__( 'Details', 'lawallet-lightning-address' ),
 		);
 		$head = '<thead><tr>';
@@ -981,14 +932,15 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	}
 
 	/**
-	 * Proxy transactions on the NWC tab: the latest 5 inline, with a "Show all"
-	 * button that opens a paginated modal (rows fetched via AJAX).
+	 * Proxy activity on the NWC tab: a single ledger of inbound orders and
+	 * outbound sweeps (newest first), the latest few inline with a "Show all"
+	 * button that opens a paginated modal. Inline rows refresh in real time.
 	 */
 	private function render_nwc_transactions() {
-		$tx = WCLL_Plugin::nwc_transactions( 1, 5 );
+		$tx = WCLL_Plugin::nwc_transactions( 1, 8 );
 
 		echo '<div class="wcll-nwc-tx">';
-		echo '<h4 class="wcll-nwc-wallet-title">' . esc_html__( 'NWC transactions', 'lawallet-lightning-address' ) . '</h4>';
+		echo '<h4 class="wcll-nwc-wallet-title wcll-nwc-tx-title">' . esc_html__( 'NWC transactions', 'lawallet-lightning-address' ) . '</h4>';
 
 		if ( empty( $tx['items'] ) ) {
 			echo '<p class="description">' . esc_html__( 'No NWC transactions yet.', 'lawallet-lightning-address' ) . '</p></div>';
@@ -997,7 +949,9 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 
 		echo '<table class="widefat striped wcll-nwc-tx-table">';
 		echo self::tx_table_head(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in tx_table_head().
-		echo '<tbody>';
+		// data-wcll-tx-inline carries the page size so JS can poll the same slice
+		// and refresh these rows in real time as payments settle and sweeps run.
+		echo '<tbody data-wcll-tx-inline="8">';
 		foreach ( $tx['items'] as $row ) {
 			echo WCLL_Plugin::nwc_tx_row_html( $row ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Row HTML is fully escaped in nwc_tx_row_html().
 		}
@@ -1079,6 +1033,41 @@ class WCLL_Gateway extends WC_Payment_Gateway {
 	 * and the terminal-NWC balance panel (shown by JS in NWC mode). Visibility is
 	 * driven by the Receiver mode selector; both start hidden.
 	 */
+	/**
+	 * "Why do I need an NWC proxy?" affordance for the Receiver tab: a small
+	 * trigger that opens a modal explaining the LUD-21 / NIP-57 verification
+	 * requirement and the proxy-wallet workaround, with spec reference links.
+	 */
+	private function render_nwc_proxy_help() {
+		echo '<p class="wcll-help-row"><button type="button" class="button-link wcll-help-trigger" data-wcll-help-open aria-haspopup="dialog">'
+			. '<span class="wcll-help-icon" aria-hidden="true">?</span> '
+			. esc_html__( 'Why do I need an NWC proxy?', 'lawallet-lightning-address' )
+			. '</button></p>';
+
+		$lud21 = '<a href="' . esc_url( 'https://github.com/lnurl/luds/blob/luds/21.md' ) . '" target="_blank" rel="noopener noreferrer">LUD-21</a>';
+		$nip57 = '<a href="' . esc_url( 'https://github.com/nostr-protocol/nips/blob/master/57.md' ) . '" target="_blank" rel="noopener noreferrer">NIP-57</a>';
+		$nip47 = '<a href="' . esc_url( 'https://github.com/nostr-protocol/nips/blob/master/47.md' ) . '" target="_blank" rel="noopener noreferrer">NIP-47 (Nostr Wallet Connect)</a>';
+
+		$body  = '<p>' . esc_html__( 'To complete a checkout the plugin must confirm the customer actually paid. It can do that directly on your Lightning Address in one of two ways:', 'lawallet-lightning-address' ) . '</p>';
+		$body .= '<ul class="wcll-help-list">';
+		/* translators: %s: LUD-21 specification link. */
+		$body .= '<li>' . sprintf( esc_html__( '%s — synchronous verification: the plugin asks your address whether the invoice was paid.', 'lawallet-lightning-address' ), $lud21 ) . '</li>';
+		/* translators: %s: NIP-57 specification link. */
+		$body .= '<li>' . sprintf( esc_html__( '%s — asynchronous verification: your address publishes a zap receipt to a Nostr relay when the invoice is paid.', 'lawallet-lightning-address' ), $nip57 ) . '</li>';
+		$body .= '</ul>';
+		/* translators: %s: NIP-47 (Nostr Wallet Connect) specification link. */
+		$body .= '<p>' . sprintf( esc_html__( 'If your provider supports neither, the plugin has no way to detect the payment. As a workaround it uses a managed NWC proxy wallet (%s) to receive the funds, detect the payment, and then forward it on to your Lightning Address.', 'lawallet-lightning-address' ), $nip47 ) . '</p>';
+		$body .= '<p class="wcll-help-tip"><strong>' . esc_html__( 'Recommended:', 'lawallet-lightning-address' ) . '</strong> ' . esc_html__( 'Ask your Lightning Address provider to implement LUD-21 or NIP-57. Then you can switch off the proxy and receive payments directly on your address.', 'lawallet-lightning-address' ) . '</p>';
+
+		echo '<div class="wcll-tx-modal wcll-help-modal" data-wcll-help-modal hidden>';
+		echo '<div class="wcll-tx-backdrop" data-wcll-help-close></div>';
+		echo '<div class="wcll-tx-dialog" role="dialog" aria-modal="true" aria-label="' . esc_attr__( 'Why do I need an NWC proxy?', 'lawallet-lightning-address' ) . '">';
+		echo '<button type="button" class="wcll-tx-close" data-wcll-help-close aria-label="' . esc_attr__( 'Close', 'lawallet-lightning-address' ) . '">&times;</button>';
+		echo '<h2 class="wcll-tx-title">' . esc_html__( 'Why do I need an NWC proxy?', 'lawallet-lightning-address' ) . '</h2>';
+		echo '<div class="wcll-help-body">' . wp_kses_post( $body ) . '</div>';
+		echo '</div></div>';
+	}
+
 	private function render_receiver_nwc_panel() {
 		echo '<div class="notice notice-warning inline wcll-receiver-alert" data-wcll-receiver-alert hidden><p>'
 			. esc_html__( 'This Lightning Address cannot confirm payments on its own (no LUD-21 and no NIP-57). Switch the Receiver mode to "Lightning Address via NWC Proxy" to accept it.', 'lawallet-lightning-address' )

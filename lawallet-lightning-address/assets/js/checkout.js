@@ -37,7 +37,10 @@
 		var pollTimer = null;
 		var countdownTimer = null;
 		var claimInFlight = false;
+		var pendingSignal = false;
 		var terminal = false;
+		var recreating = false;
+		var sockets = [];
 
 		function setActionsDisabled(disabled) {
 			actionButtons.forEach(function (button) {
@@ -70,7 +73,7 @@
 		function setStatus(status) {
 			root.classList.toggle('is-paid', status === 'paid');
 			root.classList.toggle('is-expired', status === 'expired');
-			setActionsDisabled(status === 'paid');
+			setActionsDisabled(status === 'paid' || status === 'expired');
 			if (status === 'paid' || status === 'expired') {
 				actionButtons.forEach(function (button) {
 					button.classList.remove('is-loading');
@@ -128,12 +131,24 @@
 		}
 
 		function claim(reason) {
-			if (claimInFlight || terminal) {
-				return Promise.resolve({ status: terminal ? 'paid' : 'pending' });
+			var isSettlementSignal = reason === 'nostr' || reason === 'nwc' || reason === 'webln';
+			if (terminal) {
+				return Promise.resolve({ status: 'paid' });
+			}
+			if (claimInFlight) {
+				// A lookup is already running. Polls are best-effort (the next poll
+				// is seconds away), but a settlement *signal* (NWC/nostr/WebLN
+				// notification) must never be dropped: queue a re-check to run as
+				// soon as the in-flight lookup resolves, so the payment that the
+				// signal announced is confirmed on a fresh backend lookup.
+				if (isSettlementSignal) {
+					pendingSignal = true;
+				}
+				return Promise.resolve({ status: 'pending' });
 			}
 
 			claimInFlight = true;
-			setStatus(reason === 'nostr' || reason === 'nwc' || reason === 'webln' ? 'checking' : 'waiting');
+			setStatus(isSettlementSignal ? 'checking' : 'waiting');
 
 			var body = new URLSearchParams();
 			body.set('action', 'wcll_claim_payment');
@@ -165,9 +180,7 @@
 					}
 
 					if (payload && payload.success && data.expired) {
-						terminal = true;
-						setStatus('expired');
-						stopTimers();
+						handleExpiry();
 						return;
 					}
 
@@ -180,6 +193,12 @@
 				})
 				.finally(function () {
 					claimInFlight = false;
+					// Run the re-check queued by a settlement signal that arrived
+					// while this lookup was in flight (drops to a single follow-up).
+					if (pendingSignal && !terminal) {
+						pendingSignal = false;
+						claim('nwc');
+					}
 				});
 		}
 
@@ -270,8 +289,8 @@
 				var minutes = Math.floor(seconds / 60);
 				var rest = seconds % 60;
 				countdown.textContent = minutes + ':' + String(rest).padStart(2, '0');
-				if (seconds <= 0 && !terminal) {
-					claim('expired');
+				if (seconds <= 0 && !terminal && !recreating) {
+					handleExpiry();
 				}
 			}
 
@@ -291,6 +310,8 @@
 				} catch (error) {
 					return;
 				}
+
+				sockets.push(socket);
 
 				socket.addEventListener('open', function () {
 					var filter = {
@@ -335,6 +356,8 @@
 					return;
 				}
 
+				sockets.push(socket);
+
 				socket.addEventListener('open', function () {
 					var filter = {
 						kinds: [23196, 23197],
@@ -368,6 +391,119 @@
 					}
 				});
 			});
+		}
+
+		function closeSockets() {
+			sockets.forEach(function (socket) {
+				try {
+					socket.close();
+				} catch (error) {
+					// Already closing/closed.
+				}
+			});
+			sockets = [];
+		}
+
+		// Swap the page over to a freshly issued invoice: new QR, invoice text,
+		// countdown and re-subscribed settlement watchers, then resume polling.
+		function applyNewInvoice(data) {
+			config.invoice = data.invoice;
+			config.expiresAt = data.expiresAt;
+			config.nostrPubkey = data.nostrPubkey || '';
+			config.nostrRelays = Array.isArray(data.nostrRelays) ? data.nostrRelays : [];
+			config.nwcWalletPubkey = data.nwcWalletPubkey || '';
+			config.nwcClientPubkey = data.nwcClientPubkey || '';
+			config.nwcRelays = Array.isArray(data.nwcRelays) ? data.nwcRelays : [];
+			if (data.returnUrl) {
+				config.returnUrl = data.returnUrl;
+			}
+
+			terminal = false;
+			claimInFlight = false;
+			pendingSignal = false;
+
+			renderQr();
+			if (invoiceField) {
+				invoiceField.value = config.invoice;
+			}
+
+			setStatus('waiting');
+			if (openWalletLink) {
+				var lightningHref = 'lightning:' + config.invoice;
+				openWalletLink.setAttribute('href', lightningHref);
+				openWalletLink.dataset.wcllHref = lightningHref;
+			}
+
+			closeSockets();
+			watchNostr();
+			watchNwc();
+
+			stopTimers();
+			startCountdown();
+			pollTimer = window.setInterval(function () {
+				claim('poll');
+			}, 4000);
+			claim('load');
+		}
+
+		// Ask the backend to re-issue the invoice. It verifies the expired invoice
+		// was not actually paid before minting a new one.
+		function recreate() {
+			var body = new URLSearchParams();
+			body.set('action', 'wcll_recreate_invoice');
+			body.set('order_id', config.orderId);
+			body.set('order_key', config.orderKey);
+			body.set('nonce', config.nonce);
+
+			window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+				},
+				body: body.toString()
+			})
+				.then(function (response) {
+					return response.json();
+				})
+				.then(function (payload) {
+					var data = payload && payload.data ? payload.data : {};
+					if (payload && payload.success && data.paid) {
+						terminal = true;
+						setStatus('paid');
+						stopTimers();
+						window.setTimeout(function () {
+							redirectToReturnUrl(data.returnUrl);
+						}, 1800);
+						return;
+					}
+					if (payload && payload.success && data.invoice) {
+						applyNewInvoice(data);
+						return;
+					}
+					// Could not re-issue: show the expired state.
+					terminal = true;
+					setStatus('expired');
+				})
+				.catch(function () {
+					terminal = true;
+					setStatus('expired');
+				})
+				.finally(function () {
+					recreating = false;
+				});
+		}
+
+		// Invoice expired (countdown reached zero, or the backend reported it):
+		// verify settlement and re-issue a fresh invoice instead of giving up.
+		function handleExpiry() {
+			if (recreating || terminal) {
+				return;
+			}
+			recreating = true;
+			stopTimers();
+			setStatus('checking');
+			recreate();
 		}
 
 		if (copyButton && invoiceField) {

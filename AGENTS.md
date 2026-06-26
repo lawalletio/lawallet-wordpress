@@ -12,6 +12,12 @@ Guide for AI agents working in this repo.
 - **`bin/`**, **`e2e/`**, **`mock-lnurl/`**, **`docker-compose.yml`** — local dev,
   tests, and a mock LNURL server.
 
+## Data model
+- No custom tables. State lives in WooCommerce **order meta** (`_wcll_*`) and
+  WordPress **options/transients** (`wcll_nwc_*`, `lawallet_*`). Full reference:
+  **`lawallet-lightning-address/docs/DATA-MODEL.md`** — keep it in sync when you
+  add or rename a persisted key.
+
 ## Plugin: build, version, release
 - Version lives in `lawallet-lightning-address/lawallet-lightning-address.php`
   (`Version:` header + `WCLL_VERSION`) and `readme.txt` (`Stable tag` + changelog).

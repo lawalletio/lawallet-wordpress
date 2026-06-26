@@ -395,9 +395,22 @@
 			return;
 		}
 		var i18n = nwc.i18n || {};
+		var panel = document.querySelector('[data-wcll-receiver-panel]');
+		var inFlight = false;
 
-		function refresh() {
-			balanceEl.textContent = i18n.loading || '…';
+		// Only poll while the terminal-NWC panel is actually on screen.
+		function live() {
+			return !document.hidden && (!panel || !panel.hidden);
+		}
+
+		function refresh(silent) {
+			if (inFlight) {
+				return;
+			}
+			inFlight = true;
+			if (!silent) {
+				balanceEl.textContent = i18n.loading || '…';
+			}
 			var body = new URLSearchParams();
 			body.set('action', 'wcll_nwc_receiver_balance');
 			body.set('nonce', nwc.nonce);
@@ -415,14 +428,46 @@
 					: (i18n.unavailable || 'Balance unavailable');
 			}).catch(function () {
 				balanceEl.textContent = i18n.unavailable || 'Balance unavailable';
+			}).finally(function () {
+				inFlight = false;
 			});
 		}
 
 		var refreshBtn = document.querySelector('[data-wcll-receiver-refresh]');
 		if (refreshBtn) {
-			refreshBtn.addEventListener('click', refresh);
+			refreshBtn.addEventListener('click', function () {
+				refresh(false);
+			});
 		}
-		refresh();
+
+		// Track the balance live (the backend forces a fresh NWC read each call)
+		// while the terminal-NWC panel is visible; silent so it does not flicker.
+		window.setInterval(function () {
+			if (live()) {
+				refresh(true);
+			}
+		}, 15000);
+		document.addEventListener('visibilitychange', function () {
+			if (live()) {
+				refresh(true);
+			}
+		});
+
+		// Refresh immediately when the panel is revealed (mode switched to NWC).
+		if (panel && typeof MutationObserver === 'function') {
+			var wasHidden = panel.hidden;
+			new MutationObserver(function () {
+				if (wasHidden && !panel.hidden) {
+					refresh(false);
+				}
+				wasHidden = panel.hidden;
+			}).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+		}
+
+		// Initial load only when the terminal-NWC panel is the active mode.
+		if (live()) {
+			refresh(false);
+		}
 	}
 
 	if (document.readyState === 'loading') {
@@ -1237,3 +1282,106 @@
 		init();
 	}
 })(window.WCLLGatewayAdmin || {});
+
+// Real-time refresh of the inline NWC transactions list: poll the same slice the
+// page rendered and swap the rows when anything changes (received/forwarded
+// status, routing fee, a new order), without reloading the settings page.
+(function (config) {
+	function init() {
+		var nwc = config && config.nwc;
+		var body = document.querySelector('[data-wcll-tx-inline]');
+		if (!nwc || !body) {
+			return;
+		}
+
+		var perPage = parseInt(body.getAttribute('data-wcll-tx-inline'), 10) || 5;
+		var inFlight = false;
+		var lastRows = null;
+
+		function refresh() {
+			if (inFlight || document.hidden) {
+				return;
+			}
+			inFlight = true;
+
+			var b = new URLSearchParams();
+			b.set('action', 'wcll_nwc_transactions');
+			b.set('nonce', nwc.nonce);
+			b.set('page', '1');
+			b.set('per_page', String(perPage));
+
+			window.fetch(config.ajaxUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+				body: b.toString()
+			}).then(function (response) {
+				return response.json();
+			}).then(function (res) {
+				inFlight = false;
+				var d = (res && res.data) || {};
+				if (res && res.success && typeof d.rows === 'string' && d.rows !== lastRows) {
+					body.innerHTML = d.rows;
+					lastRows = d.rows;
+				}
+			}).catch(function () {
+				inFlight = false;
+			});
+		}
+
+		window.setInterval(refresh, 10000);
+		document.addEventListener('visibilitychange', function () {
+			if (!document.hidden) {
+				refresh();
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})(window.WCLLGatewayAdmin || {});
+
+// "Why do I need an NWC proxy?" help modal on the Receiver tab.
+(function () {
+	function init() {
+		var modal = document.querySelector('[data-wcll-help-modal]');
+		var opener = document.querySelector('[data-wcll-help-open]');
+		if (!modal || !opener) {
+			return;
+		}
+
+		function open() {
+			modal.hidden = false;
+			document.body.classList.add('wcll-tx-open');
+		}
+		function close() {
+			modal.hidden = true;
+			document.body.classList.remove('wcll-tx-open');
+		}
+
+		opener.addEventListener('click', function (event) {
+			event.preventDefault();
+			open();
+		});
+		modal.querySelectorAll('[data-wcll-help-close]').forEach(function (el) {
+			el.addEventListener('click', function (event) {
+				event.preventDefault();
+				close();
+			});
+		});
+		document.addEventListener('keydown', function (event) {
+			if (event.key === 'Escape' && !modal.hidden) {
+				close();
+			}
+		});
+	}
+
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', init);
+	} else {
+		init();
+	}
+})();

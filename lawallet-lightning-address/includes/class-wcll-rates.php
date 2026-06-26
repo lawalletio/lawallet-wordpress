@@ -29,13 +29,7 @@ class WCLL_Rates {
 			'price_buffer_percent' => isset( $settings['price_buffer_percent'] ) ? (float) $settings['price_buffer_percent'] : 0.0,
 		);
 
-		$manual = isset( $settings['manual_sats_per_unit'] ) ? (float) $settings['manual_sats_per_unit'] : 0.0;
-		if ( $manual > 0 ) {
-			$sats = $total * $manual;
-			$rate['source']        = 'manual';
-			$rate['fiat_per_sat']  = 1 / $manual;
-			$rate['sats_per_unit'] = $manual;
-		} elseif ( in_array( $currency, array( 'BTC', 'XBT' ), true ) ) {
+		if ( in_array( $currency, array( 'BTC', 'XBT' ), true ) ) {
 			$sats = $total * 100000000;
 			$rate['source']        = 'btc';
 			$rate['btc_price']     = 1.0;

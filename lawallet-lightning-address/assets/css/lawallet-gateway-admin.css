@@ -361,6 +361,9 @@
 .wcll-nwc-tx {
 	margin-top: 20px;
 }
+.wcll-nwc-tx-title {
+	margin-top: 20px;
+}
 .wcll-nwc-tx-table {
 	margin-top: 8px;
 }
@@ -385,12 +388,13 @@
 .wcll-tx-status.is-none {
 	color: #646970;
 }
+.wcll-tx-origin.is-sweep {
+	font-weight: 600;
+	color: #646970;
+}
 .wcll-tx-dest {
 	font-size: 12px;
 	color: #646970;
-}
-.wcll-tx-proof {
-	font-size: 12px;
 }
 .wcll-tx-copy {
 	font-size: 12px;
@@ -480,4 +484,44 @@
 }
 .wcll-txd-mono {
 	font-size: 12px;
+}
+
+/* "Why do I need an NWC proxy?" help modal */
+.wcll-help-row {
+	margin: 4px 0 12px;
+}
+.wcll-help-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	cursor: pointer;
+	text-decoration: none;
+}
+.wcll-help-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 50%;
+	background: #2271b1;
+	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+	line-height: 1;
+}
+.wcll-help-body p {
+	margin: 0 0 12px;
+}
+.wcll-help-list {
+	margin: 0 0 12px 18px;
+	list-style: disc;
+}
+.wcll-help-list li {
+	margin-bottom: 6px;
+}
+.wcll-help-tip {
+	padding: 10px 12px;
+	background: #f0f6fc;
+	border-left: 4px solid #2271b1;
 }
