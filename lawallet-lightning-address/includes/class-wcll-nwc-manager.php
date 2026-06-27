@@ -245,10 +245,10 @@ class WCLL_NWC_Manager {
 			),
 			self::BALANCE_TTL
 		);
-		/* translators: %d: terminal wallet balance in sats. */
 		return array(
 			'ok'           => true,
 			'balance_sats' => $sats,
+			/* translators: %d: terminal wallet balance in sats. */
 			'message'      => sprintf( __( 'NWC wallet ready (balance %d sats); payments are settled there and stay in the wallet.', 'lawallet-lightning-address' ), $sats ),
 		);
 	}
