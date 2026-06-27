@@ -292,7 +292,7 @@ class WCLL_Plugin {
 
 	public static function ajax_nwc_receive() {
 		self::verify_nwc_admin();
-		$amount_sats = isset( $_POST['amount'] ) ? absint( wp_unslash( $_POST['amount'] ) ) : 0;
+		$amount_sats = isset( $_POST['amount'] ) ? absint( wp_unslash( $_POST['amount'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 		if ( $amount_sats < 1 ) {
 			wp_send_json_error( array( 'message' => __( 'Enter an amount in sats.', 'lawallet-lightning-address' ) ) );
 		}
@@ -325,7 +325,7 @@ class WCLL_Plugin {
 	 */
 	public static function ajax_nwc_invoice_status() {
 		self::verify_nwc_admin();
-		$hash = isset( $_POST['payment_hash'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_hash'] ) ) : '';
+		$hash = isset( $_POST['payment_hash'] ) ? sanitize_text_field( wp_unslash( $_POST['payment_hash'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 		if ( ! preg_match( '/^[0-9a-f]{64}$/i', $hash ) ) {
 			wp_send_json_error( array( 'message' => __( 'Missing payment hash.', 'lawallet-lightning-address' ) ) );
 		}
@@ -333,7 +333,7 @@ class WCLL_Plugin {
 		$settings = WCLL_Gateway::get_gateway_settings();
 		// Look the invoice up on the EXACT wallet it was minted on, by pubkey, so a
 		// disposable wallet that has since rotated (active -> archive) is still found.
-		$pubkey = isset( $_POST['wallet_pubkey'] ) ? sanitize_text_field( wp_unslash( $_POST['wallet_pubkey'] ) ) : '';
+		$pubkey = isset( $_POST['wallet_pubkey'] ) ? sanitize_text_field( wp_unslash( $_POST['wallet_pubkey'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 		$client = preg_match( '/^[0-9a-f]{64}$/i', $pubkey )
 			? WCLL_NWC_Manager::client_for_pubkey( $settings, $pubkey )
 			: WCLL_NWC_Manager::get_active_client( $settings );
@@ -350,8 +350,8 @@ class WCLL_Plugin {
 
 	public static function ajax_nwc_withdraw() {
 		self::verify_nwc_admin();
-		$destination = isset( $_POST['destination'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['destination'] ) ) ) : '';
-		$amount_sats = isset( $_POST['amount'] ) ? absint( wp_unslash( $_POST['amount'] ) ) : 0;
+		$destination = isset( $_POST['destination'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['destination'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
+		$amount_sats = isset( $_POST['amount'] ) ? absint( wp_unslash( $_POST['amount'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 
 		if ( '' === $destination ) {
 			wp_send_json_error( array( 'message' => __( 'Enter a Lightning Address or BOLT11 invoice.', 'lawallet-lightning-address' ) ) );
@@ -408,7 +408,7 @@ class WCLL_Plugin {
 	public static function ajax_nwc_regenerate() {
 		self::verify_nwc_admin();
 
-		$url = isset( $_POST['lncurl_url'] ) ? trim( esc_url_raw( wp_unslash( $_POST['lncurl_url'] ) ) ) : '';
+		$url = isset( $_POST['lncurl_url'] ) ? trim( esc_url_raw( wp_unslash( $_POST['lncurl_url'] ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 		if ( '' === $url || ! preg_match( '#^https?://#i', $url ) ) {
 			wp_send_json_error( array( 'message' => __( 'Enter a valid lncurl service URL.', 'lawallet-lightning-address' ) ) );
 		}
@@ -605,8 +605,8 @@ class WCLL_Plugin {
 
 	public static function ajax_nwc_transactions() {
 		self::verify_nwc_admin();
-		$page     = isset( $_POST['page'] ) ? max( 1, absint( wp_unslash( $_POST['page'] ) ) ) : 1;
-		$per_page = isset( $_POST['per_page'] ) ? min( 50, max( 1, absint( wp_unslash( $_POST['per_page'] ) ) ) ) : 10;
+		$page     = isset( $_POST['page'] ) ? max( 1, absint( wp_unslash( $_POST['page'] ) ) ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
+		$per_page = isset( $_POST['per_page'] ) ? min( 50, max( 1, absint( wp_unslash( $_POST['per_page'] ) ) ) ) : 10; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 		$data     = self::nwc_transactions( $page, $per_page );
 
 		$rows = '';
@@ -694,7 +694,7 @@ class WCLL_Plugin {
 
 	public static function ajax_nwc_transaction() {
 		self::verify_nwc_admin();
-		$order_id = isset( $_POST['order_id'] ) ? absint( wp_unslash( $_POST['order_id'] ) ) : 0;
+		$order_id = isset( $_POST['order_id'] ) ? absint( wp_unslash( $_POST['order_id'] ) ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce checked in verify_nwc_admin().
 		$order    = $order_id ? wc_get_order( $order_id ) : null;
 		// Proxy panel: only forwarding orders are listed/viewable here.
 		if ( ! $order
