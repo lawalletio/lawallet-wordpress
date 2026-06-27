@@ -4,7 +4,7 @@ Tags: lightning, bitcoin, payments, lnurl, nostr
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.6.15
+Stable tag: 0.7.0
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
@@ -151,6 +151,16 @@ Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit r
 fallback. BTC-denominated stores need no conversion.
 
 == Changelog ==
+
+= 0.7.0 =
+* Expired checkout invoices now verify payment first, then re-issue a fresh invoice in place instead of dead-ending on "Invoice expired".
+* NWC Proxy payouts are now a pooled wallet sweep to your Lightning Address (keeping the greater of 1% or 10 sats as a routing reserve), replacing per-order forwarding so small orders accumulate and ship together.
+* Settlement notifications are no longer missed: a wallet/Nostr signal that arrives while a check is already running is re-checked instead of dropped.
+* WebLN and the other payment buttons now disable when the invoice expires.
+* Added a "Why do I need an NWC proxy?" help dialog on the Receiver tab explaining LUD-21 / NIP-57 / NWC, with reference links.
+* The proxy transactions list and sweep payouts are now one real-time table with an Origin column (#order or Sweep) and a Routing fee column.
+* The terminal NWC wallet balance now updates live on the Receiver tab.
+* Removed the "Manual sats per currency unit" setting; added a help tip to "Price buffer percent".
 
 = 0.6.15 =
 * Documented the lncurl disposable-wallet service with links to its terms and privacy policy.
