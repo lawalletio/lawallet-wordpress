@@ -30,6 +30,8 @@ Guide for AI agents working in this repo.
   `dist/svn/{assets,trunk,tags/<version>}` (current tag only).
   WordPress.org SVN publish flow: **`docs/RELEASE-WORDPRESS-ORG.md`**.
 - Releases are GitHub Releases tagged `vX.Y.Z` with the zip attached (`gh release create`).
+  Publishing a release auto-deploys to WordPress.org SVN via
+  `.github/workflows/deploy-wordpress-org.yml` (needs the `SVN_PASSWORD` repo secret).
 - Plugin Check (must pass clean): bring up Docker, then
   `docker compose run --rm --no-deps wpcli wp plugin check lawallet-lightning-address`.
   PHP lint: `make php-lint` (or `php -l` via the `php:8.2-cli` Docker image).

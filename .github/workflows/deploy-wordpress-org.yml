@@ -1,0 +1,66 @@
+name: Deploy to WordPress.org
+
+# Publishes the plugin to the WordPress.org SVN repository (trunk + tags/<version>
+# + assets), following the .org layout/guidelines, whenever a GitHub Release is
+# published. The SVN payload is assembled by bin/build-release.sh — the same
+# script used for manual releases — so the automated deploy is identical to the
+# documented manual one (see docs/RELEASE-WORDPRESS-ORG.md).
+#
+# Required repository secret:
+#   SVN_PASSWORD  — the wordpress.org account password for contributor "magollo".
+# (The username is public and hard-coded below.)
+#
+# Run it manually with the "Run workflow" button (workflow_dispatch); tick
+# "dry_run" to assemble the payload and diff it against SVN without committing.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Assemble + diff against SVN without committing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wordpress-org-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build payload and deploy to SVN
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build SVN payload (trunk + filtered assets)
+        run: bash bin/build-release.sh
+
+      - name: Resolve version from readme Stable tag
+        id: version
+        run: |
+          version="$(grep -iE '^Stable tag:' lawallet-lightning-address/readme.txt \
+            | sed -E 's/.*:[[:space:]]*//' | tr -d '[:space:]')"
+          if [ -z "$version" ]; then
+            echo "::error::Could not read Stable tag from lawallet-lightning-address/readme.txt"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Deploying version $version"
+
+      - name: Deploy to WordPress.org
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        with:
+          dry-run: ${{ inputs.dry_run || false }}
+        env:
+          SVN_USERNAME: magollo
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: lawallet-lightning-address
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD_DIR: dist/svn/trunk
+          ASSETS_DIR: dist/svn/assets

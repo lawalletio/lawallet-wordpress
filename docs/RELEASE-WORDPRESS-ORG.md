@@ -11,6 +11,25 @@ This documents how we ship a plugin release. It produces **two artifacts**:
 Everything here lives in the repo, **not** inside the shipped `lawallet-lightning-address/`
 plugin folder.
 
+## Automated deploy (recommended)
+
+Publishing a GitHub Release (`gh release create vX.Y.Z …`) triggers
+[`.github/workflows/deploy-wordpress-org.yml`](../.github/workflows/deploy-wordpress-org.yml),
+which runs `bin/build-release.sh` and commits the SVN payload to WordPress.org for you
+— no local `svn` needed. It deploys `trunk/`, `tags/<Stable tag>/`, and `assets/`, using
+the **`Stable tag`** from `readme.txt` as the version (via the
+[10up plugin-deploy action](https://github.com/10up/action-wordpress-plugin-deploy)).
+
+**One-time setup:** add a repository secret **`SVN_PASSWORD`** (Settings → Secrets and
+variables → Actions) holding the wordpress.org account password for contributor
+`magollo` (the username is set in the workflow).
+
+You can also run it on demand from the **Actions** tab ("Deploy to WordPress.org" → **Run
+workflow**); tick **dry_run** to assemble and diff the payload against SVN without
+committing — useful the first time, to review what will be added.
+
+The manual flow below remains the fallback, and documents exactly what the workflow does.
+
 ---
 
 ## Background: how WordPress.org SVN is laid out
