@@ -714,8 +714,8 @@
 
         <h1 class="wp-title">Accept Bitcoin<br /><span class="accent">via Lightning Address</span></h1>
         <p class="wp-sub">
-          Turn your WooCommerce store into a Bitcoin checkout. Paid to any Lightning Address &mdash;
-          non-custodial.
+          Turn your WooCommerce store into a Bitcoin checkout. Get paid to any Lightning Address &mdash;
+          or straight to your own Nostr Wallet Connect (NWC) wallet. Non-custodial.
         </p>
 
         <div class="hero-cta">
@@ -728,7 +728,7 @@
 
         <div class="wp-trust">
           <span class="wp-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span>
-          Non-custodial <em>&middot;</em> LUD-21 verified <em>&middot;</em> Open source (GPL-3.0)
+          Non-custodial <em>&middot;</em> Lightning Address &amp; NWC <em>&middot;</em> Open source (GPL-3.0)
         </div>
 
         <!-- plugin showcase: a screen with the plugin install card + a screenshot -->
@@ -919,7 +919,8 @@
             <p>Set your Lightning Address and get paid in sats. Fiat totals convert automatically.</p>
             <ul>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Pay by QR, wallet link, or WebLN</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Settlement verified server-side with LUD-21</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Verified server-side via LUD-21 or NIP-57 zap receipts</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Any Lightning Address works &mdash; ones without either use an NWC proxy</li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg> Funds go straight to your wallet &mdash; never ours</li>
             </ul>
           </div>
@@ -946,17 +947,17 @@
       <div class="wrap">
         <p class="eyebrow reveal">Built for real stores</p>
         <h2 class="section-title reveal">Everything you need to get paid in Bitcoin</h2>
-        <p class="section-lead reveal">A complete Lightning toolkit for WordPress &mdash; checkout, verification, and identity.</p>
+        <p class="section-lead reveal">A complete Lightning toolkit for WordPress &mdash; checkout, payment verification (LUD-21, NIP-57, or NWC), and identity.</p>
         <div class="features">
           <div class="feature reveal">
             <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></div>
             <h4>Lightning checkout</h4>
-            <p>A WooCommerce gateway that invoices your Lightning Address via LNURL-pay.</p>
+            <p>A WooCommerce gateway that invoices your Lightning Address via LNURL-pay. Fiat totals convert to sats automatically.</p>
           </div>
           <div class="feature reveal">
             <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><path d="M12 3a9 9 0 1 0 9 9"/></svg></div>
             <h4>Server-verified payments</h4>
-            <p>Orders complete only after LUD-21 settlement is verified server-side.</p>
+            <p>Orders complete only after settlement is verified server-side &mdash; via LUD-21 or NIP-57 zap receipts.</p>
           </div>
           <div class="feature reveal">
             <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg></div>
@@ -964,9 +965,9 @@
             <p>Serve <code>/.well-known/</code> discovery and route it to a LaWallet gateway.</p>
           </div>
           <div class="feature reveal">
-            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg></div>
-            <h4>Auto fiat&rarr;sats</h4>
-            <p>Order totals convert with live exchange rates, or a manual rate.</p>
+            <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h13"/><path d="M11 5l7 7-7 7"/></svg></div>
+            <h4>Works with any address (NWC)</h4>
+            <p>No LUD-21 or NIP-57? A Nostr Wallet Connect proxy receives the payment, confirms it, and forwards it to your Lightning Address &mdash; disposable wallets are created on demand.</p>
           </div>
           <div class="feature reveal">
             <div class="fi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>

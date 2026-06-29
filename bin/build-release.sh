@@ -5,17 +5,13 @@
 #   dist/lawallet-lightning-address.zip   Installable plugin ZIP. Upload via
 #                                         WordPress Admin -> Plugins -> Add New ->
 #                                         Upload Plugin, or attach to a GitHub
-#                                         Release. Includes the GitHub
-#                                         self-updater (class-wcll-updater.php).
+#                                         Release.
 #
 #   dist/svn/                             WordPress.org SVN payload for the
 #                                         *current* release only:
 #                                           assets/         directory graphics
 #                                           trunk/          current stable code
 #                                           tags/<version>/ snapshot of trunk
-#                                         Excludes the self-updater (the .org
-#                                         directory updates plugins natively and
-#                                         Plugin Check flags bundled updaters).
 #
 # Version is read from the plugin header (the single source of truth) and must
 # match the readme "Stable tag". See docs/RELEASE-WORDPRESS-ORG.md for the full
@@ -46,17 +42,15 @@ find "$SRC" -name '.DS_Store' -delete
 rm -rf "$DIST"
 mkdir -p "$DIST"
 
-# --- 1) Installable plugin ZIP (full build, with self-updater) ---------------
+# --- 1) Installable plugin ZIP -----------------------------------------------
 zip -rq "$DIST/$PLUGIN.zip" "$PLUGIN" -x '*.DS_Store'
 
 # --- 2) WordPress.org SVN payload --------------------------------------------
 SVN="$DIST/svn"
 mkdir -p "$SVN/trunk" "$SVN/tags/$VERSION" "$SVN/assets"
 
-# trunk = plugin code, minus the self-updater (.org disallows bundled updaters;
-# the main file loads it defensively via file_exists(), so omitting it is safe).
+# trunk = the plugin code (identical to the installable ZIP).
 cp -R "$SRC/." "$SVN/trunk/"
-rm -f "$SVN/trunk/includes/class-wcll-updater.php"
 find "$SVN/trunk" -name '.DS_Store' -delete
 
 # tags/<version> = exact snapshot of trunk.

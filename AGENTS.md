@@ -22,18 +22,15 @@ Guide for AI agents working in this repo.
 - Version lives in `lawallet-lightning-address/lawallet-lightning-address.php`
   (`Version:` header + `WCLL_VERSION`) and `readme.txt` (`Stable tag` + changelog).
   Keep all in sync; bump for every release.
-- Build distributables: **`bin/build-zip.sh`** →
-  - `lawallet-lightning-address.zip` — GitHub / self-hosted (includes the GitHub
-    self-updater `class-wcll-updater.php`).
-  - `lawallet-lightning-address-wporg.zip` — **WordPress.org upload** (the updater
-    is excluded; .org disallows bundled self-updaters and Plugin Check flags it).
-  The updater loads defensively (`file_exists`/`class_exists`) so omitting it is safe.
+- Build distributables: **`bin/build-zip.sh`** → `lawallet-lightning-address.zip`
+  (installable plugin; identical to the WordPress.org SVN trunk — the .org
+  directory updates natively).
 - Full release build: **`bin/build-release.sh`** → `dist/` with two artifacts:
   the installable `lawallet-lightning-address.zip` and an SVN payload
-  `dist/svn/{assets,trunk,tags/<version>}` (current tag only, no updater).
+  `dist/svn/{assets,trunk,tags/<version>}` (current tag only).
   WordPress.org SVN publish flow: **`docs/RELEASE-WORDPRESS-ORG.md`**.
 - Releases are GitHub Releases tagged `vX.Y.Z` with the zip attached (`gh release create`).
-- Plugin Check (must pass on the `-wporg` build): bring up Docker, then
+- Plugin Check (must pass clean): bring up Docker, then
   `docker compose run --rm --no-deps wpcli wp plugin check lawallet-lightning-address`.
   PHP lint: `make php-lint` (or `php -l` via the `php:8.2-cli` Docker image).
 - Commit/push only when asked. End commit messages with the Co-Authored-By trailer.
