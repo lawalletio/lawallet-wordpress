@@ -1,30 +1,53 @@
 === Accept Bitcoin with your Lightning Address ===
 Contributors: magollo
-Tags: lightning, bitcoin, payments, lnurl, nostr
+Tags: bitcoin, lightning, woocommerce, payments, lnurl
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.7.1
 License: GPL-3.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-3.0.html
 
-Connect payments with most popular Lightning wallets without registration or credentials.
+The easiest way to accept Bitcoin: just your public Lightning Address. No credentials, no API. Works with all major Lightning wallets.
 
 == Description ==
 
-**Accept Bitcoin with your Lightning Address** combines two Lightning features in one plugin:
+**The easiest, most organic way to accept Bitcoin in WooCommerce — with nothing but a public Lightning Address.**
 
-1. **WooCommerce Lightning payments.** A checkout gateway with three receiver modes you choose
-   between: pay directly to your merchant Lightning Address (LNURL-pay, verified server-side with
-   LUD-21 or NIP-57 zap receipts); pay through a managed NWC proxy wallet that forwards to your
-   Lightning Address (for addresses that confirm neither LUD-21 nor NIP-57); or receive straight into
-   your own Nostr Wallet Connect (NWC, NIP-47) wallet. It optionally detects payment faster in the
-   browser via NIP-57 zap receipts and WebLN, and converts fiat order totals to sats using Yadio
-   exchange rates.
-2. **Lightning Address / NIP-05 discovery.** Keeps your root domain on WordPress while a separate
-   [LaWallet](https://lawallet.io) instance serves wallet discovery: the plugin registers rewrite
-   rules for the relevant `/.well-known/` routes and redirects them (HTTP 307) to the LaWallet
-   gateway you configure.
+No account to open, no API keys, no credentials, no complex integration. You already have a Lightning
+Address (it looks like an email, for example `you@walletofsatoshi.com`) — paste it into the checkout
+settings and your store accepts Bitcoin over the Lightning Network. Payments arrive directly in your own
+wallet; the plugin never holds your keys or your funds. The Lightning Network is all you need.
+
+= Works with all major Lightning wallets =
+
+Any wallet that gives you a Lightning Address works out of the box, including:
+
+* [Wallet of Satoshi](https://www.walletofsatoshi.com/)
+* [Primal](https://primal.net/)
+* [Strike](https://strike.me/)
+* [Alby](https://getalby.com/)
+* [Blink](https://www.blink.sv/)
+* [LNbits](https://lnbits.com/)
+* [LaWallet](https://lawallet.io/)
+
+= Every Lightning Address is accepted =
+
+To know a payment really arrived, the plugin confirms it directly on your address — via **LUD-21**
+(synchronous verification) or **NIP-57** zap receipts (asynchronous, over Nostr). If your provider
+supports **neither**, you are still covered: turn on the **NWC proxy** and the plugin receives the
+payment into a managed Nostr Wallet Connect (NIP-47) wallet, confirms it there, and forwards it on to
+your Lightning Address. Disposable proxy wallets are minted on demand from an lncurl service, so there
+is nothing to set up. Prefer to keep funds in your own NWC wallet instead? Choose the "NWC" receiver
+mode and they land straight there. Compatible with both **Lightning Address** and **NWC**.
+
+= Bonus: serve Lightning & Nostr addresses on your own domain =
+
+Keep your root domain on WordPress and still hand out addresses like `you@yourdomain.com`. The plugin
+redirects `/.well-known/{path}` requests — for example `/.well-known/lnurlp/...` (Lightning Address /
+LNURL-pay) and `/.well-known/nostr.json` (Nostr / NIP-05) — to a [LaWallet](https://lawallet.io) instance
+you configure, so your WordPress domain provides Lightning and Nostr address discovery without you
+hosting a wallet server.
 
 = Payments: how an order is processed =
 
@@ -35,10 +58,10 @@ Connect payments with most popular Lightning wallets without registration or cre
 * Your server confirms settlement with the LUD-21 `verify` URL before the order is marked paid.
   Zap receipts and WebLN only speed up detection in the browser - they never settle an order by
   themselves.
-* Pending Lightning orders are re-checked by WordPress cron; expired unpaid invoices cancel the
-  order automatically.
-* For non-BTC store currencies, order totals are converted using Yadio BTC exchange rates, or a
-  manual sats-per-unit rate you set yourself.
+* Pending Lightning orders are re-checked by WordPress cron. If an invoice expires while the customer
+  is still on the payment page it is automatically replaced with a fresh one (after re-checking that it
+  was not already paid); abandoned unpaid orders are cancelled.
+* For non-BTC store currencies, order totals are converted to satoshis using Yadio BTC exchange rates.
 
 = Discovery: which requests are redirected =
 
@@ -75,8 +98,7 @@ GET request to `https://api.yadio.io/rate/{CURRENCY}/BTC` whenever a fresh rate 
 cached for 5 minutes. Only that three-letter currency code is sent - no customer, order, account,
 or site data ever leaves your server.
 
-This request is optional. Stores priced in BTC/SAT need no conversion, and any store can avoid
-Yadio entirely by setting a fixed "manual sats-per-unit" rate in the gateway settings.
+This request is optional: stores priced in BTC or SAT need no conversion and never contact Yadio.
 
 Yadio is a free, public, no-account API. Because the request is made from your server, Yadio receives
 your store server's IP address (which, per its privacy policy, it logs to monitor for abuse) and the
@@ -147,10 +169,15 @@ actually confirmed.
 
 = Which currencies are supported? =
 
-Any WooCommerce currency supported by Yadio rates, plus a manual sats-per-unit rate as a
-fallback. BTC-denominated stores need no conversion.
+Any WooCommerce currency supported by Yadio BTC exchange rates. BTC- or SAT-denominated stores
+need no conversion.
 
 == Changelog ==
+
+= 0.7.1 =
+* Remove the bundled GitHub self-updater; the plugin now updates through the WordPress.org directory.
+* Refresh the plugin description and short description.
+* Update the bundled Spanish (es_AR, es_ES) translations.
 
 = 0.7.0 =
 * Expired checkout invoices now verify payment first, then re-issue a fresh invoice in place instead of dead-ending on "Invoice expired".

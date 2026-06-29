@@ -4,10 +4,9 @@ This documents how we ship a plugin release. It produces **two artifacts**:
 
 1. **`dist/lawallet-lightning-address.zip`** — the installable plugin ZIP. Drop it
    into WordPress (Admin → Plugins → Add New → Upload Plugin) or attach it to a
-   GitHub Release. Includes the GitHub self-updater.
+   GitHub Release.
 2. **`dist/svn/`** — the WordPress.org SVN payload for the **current release only**
-   (`assets/`, `trunk/`, `tags/<version>/`). Excludes the self-updater, which the
-   .org directory disallows.
+   (`assets/`, `trunk/`, `tags/<version>/`).
 
 Everything here lives in the repo, **not** inside the shipped `lawallet-lightning-address/`
 plugin folder.
@@ -37,22 +36,6 @@ at it, and commit.
 `readme.txt`. Our source graphics live in `.wordpress-org/` (see that folder's
 `README.md` for how they're regenerated).
 
-### The self-updater exclusion
-
-The plugin bundles a GitHub self-updater (`includes/class-wcll-updater.php`) for
-self-hosted / GitHub installs. WordPress.org updates plugins natively and Plugin
-Check flags bundled updaters, so the `.org` build **omits** that file. The main
-plugin file loads it defensively:
-
-```php
-if ( file_exists( WCLL_PLUGIN_DIR . 'includes/class-wcll-updater.php' ) ) {
-    require_once WCLL_PLUGIN_DIR . 'includes/class-wcll-updater.php';
-}
-```
-
-…so the updater is present in the installable ZIP and absent from the SVN payload,
-and both run cleanly.
-
 ---
 
 ## Step 1 — Bump the version
@@ -73,17 +56,17 @@ The script reads the version from the plugin header (refusing to build if
 
 ```
 dist/
-├── lawallet-lightning-address.zip   # installable ZIP (with updater)
+├── lawallet-lightning-address.zip   # installable ZIP
 └── svn/
     ├── assets/                       # banners + icons (no README.md)
-    ├── trunk/                        # current code (no updater)
+    ├── trunk/                        # current code
     └── tags/<version>/               # snapshot of trunk
 ```
 
 `dist/` is git-ignored and rebuilt from scratch each run.
 
-> Pre-submit checks worth running first: `make php-lint`, and Plugin Check against
-> the no-updater build — see `AGENTS.md`.
+> Pre-submit checks worth running first: `make php-lint`, and Plugin Check — see
+> `AGENTS.md`.
 
 ## Step 3 — Publish the installable ZIP
 
@@ -132,6 +115,6 @@ Notes:
 | Stable tag + changelog | `lawallet-lightning-address/readme.txt` |
 | Directory graphics (source) | `.wordpress-org/` |
 | Build script | `bin/build-release.sh` → `dist/` |
-| ZIP-only builds (full + wporg) | `bin/build-zip.sh` |
+| ZIP-only build | `bin/build-zip.sh` |
 | SVN repo | `https://plugins.svn.wordpress.org/lawallet-lightning-address` |
 | .org contributor | `magollo` |
