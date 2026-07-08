@@ -11,6 +11,8 @@ The WooCommerce gateway creates a Lightning invoice during checkout, stores the 
 
 The discovery option is based on `lawalletio/lawallet-wordpress`: it adds a settings page under `Settings -> LaWallet`, verifies the configured gateway with `/.well-known/nostr.json?name=_`, registers a WordPress rewrite for `/.well-known/*`, and redirects discovery requests with HTTP `307`.
 
+Install or download the plugin from [WordPress.org](https://wordpress.org/plugins/lawallet-lightning-address/).
+
 ## Local Development
 
 Start WordPress, WooCommerce, and the mock Lightning/LaWallet provider:
